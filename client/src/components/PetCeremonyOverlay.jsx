@@ -126,6 +126,18 @@ function FloatingRibbon({ className, delay = 0, duration = 4.2, color = 'rgba(25
   );
 }
 
+function OrbitHalo({ className, delay = 0, duration = 8.8, borderColor = 'rgba(255,255,255,0.28)' }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.82 }}
+      animate={{ opacity: [0.08, 0.32, 0.12], scale: [0.92, 1.04, 0.98], rotate: [0, 180, 360] }}
+      transition={{ delay, duration, repeat: Infinity, ease: 'linear' }}
+      className={`absolute rounded-full border ${className}`.trim()}
+      style={{ borderColor }}
+    />
+  );
+}
+
 function MilestoneCard({ label, value, delta, accent, delay = 0 }) {
   return (
     <motion.div
@@ -155,6 +167,7 @@ function CeremonyStageCard({
   previewVisualState,
   chipClassName,
   chipLabel,
+  accent = '#38bdf8',
   delay = 0
 }) {
   return (
@@ -172,23 +185,77 @@ function CeremonyStageCard({
         <span className={`rounded-full px-3 py-1 text-[11px] font-black ${chipClassName}`}>{chipLabel}</span>
       </div>
 
-      <div className="mt-5">
-        <div className="pet-hero-frame flex h-[204px] items-center justify-center rounded-[30px] bg-white/92">
-          <PetArtwork
-            pet={pet}
-            journey={journey}
-            previewLevel={previewLevel}
-            previewSlotState={previewSlotState}
-            previewVisualState={previewVisualState}
-            className="flex h-[162px] w-[162px] items-center justify-center"
-            imageClassName="h-[142px] w-[142px] object-contain"
-            fallbackClassName="text-6xl"
+      <div className="mt-5 rounded-[30px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(244,248,255,0.92)_100%)] p-4 shadow-inner">
+        <div className="relative overflow-hidden rounded-[28px] border border-white/80 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98)_0%,rgba(245,249,255,0.96)_34%,rgba(228,238,252,0.92)_100%)] px-4 py-5">
+          <div
+            className="pointer-events-none absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-black shadow-sm"
+            style={{ color: accent }}
+            aria-hidden="true"
+          >
+            成长舞台
+          </div>
+          <div
+            className="pointer-events-none absolute inset-x-10 top-4 h-16 rounded-full blur-3xl"
+            style={{ backgroundColor: `${accent}14` }}
+            aria-hidden="true"
+          />
+          <motion.div
+            animate={{ opacity: [0.2, 0.42, 0.24], scale: [0.94, 1.08, 0.98] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', delay }}
+            className="pointer-events-none absolute inset-x-10 bottom-10 h-28 rounded-full blur-3xl"
+            style={{ backgroundColor: `${accent}28` }}
+            aria-hidden="true"
+          />
+          <OrbitHalo
+            className="left-1/2 top-[48%] h-[168px] w-[168px] -translate-x-1/2 -translate-y-1/2"
+            delay={delay}
+            duration={9.4}
+            borderColor={`${accent}52`}
+          />
+          <OrbitHalo
+            className="left-1/2 top-[48%] h-[204px] w-[204px] -translate-x-1/2 -translate-y-1/2"
+            delay={delay + 0.12}
+            duration={11.6}
+            borderColor="rgba(255,255,255,0.48)"
+          />
+          <div
+            className="pointer-events-none absolute left-1/2 top-6 h-20 w-28 -translate-x-1/2 rounded-full bg-white/88 blur-3xl"
+            aria-hidden="true"
+          />
+          <div className="pet-hero-frame relative z-10 mx-auto flex h-[212px] w-full max-w-[228px] items-center justify-center rounded-[30px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] shadow-[0_22px_42px_rgba(148,163,184,0.22)]">
+            <PetArtwork
+              pet={pet}
+              journey={journey}
+              previewLevel={previewLevel}
+              previewSlotState={previewSlotState}
+              previewVisualState={previewVisualState}
+              className="flex h-[170px] w-[170px] items-center justify-center"
+              imageClassName="h-[150px] w-[150px] object-contain drop-shadow-[0_18px_30px_rgba(15,23,42,0.18)]"
+              fallbackClassName="text-6xl"
+            />
+          </div>
+          <div
+            className="relative z-10 mx-auto mt-4 h-4 w-40 rounded-full"
+            style={{ background: `linear-gradient(90deg, ${accent}18 0%, ${accent}72 50%, ${accent}18 100%)` }}
+            aria-hidden="true"
+          />
+          <div
+            className="relative z-10 mx-auto mt-1 h-6 w-28 rounded-full blur-2xl"
+            style={{ backgroundColor: `${accent}24` }}
+            aria-hidden="true"
           />
         </div>
       </div>
 
-      <div className="mt-4 rounded-[24px] bg-slate-900/[0.035] px-4 py-3">
-        <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">成长备注</div>
+      <div className="mt-4 rounded-[24px] border border-white/75 bg-white/88 px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: accent }}
+            aria-hidden="true"
+          />
+          <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">成长备注</div>
+        </div>
         <div className="mt-2 text-sm font-semibold leading-6 text-slate-700">{journey.stage_name || '成长形态'}</div>
       </div>
     </motion.div>
@@ -371,6 +438,25 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
             className="absolute left-1/2 top-1/2 h-[40rem] w-[40rem] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
             style={{ backgroundColor: copy.glow }}
           />
+          <OrbitHalo
+            className="left-1/2 top-1/2 h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2"
+            delay={0.05}
+            duration={12}
+            borderColor="rgba(255,255,255,0.22)"
+          />
+          <OrbitHalo
+            className="left-1/2 top-1/2 h-[31rem] w-[31rem] -translate-x-1/2 -translate-y-1/2"
+            delay={0.16}
+            duration={15}
+            borderColor={`${milestoneAccent}30`}
+          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.12, 0.28, 0.14] }}
+            transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute left-1/2 top-1/2 h-[20rem] w-[42rem] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+            style={{ background: `linear-gradient(90deg, rgba(255,255,255,0) 0%, ${copy.glow} 50%, rgba(255,255,255,0) 100%)` }}
+          />
           <FloatingRibbon className="left-[10%] top-[12%] h-56 w-24" delay={0.15} color="rgba(255,255,255,0.18)" />
           <FloatingRibbon className="right-[10%] top-[16%] h-48 w-20" delay={0.35} color="rgba(255,255,255,0.16)" />
           <FloatingRibbon className="left-[18%] bottom-[8%] h-44 w-20" delay={0.45} color={`${milestoneAccent}20`} />
@@ -449,6 +535,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                 previewVisualState={beforeVisualState}
                 chipClassName="bg-slate-100 text-slate-600"
                 chipLabel={transitionCopy.beforeChipLabel}
+                accent={milestoneAccent}
                 delay={0.08}
               />
 
@@ -481,6 +568,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                 previewVisualState={afterVisualState}
                 chipClassName={ceremony.action === 'claim' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700'}
                 chipLabel={transitionCopy.afterChipLabel}
+                accent={milestoneAccent}
                 delay={0.16}
               />
             </div>

@@ -710,6 +710,12 @@ function StudentPetShelfCard({ slot, busy, onActivate, onPreview }) {
   const powerTone = getPetPowerTone(journey.power_score);
   const accent = journey.accent || slot.pet?.accent || '#38bdf8';
   const theme = journey.theme || slot.pet?.theme || '#FFF7ED';
+  const milestones = buildPetMilestones(slot, journey);
+  const metricCards = [
+    { label: '成长', value: journey.growth_value || 0, className: 'text-amber-600' },
+    { label: '照料', value: journey.care_score || 0, className: 'text-emerald-600' },
+    { label: '等级', value: `Lv.${Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}`, className: 'text-slate-700' }
+  ];
 
   return (
     <div
@@ -729,81 +735,137 @@ function StudentPetShelfCard({ slot, busy, onActivate, onPreview }) {
         style={{ backgroundColor: `${accent}22` }}
         aria-hidden="true"
       />
+      <div
+        className="pointer-events-none absolute -left-8 bottom-4 h-24 w-24 rounded-full blur-3xl"
+        style={{ backgroundColor: `${accent}14` }}
+        aria-hidden="true"
+      />
 
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="pet-hero-frame flex h-16 w-16 items-center justify-center rounded-[22px] bg-white/95">
-            <PetArtwork
-              pet={slot.pet}
-              journey={journey}
-              className="flex h-12 w-12 items-center justify-center"
-              imageClassName="h-10 w-10 object-contain"
-              fallbackClassName="text-2xl"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="truncate text-sm font-black text-slate-800">{journey.name}</div>
-              <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-500 shadow-sm">
-                #{slot.slot_index}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="truncate text-sm font-black text-slate-800">{journey.name}</div>
+            <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+              展台 #{slot.slot_index}
+            </span>
+            {slot.is_active && (
+              <span className="rounded-full bg-cyan-500 px-2 py-1 text-[10px] font-black text-white shadow-sm">
+                当前主宠
               </span>
-            </div>
-            <div className="mt-2 text-xs font-semibold text-slate-500">
-              {journey.stage_name} · {journey.status_label}
-            </div>
+            )}
+          </div>
+          <div className="mt-2 text-xs font-semibold text-slate-500">
+            {journey.stage_name} · {journey.status_label}
           </div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${powerTone.bg} ${powerTone.text}`}>
-          {journey.power_score}
+          培养力 {journey.power_score}
         </span>
       </div>
 
-      <div className="mt-4 h-2 rounded-full bg-white/90">
-        <div
-          className="h-2 rounded-full transition-all"
-          style={{
-            width: `${journey.progress}%`,
-            background: `linear-gradient(90deg, ${accent} 0%, #38bdf8 100%)`
-          }}
-        />
+      <div className="mt-4 rounded-[26px] border border-white/70 bg-[radial-gradient(circle_at_top,#ffffff_0%,rgba(255,255,255,0.95)_34%,rgba(236,248,255,0.92)_100%)] px-4 py-4 shadow-inner">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative mx-auto sm:mx-0">
+            <div
+              className="pointer-events-none absolute inset-3 rounded-full blur-2xl"
+              style={{ backgroundColor: `${accent}22` }}
+              aria-hidden="true"
+            />
+            <div className="pet-hero-frame relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-white/96">
+              <PetArtwork
+                pet={slot.pet}
+                journey={journey}
+                className="flex h-16 w-16 items-center justify-center"
+                imageClassName="h-14 w-14 object-contain"
+                fallbackClassName="text-3xl"
+              />
+            </div>
+            <div
+              className="mx-auto mt-3 h-3 w-20 rounded-full"
+              style={{ background: `linear-gradient(90deg, ${accent}28 0%, ${accent}78 50%, ${accent}22 100%)` }}
+              aria-hidden="true"
+            />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+                {slot.is_active ? '主练位' : '收藏位'}
+              </span>
+              <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+                进度 {journey.progress}%
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {metricCards.map((item) => (
+                <div key={item.label} className="rounded-2xl bg-white/92 px-3 py-2 text-center shadow-sm">
+                  <div className="text-[10px] font-black tracking-[0.14em] text-slate-400">{item.label}</div>
+                  <div className={`mt-1 text-sm font-black ${item.className}`}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm">
-          Lv.{Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}
-        </span>
-        <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm">
-          进度 {journey.progress}%
-        </span>
-        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${slot.is_active ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-600'}`}>
-          {slot.is_active ? '培养中' : '已收藏'}
-        </span>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {milestones.map((milestone) => (
+          <span
+            key={milestone.key}
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black shadow-sm ${
+              milestone.done ? 'bg-white text-slate-700' : 'bg-slate-100 text-slate-400'
+            }`}
+          >
+            <span className={`h-2 w-2 rounded-full ${milestone.done ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+            <span>{milestone.label}</span>
+          </span>
+        ))}
       </div>
 
       <div className="mt-4 rounded-2xl bg-white/85 px-3 py-3 text-[11px] font-bold leading-5 text-slate-500 shadow-sm">
-        {slot.is_active ? '当前培养中的宠物，点击档案查看完整成长记录。' : '已收藏的宠物可以随时切换回来继续培养。'}
+        {slot.is_active ? '当前培养中的宠物会在课堂里持续获得成长与照料反馈。' : '已收藏的宠物会保留成长记录，随时可以切回继续培养。'}
       </div>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 grid gap-2">
         <button
           type="button"
           onClick={() => onPreview(slot)}
           title="查看这只宠物的完整成长档案"
-          className="w-full rounded-2xl bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/92 px-3.5 py-3 text-left text-xs font-black text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
         >
-          查看档案
+          <span>打开展台档案</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+            查看
+          </span>
         </button>
         <button
           type="button"
           onClick={() => onActivate(slot)}
           disabled={slot.is_active || busy}
-          className={`flex-1 rounded-2xl px-3 py-2 text-xs font-black transition ${
+          className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-left text-xs font-black transition ${
             slot.is_active
-              ? 'bg-cyan-500 text-white shadow-sm'
-              : 'bg-slate-900 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400'
+              ? 'text-slate-700 shadow-sm'
+              : 'text-white shadow-lg hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none'
           }`}
+          style={slot.is_active
+            ? {
+                borderColor: withAlpha(accent, '2e'),
+                background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${withAlpha(accent, '18')} 100%)`
+              }
+            : {
+                borderColor: withAlpha(accent, '30'),
+                background: `linear-gradient(135deg, ${accent} 0%, #0f172a 100%)`
+              }}
         >
-          {slot.is_active ? '当前培养中' : busy ? '切换中...' : '切换培养'}
+          <span>{slot.is_active ? '当前培养中' : busy ? '切换中...' : '切换培养'}</span>
+          <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${
+            slot.is_active
+              ? 'bg-white/90 text-slate-500'
+              : 'bg-white/18 text-white'
+          }`}>
+            {slot.is_active ? '主宠' : '启用'}
+          </span>
         </button>
       </div>
     </div>
@@ -1610,7 +1672,7 @@ export default function PetCenter() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                         {Array.from({ length: 3 }, (_, index) => {
                           const slot = selectedCollection[index];
 
@@ -1639,7 +1701,7 @@ export default function PetCenter() {
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <div className="text-sm font-black text-slate-700">宠物位 #{index + 1}</div>
+                                <div className="text-sm font-black text-slate-700">展台 #{index + 1}</div>
                                 <span
                                   className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
                                     unlocked ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-200 text-slate-500'
@@ -1648,14 +1710,17 @@ export default function PetCenter() {
                                   {unlocked ? '待领取' : '未解锁'}
                                 </span>
                               </div>
-                              <div className="mt-4 rounded-[24px] bg-white/85 px-4 py-5 text-center shadow-sm">
-                                <div className="text-4xl">{unlocked ? '🥚' : '🔒'}</div>
+                              <div className="mt-4 rounded-[24px] border border-white/70 bg-[radial-gradient(circle_at_top,#ffffff_0%,rgba(255,255,255,0.94)_34%,rgba(236,248,255,0.9)_100%)] px-4 py-5 text-center shadow-inner">
+                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[26px] bg-white/92 text-4xl shadow-sm">
+                                  {unlocked ? '🥚' : '🔒'}
+                                </div>
+                                <div className="mx-auto mt-3 h-3 w-20 rounded-full bg-gradient-to-r from-cyan-100 via-white to-cyan-100" aria-hidden="true" />
                                 <div className="mt-3 text-sm font-black text-slate-700">
                                   {isNextOpenSlot ? '下一只喜欢的宠物' : unlocked ? '已解锁宠物位' : '进化后解锁'}
                                 </div>
                                 <p className="mt-2 text-xs leading-5 text-slate-500">
                                   {unlocked
-                                    ? '去图鉴区挑选一只新宠物，这个位置会直接加入收藏架。'
+                                    ? '去图鉴区挑选一只新宠物，这个位置会直接变成新的收藏展台。'
                                     : '先把已拥有宠物培养到进化，再打开新的长期培养位。'}
                                 </p>
                               </div>
