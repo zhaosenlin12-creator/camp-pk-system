@@ -445,15 +445,31 @@ function PetActionFeedbackPanel({ feedback, className = '' }) {
   );
 }
 
-function CareMeter({ label, value, color }) {
+function CareMeter({ label, value, color, delta = null, highlight = false }) {
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-[11px] font-bold text-slate-500">
+    <div
+      className={`rounded-[18px] px-3 py-2 transition-all duration-300 ${highlight ? 'bg-white/84 shadow-sm ring-1 ring-white/70' : ''}`}
+      style={highlight ? { boxShadow: `0 12px 28px ${withAlpha(color, '20')}` } : undefined}
+    >
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-bold text-slate-500">
         <span>{label}</span>
-        <span>{value}</span>
+        <div className="flex items-center gap-2">
+          {delta ? (
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-black text-white shadow-sm"
+              style={{ backgroundColor: color }}
+            >
+              {delta > 0 ? `+${delta}` : delta}
+            </span>
+          ) : null}
+          <span>{value}</span>
+        </div>
       </div>
-      <div className="h-2 rounded-full bg-white">
-        <div className="h-2 rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: color }} />
+      <div className={`rounded-full ${highlight ? 'bg-white' : 'bg-white/80'}`} style={{ height: highlight ? 10 : 8 }}>
+        <div
+          className="rounded-full transition-all duration-500"
+          style={{ width: `${value}%`, height: highlight ? 10 : 8, backgroundColor: color }}
+        />
       </div>
     </div>
   );
@@ -1330,6 +1346,10 @@ export default function PetCenter() {
   if (selectedJourney.can_hatch) ritualActionButtons.push('hatch');
   if (selectedJourney.can_evolve) ritualActionButtons.push('evolve');
   const selectedScoreBalance = Number(selectedJourney.score_balance ?? selectedStudent?.score ?? 0);
+  const feedbackMetricMap = new Map((actionFeedback?.metrics || []).map((item) => [item.key, item.delta]));
+  const feedbackStatChips = (actionFeedback?.metrics || [])
+    .filter((item) => !['satiety', 'mood', 'cleanliness'].includes(item.key))
+    .slice(0, 3);
   const handleCeremonyContinue = () => {
     if (ceremony?.profileTarget) {
       setProfileTarget(ceremony.profileTarget);
@@ -1897,10 +1917,39 @@ export default function PetCenter() {
                     </div>
 
                     <div className="mt-4 grid gap-3">
-                      {careItems.map((item) => (
-                        <CareMeter key={item.key} label={item.label} value={item.value} color={item.color} />
-                      ))}
+                      {careItems.map((item) => {
+                        const delta = feedbackMetricMap.get(item.key) ?? null;
+
+                        return (
+                          <CareMeter
+                            key={item.key}
+                            label={item.label}
+                            value={item.value}
+                            color={item.color}
+                            delta={delta}
+                            highlight={typeof delta === 'number'}
+                          />
+                        );
+                      })}
                     </div>
+
+                    {feedbackStatChips.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {feedbackStatChips.map((item) => (
+                          <span
+                            key={item.key}
+                            className="rounded-full bg-white/86 px-3 py-1.5 text-[11px] font-black text-slate-600 shadow-sm"
+                          >
+                            {item.label} {item.delta > 0 ? `+${item.delta}` : item.delta}
+                          </span>
+                        ))}
+                        {actionFeedback?.scoreSpent > 0 && (
+                          <span className="rounded-full bg-slate-900 px-3 py-1.5 text-[11px] font-black text-white shadow-sm">
+                            消耗 {actionFeedback.scoreSpent} 分
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
                       {careActionButtons.map((action) => {

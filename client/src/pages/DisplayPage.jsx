@@ -405,7 +405,7 @@ export default function DisplayPage() {
 
                     <div className="grid gap-4">
                       {sortedStudents.map((student, index) => (
-                        <StudentCard key={student.id} student={student} rank={index + 1} />
+                        <StudentCard key={student.id} student={student} rank={index + 1} compact />
                       ))}
                     </div>
                   </>
@@ -525,9 +525,7 @@ export default function DisplayPage() {
                           <p className="mt-2 text-sm font-bold text-slate-500">
                             {spotlightPet.journey.name} · {spotlightPet.journey.stage_name}
                           </p>
-                          <p className="mt-4 text-sm leading-7 text-slate-600">
-                            当前培养力最高的宠物会在这里被班级看到。成长值、照料稳定度和阶段奖励共同决定它能不能站上聚光灯。
-                          </p>
+                          <p className="mt-4 text-sm leading-7 text-slate-600">当前全班培养力最高，课堂积分、照料稳定度和阶段奖励会一起影响它能否继续站在聚光灯下。</p>
                           <div className="mt-4 flex flex-wrap gap-2">
                             <span className="pet-score-chip bg-amber-100 text-amber-700">
                               培养力 {spotlightPet.journey.power_score}
@@ -539,8 +537,22 @@ export default function DisplayPage() {
                               收藏 {spotlightPet.collection.length}/{spotlightPet.petCapacity}
                             </span>
                           </div>
+                          <div className="mt-4 grid grid-cols-3 gap-2">
+                            <div className="rounded-2xl bg-white/90 px-3 py-3 text-center shadow-sm">
+                              <div className="text-[11px] font-black text-slate-400">成长</div>
+                              <div className="mt-1 text-lg font-black text-amber-600">{spotlightPet.journey.growth_value}</div>
+                            </div>
+                            <div className="rounded-2xl bg-white/90 px-3 py-3 text-center shadow-sm">
+                              <div className="text-[11px] font-black text-slate-400">照料</div>
+                              <div className="mt-1 text-lg font-black text-emerald-600">{spotlightPet.journey.care_score}</div>
+                            </div>
+                            <div className="rounded-2xl bg-white/90 px-3 py-3 text-center shadow-sm">
+                              <div className="text-[11px] font-black text-slate-400">状态</div>
+                              <div className="mt-1 text-sm font-black text-slate-700">{spotlightPet.journey.status_label}</div>
+                            </div>
+                          </div>
                           <div className="mt-4 text-xs font-bold text-slate-500">
-                            点击下方学生卡片，可以查看完整成长档案和等级形态预览。
+                            下方卡片点开后可以看完整成长档案。
                           </div>
                         </div>
 
@@ -560,9 +572,7 @@ export default function DisplayPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <h3 className="text-xl font-black text-slate-800">培养力排行榜</h3>
-                          <p className="mt-2 text-sm leading-6 text-slate-500">
-                            排行榜用于制造期待感，不是固定标签。课堂表现和照料行为会持续影响顺位。
-                          </p>
+                          <p className="mt-2 text-sm leading-6 text-slate-500">顺位会跟着课堂表现和照料状态实时变化。</p>
                         </div>
                         <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-600 shadow-sm">
                           TOP {petLeaderboard.length}
@@ -612,7 +622,7 @@ export default function DisplayPage() {
 
                 <div className="grid gap-4">
                   {sortedStudents.map((student, index) => (
-                    <StudentCard key={student.id} student={student} rank={index + 1} />
+                    <StudentCard key={student.id} student={student} rank={index + 1} compact />
                   ))}
                 </div>
               </motion.div>
