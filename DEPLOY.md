@@ -25,8 +25,7 @@ scp -r camp-pk-system user@your-server:/var/www/
 ### 2. 安装依赖
 
 ```bash
-export PATH=/www/server/nodejs/v20.19.6/bin:$PATH
-cd /www/wwwroot/camp-pk-system
+cd /var/www/camp-pk-system
 npm install --production
 ```
 
@@ -83,7 +82,7 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
 
     location / {
-        proxy_pass http://127.0.0.1:3004;
+        proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -96,7 +95,7 @@ server {
 
     # 视频文件缓存
     location /videos/ {
-        proxy_pass http://127.0.0.1:3004/videos/;
+        proxy_pass http://127.0.0.1:3001/videos/;
         proxy_cache_valid 200 7d;
         add_header Cache-Control "public, max-age=604800";
     }
@@ -137,57 +136,17 @@ certbot renew --dry-run
 |--------|------|--------|
 | PORT | 服务端口 | 3001 |
 | NODE_ENV | 环境模式 | development |
-| DEEPSEEK_API_KEY | DeepSeek API密钥 | 加密存储 |
-| ALLOWED_ORIGINS | 允许的跨域来源（逗号分隔） | * |
+| ADMIN_PIN | 管理员密码 | 980116 |
+| ALLOWED_ORIGIN | 允许的跨域来源 | * |
 
 示例：
 ```bash
-PORT=3001 pm2 start ecosystem.config.js --env production
+ADMIN_PIN=your_secure_password PORT=3001 pm2 start ecosystem.config.js --env production
 ```
 
 ---
 
-## 五、🔐 安全配置说明
-
-### 敏感信息保护
-
-系统采用企业级安全方案保护敏感信息：
-
-1. **加密存储**：API密钥和密码使用 AES-256-GCM 加密存储在 `.secrets.enc` 文件中
-2. **机器绑定**：加密密钥基于机器指纹生成，配置文件无法在其他机器上解密
-3. **密码哈希**：管理员密码使用 scrypt 算法哈希存储（N=16384），防止彩虹表攻击
-4. **时序攻击防护**：密码验证使用恒定时间比较 + 随机延迟
-
-### 首次启动
-
-首次启动时，系统会自动：
-1. 生成加密配置文件 `.secrets.enc`
-2. 将明文密码升级为哈希存储
-3. 显示安全模块加载状态
-
-### 修改管理员密码
-
-方法1：通过API修改（推荐）
-```bash
-curl -X POST http://localhost:3001/api/admin/change-password \
-  -H "Content-Type: application/json" \
-  -d '{"currentPin":"980116","newPin":"新密码"}'
-```
-
-方法2：删除 `.secrets.enc` 文件后重启服务，将使用默认密码重新初始化
-
-### 安全文件说明
-
-| 文件 | 说明 | 是否可删除 |
-|------|------|-----------|
-| `.secrets.enc` | 加密的敏感配置 | 删除后重新初始化 |
-| `database/data.json` | 业务数据 | 删除后数据丢失 |
-
-⚠️ **重要**：`.secrets.enc` 文件绑定到当前机器，迁移服务器时需要重新配置密码和API密钥。
-
----
-
-## 六、数据备份
+## 五、数据备份
 
 数据存储在 `database/data.json`，建议定期备份：
 
@@ -203,7 +162,7 @@ cp /var/www/camp-pk-system/database/data.json /var/backups/camp-pk/data_$DATE.js
 
 ---
 
-## 七、访问地址
+## 六、访问地址
 
 部署完成后：
 
@@ -212,7 +171,7 @@ cp /var/www/camp-pk-system/database/data.json /var/backups/camp-pk/data_$DATE.js
 
 ---
 
-## 八、在教学系统中添加入口
+## 七、在教学系统中添加入口
 
 在你的教学系统中添加跳转链接：
 
@@ -236,7 +195,7 @@ cp /var/www/camp-pk-system/database/data.json /var/backups/camp-pk/data_$DATE.js
 
 ---
 
-## 九、常见问题
+## 八、常见问题
 
 ### Q: 视频无法播放？
 A: 检查 `public/videos/` 目录下的视频文件是否存在，格式是否为 MP4。
@@ -249,19 +208,13 @@ A: 从备份恢复 `database/data.json` 文件。
 
 ---
 
-## 十、安全检查清单
+## 九、安全检查清单
 
-- [x] 敏感配置加密存储（AES-256-GCM）
-- [x] 密码哈希存储（scrypt）
-- [x] 机器指纹绑定（防配置文件盗用）
-- [x] 时序攻击防护（恒定时间比较）
-- [x] 输入验证和XSS过滤
-- [x] API 请求频率限制（60次/分钟）
-- [x] AI API 频率限制（10次/分钟）
-- [x] 管理员登录防暴力破解（5次/30分钟）
-- [x] 安全响应头 (Helmet + CSP)
-- [x] 请求体大小限制（1MB）
-- [x] CORS 安全配置
+- [x] 输入验证和过滤
+- [x] API 请求频率限制
+- [x] 管理员登录防暴力破解
+- [x] 安全响应头 (Helmet)
+- [x] 请求体大小限制
 - [ ] HTTPS（部署时配置）
 - [ ] 定期数据备份（部署时配置）
 

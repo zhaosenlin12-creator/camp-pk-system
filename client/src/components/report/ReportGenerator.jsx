@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas';
 import { useStore } from '../../store/useStore';
 import { getRank } from '../../utils/ranks';
-import { STUDENT_TRAITS, ORG_INFO, REPORT_EXPIRE_DAYS } from '../../utils/certificates';
+import { STUDENT_TRAITS } from '../../utils/certificates';
+import { formatScore } from '../../utils/score';
 import StudentReport from './StudentReport';
 
 export default function ReportGenerator() {
@@ -246,15 +247,13 @@ export default function ReportGenerator() {
     
     setIsExporting(true);
     try {
-      // 使用较低的pixelRatio提高性能
-      const dataUrl = await toPng(reportRef.current, {
-        quality: 0.92,
-        pixelRatio: 1.5, // 降低以提高速度
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
         backgroundColor: '#ffffff',
-        cacheBust: true,
-        skipFonts: true, // 跳过字体处理提高速度
       });
-      
+      const dataUrl = canvas.toDataURL('image/png');
+
       const link = document.createElement('a');
       link.download = `结营报告_${selectedStudent?.name}_${currentClass?.name}.png`;
       link.href = dataUrl;
@@ -310,7 +309,7 @@ export default function ReportGenerator() {
             <option value="">-- 请选择学员 --</option>
             {students.map(student => (
               <option key={student.id} value={student.id}>
-                {student.avatar} {student.name} ({student.score}分)
+                {student.avatar} {student.name} ({formatScore(student.score)}分)
                 {student.team_name && ` - ${student.team_name}`}
               </option>
             ))}
@@ -327,7 +326,7 @@ export default function ReportGenerator() {
                   {selectedStudent.team_name && `${selectedStudent.team_name} · `}
                   {getRank(selectedStudent.score).icon} {getRank(selectedStudent.score).name}
                 </div>
-                <div className="text-orange-600 font-bold">总积分：{selectedStudent.score}</div>
+                <div className="text-orange-600 font-bold">总积分：{formatScore(selectedStudent.score)}</div>
               </div>
             </div>
           </div>

@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import { soundManager } from '../utils/sounds';
 import { AVATARS, getRank } from '../utils/ranks';
+import { formatScore } from '../utils/score';
 import ScoreModifier from './ScoreModifier';
+import PetArtwork from './PetArtwork';
+import { getStudentPetJourney } from '../utils/petJourney';
 
 export default function StudentManager() {
   const { currentClass, students, teams, createStudent, deleteStudent, updateStudent } = useStore();
@@ -249,6 +252,7 @@ export default function StudentManager() {
 
 function StudentItem({ student, onEdit, onDelete, onModifyScore }) {
   const rank = getRank(student.score);
+  const petJourney = getStudentPetJourney(student);
 
   return (
     <motion.div
@@ -262,9 +266,25 @@ function StudentItem({ student, onEdit, onDelete, onModifyScore }) {
           <span>{rank.icon}</span>
           <span style={{ color: rank.color }}>{rank.name}</span>
         </div>
+        <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+          <PetArtwork
+            pet={student.pet}
+            journey={petJourney}
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-50"
+            imageClassName="h-4 w-4 object-contain"
+            fallbackClassName="text-xs"
+          />
+          <span className="truncate">{petJourney.name}</span>
+          <span
+            className="rounded-full px-2 py-0.5 font-bold"
+            style={{ backgroundColor: `${petJourney.accent}18`, color: petJourney.accent }}
+          >
+            {petJourney.stage_name}
+          </span>
+        </div>
       </div>
       <div className="text-xl font-bold" style={{ color: rank.color }}>
-        {student.score}
+        {formatScore(student.score)}
       </div>
       <div className="flex gap-1">
         <button

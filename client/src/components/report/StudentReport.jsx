@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { getRank } from '../../utils/ranks';
 import { ORG_INFO } from '../../utils/certificates';
+import { formatScore } from '../../utils/score';
 
 // 学员结营报告模板
 const StudentReport = forwardRef(({ 
@@ -62,15 +63,15 @@ const StudentReport = forwardRef(({
         {/* 积分统计 */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl p-3 text-center border border-orange-200">
-            <div className="text-2xl font-black text-orange-600">{student.score}</div>
+            <div className="text-2xl font-black text-orange-600">{formatScore(student.score)}</div>
             <div className="text-xs text-orange-500">总积分</div>
           </div>
           <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl p-3 text-center border border-green-200">
-            <div className="text-2xl font-black text-green-600">+{totalRewardPoints}</div>
+            <div className="text-2xl font-black text-green-600">+{formatScore(totalRewardPoints)}</div>
             <div className="text-xs text-green-500">获得积分</div>
           </div>
           <div className="bg-gradient-to-br from-red-100 to-red-50 rounded-xl p-3 text-center border border-red-200">
-            <div className="text-2xl font-black text-red-600">-{totalPenaltyPoints}</div>
+            <div className="text-2xl font-black text-red-600">-{formatScore(totalPenaltyPoints)}</div>
             <div className="text-xs text-red-500">扣除积分</div>
           </div>
         </div>
@@ -96,7 +97,7 @@ const StudentReport = forwardRef(({
                     <span className="text-gray-700">{log.reason || '积分变动'}</span>
                   </div>
                   <span className={`font-bold ${log.delta > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {log.delta > 0 ? '+' : ''}{log.delta}
+                    {log.delta > 0 ? '+' : ''}{formatScore(log.delta)}
                   </span>
                 </div>
               ))}

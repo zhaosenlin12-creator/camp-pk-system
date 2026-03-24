@@ -9,10 +9,14 @@ const { v4: uuidv4 } = require('uuid');
 
 // 导入安全模块
 const security = require('./security');
+const CLASS_PET_CATALOG = require('./classPetCatalogPremium');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
+
+// 信任一层反向代理（nginx），避免 trust proxy=true 过于宽松导致限流告警
+app.set('trust proxy', 1);
 
 // ============ 安全配置加载 ============
 // 从加密文件加载敏感配置（绑定机器指纹，防止配置文件被盗用）
@@ -78,7 +82,9 @@ let db = {
   reports: [],
   photos: [],
   certificates: [],
-  nextId: { classes: 1, teams: 1, students: 1, scoreLogs: 1, lotteryLogs: 1, reports: 1, photos: 1, certificates: 1 }
+  ratingSessions: [],
+  ratingVotes: [],
+  nextId: { classes: 1, teams: 1, students: 1, scoreLogs: 1, lotteryLogs: 1, reports: 1, photos: 1, certificates: 1, ratingSessions: 1, ratingVotes: 1 }
 };
 
 // 加载数据
@@ -95,13 +101,17 @@ function loadDb() {
         reports: loaded.reports || [],
         photos: loaded.photos || [],
         certificates: loaded.certificates || [],
+        ratingSessions: loaded.ratingSessions || [],
+        ratingVotes: loaded.ratingVotes || [],
         nextId: {
           ...db.nextId,
           ...loaded.nextId,
           lotteryLogs: loaded.nextId?.lotteryLogs || 1,
           reports: loaded.nextId?.reports || 1,
           photos: loaded.nextId?.photos || 1,
-          certificates: loaded.nextId?.certificates || 1
+          certificates: loaded.nextId?.certificates || 1,
+          ratingSessions: loaded.nextId?.ratingSessions || 1,
+          ratingVotes: loaded.nextId?.ratingVotes || 1
         }
       };
     } else {
@@ -115,29 +125,36 @@ function loadDb() {
   }
 }
 
-// 保存数据（带防抖，避免高并发写入冲突）
+// 保存数据（带防抖和队列，避免高并发写入冲突）
 let saveTimeout = null;
 let pendingSave = false;
+let isSaving = false;
 
 function saveDb() {
   pendingSave = true;
   
-  // 防抖：100ms内的多次保存合并为一次
+  // 防抖：300ms内的多次保存合并为一次（增加防抖时间）
   if (saveTimeout) {
     return;
   }
   
-  saveTimeout = setTimeout(() => {
-    if (pendingSave) {
+  saveTimeout = setTimeout(async () => {
+    if (pendingSave && !isSaving) {
+      isSaving = true;
       try {
-        fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf-8');
+        // 先写入临时文件，再重命名（原子操作，防止写入中断导致数据损坏）
+        const tempPath = dbPath + '.tmp';
+        fs.writeFileSync(tempPath, JSON.stringify(db, null, 2), 'utf-8');
+        fs.renameSync(tempPath, dbPath);
       } catch (err) {
         console.error('保存数据失败:', err);
+      } finally {
+        isSaving = false;
+        pendingSave = false;
       }
-      pendingSave = false;
     }
     saveTimeout = null;
-  }, 100);
+  }, 300);
 }
 
 // 立即保存（用于关闭时）
@@ -185,12 +202,14 @@ function initDefaultData() {
     { id: 8, name: '真心话-梦想', description: '说出你长大后想做什么', type: 'truth', icon: '🌈', is_active: true },
     { id: 9, name: '真心话-夸夸', description: '真诚地夸一夸旁边的同学', type: 'truth', icon: '💖', is_active: true },
     { id: 10, name: '真心话-老师', description: '说出你觉得老师最有趣的一点', type: 'truth', icon: '👨‍🏫', is_active: true },
+    { id: 23, name: '真心话-吐槽', description: '攻击老师最薄弱的地方（友善吐槽）', type: 'truth', icon: '🎯', is_active: true },
     { id: 11, name: '大冒险-表情包', description: '模仿3个不同的表情包', type: 'dare', icon: '🤪', is_active: true },
     { id: 12, name: '大冒险-动物叫', description: '模仿3种动物的叫声', type: 'dare', icon: '🐱', is_active: true },
     { id: 13, name: '大冒险-绕口令', description: '快速说一段绕口令', type: 'dare', icon: '👅', is_active: true },
     { id: 14, name: '大冒险-才艺', description: '表演一个你的小才艺', type: 'dare', icon: '🎭', is_active: true },
     { id: 15, name: '大冒险-广告', description: '用夸张的方式推销你的铅笔', type: 'dare', icon: '📢', is_active: true },
     { id: 16, name: '大冒险-配音', description: '给老师指定的画面配音', type: 'dare', icon: '🎬', is_active: true },
+    { id: 24, name: '大冒险-表白', description: '给父母打电话说"我爱你"', type: 'dare', icon: '📞', is_active: true },
     { id: 17, name: '定格挑战', description: '保持一个搞笑姿势10秒不动', type: 'challenge', icon: '🗿', is_active: true },
     { id: 18, name: '憋笑挑战', description: '全班逗你笑，坚持15秒', type: 'challenge', icon: '😐', is_active: true },
     { id: 19, name: '反应挑战', description: '老师说相反的动作你要做对', type: 'challenge', icon: '🔄', is_active: true },
@@ -215,19 +234,17 @@ if (isProduction) {
   }));
 }
 
-// API 请求频率限制（更严格的配置）
+// API 请求频率限制（针对多老师并发使用场景优化）
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1分钟
-  max: isProduction ? 60 : 100, // 生产环境更严格
+  max: isProduction ? 1200 : 300, // 生产环境提高上限，避免课堂多端轮询触发误限流
   message: { error: '请求过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
-  // 跳过静态资源
-  skip: (req) => req.path.startsWith('/assets') || req.path.startsWith('/videos'),
-  // 使用IP + User-Agent作为标识（更准确）
-  keyGenerator: (req) => {
-    return req.ip + ':' + (req.headers['user-agent'] || 'unknown').slice(0, 50);
-  }
+  // 跳过静态资源和视频
+  skip: (req) => req.path.startsWith('/assets') || req.path.startsWith('/videos') || req.path.startsWith('/uploads'),
+  // 使用IP作为标识（同一教室可能多设备）
+  keyGenerator: (req) => req.ip
 });
 
 // 管理员验证频率限制（防暴力破解 - 更严格）
@@ -273,7 +290,871 @@ const validateId = (id) => {
   return !isNaN(parsed) && parsed > 0 ? parsed : null;
 };
 
+// 统一分数精度，避免浮点数累计后出现长小数
+const normalizeScore = (score) => {
+  const n = Number(score);
+  if (Number.isNaN(n)) return 0;
+  return Math.round(n * 10) / 10;
+};
+
+const PET_CATALOG = [
+  { id: 1, name: '东北虎', species: 'Cloud Pet', emoji: '🐯', rarity: 'epic', theme: '#FFF2D6', accent: '#F59E0B', quote: '勇气值拉满的小队长。' },
+  { id: 2, name: '垂耳兔', species: 'Cloud Pet', emoji: '🐰', rarity: 'common', theme: '#FDF2F8', accent: '#EC4899', quote: '最喜欢安静陪你完成任务。' },
+  { id: 3, name: '泰迪', species: 'Cloud Pet', emoji: '🐶', rarity: 'common', theme: '#FFF4E6', accent: '#F97316', quote: '一夸就摇尾巴的快乐制造机。' },
+  { id: 4, name: '迷你刺猬', species: 'Cloud Pet', emoji: '🦔', rarity: 'rare', theme: '#FEF3C7', accent: '#D97706', quote: '外表扎扎的，内心超柔软。' },
+  { id: 5, name: '红腹松鼠', species: 'Cloud Pet', emoji: '🐿️', rarity: 'rare', theme: '#FFF7ED', accent: '#EA580C', quote: '囤积分的速度和它囤松果一样快。' },
+  { id: 6, name: '仓鼠团子', species: 'Cloud Pet', emoji: '🐹', rarity: 'common', theme: '#FEF3C7', accent: '#F59E0B', quote: '小小一只，治愈值很高。' },
+  { id: 7, name: '柯基', species: 'Cloud Pet', emoji: '🐕', rarity: 'common', theme: '#FFF7ED', accent: '#FB923C', quote: '短腿冲刺王，课堂能量担当。' },
+  { id: 8, name: '三花猫', species: 'Cloud Pet', emoji: '🐱', rarity: 'rare', theme: '#FCE7F3', accent: '#F472B6', quote: '灵感来的时候像猫一样敏捷。' },
+  { id: 9, name: '银狐', species: 'Cloud Pet', emoji: '🦊', rarity: 'epic', theme: '#EEF2FF', accent: '#6366F1', quote: '机灵又优雅，超适合高分学员。' },
+  { id: 10, name: '羊驼', species: 'Cloud Pet', emoji: '🦙', rarity: 'rare', theme: '#FAF5FF', accent: '#A855F7', quote: '情绪稳定，是队伍里的气氛组。' },
+  { id: 11, name: '水豚君', species: 'Cloud Pet', emoji: '🦫', rarity: 'rare', theme: '#F8FAFC', accent: '#64748B', quote: '再忙也要保持慢慢变强。' },
+  { id: 12, name: '熊猫团子', species: 'Cloud Pet', emoji: '🐼', rarity: 'epic', theme: '#F8FAFC', accent: '#0F172A', quote: '看起来软乎乎，实力却很稳。' },
+  { id: 13, name: '小鹿', species: 'Cloud Pet', emoji: '🦌', rarity: 'rare', theme: '#FFFBEB', accent: '#CA8A04', quote: '安静成长，关键时刻很可靠。' },
+  { id: 14, name: '猫头鹰', species: 'Cloud Pet', emoji: '🦉', rarity: 'epic', theme: '#EFF6FF', accent: '#2563EB', quote: '擅长观察，总能发现细节分。' },
+  { id: 15, name: '小企鹅', species: 'Cloud Pet', emoji: '🐧', rarity: 'common', theme: '#ECFEFF', accent: '#0891B2', quote: '每一步都认真，笨拙但努力。' },
+  { id: 16, name: '小鸭子', species: 'Cloud Pet', emoji: '🦆', rarity: 'common', theme: '#FEFCE8', accent: '#EAB308', quote: '最会跟着节奏一起向前冲。' },
+  { id: 17, name: '白团子', species: 'Cloud Pet', emoji: '🐻‍❄️', rarity: 'epic', theme: '#F8FAFC', accent: '#38BDF8', quote: '像雪一样干净，像风一样轻。' },
+  { id: 18, name: '考拉', species: 'Cloud Pet', emoji: '🐨', rarity: 'rare', theme: '#F8FAFC', accent: '#94A3B8', quote: '抱着知识树，慢慢变厉害。' },
+  { id: 19, name: '小青蛙', species: 'Cloud Pet', emoji: '🐸', rarity: 'common', theme: '#F0FDF4', accent: '#22C55E', quote: '最擅长把课堂变成冒险。' },
+  { id: 20, name: '蜜蜂球', species: 'Cloud Pet', emoji: '🐝', rarity: 'rare', theme: '#FFFBEB', accent: '#EAB308', quote: '忙忙碌碌，但每一次都很有效。' },
+  { id: 21, name: '独角兽', species: 'Cloud Pet', emoji: '🦄', rarity: 'legendary', theme: '#F5F3FF', accent: '#8B5CF6', quote: '只有持续闪光的小朋友才能拥有。' },
+  { id: 22, name: '小狮子', species: 'Cloud Pet', emoji: '🦁', rarity: 'epic', theme: '#FFF7ED', accent: '#F97316', quote: '敢表现、敢担当，天生主角。' },
+  { id: 23, name: '鲸宝', species: 'Cloud Pet', emoji: '🐳', rarity: 'legendary', theme: '#ECFEFF', accent: '#06B6D4', quote: '超稀有宠物，像海一样有能量。' },
+  { id: 24, name: '火箭喵', species: 'Cloud Pet', emoji: '🚀', rarity: 'legendary', theme: '#FFF1F2', accent: '#F43F5E', quote: '升分速度像点火发射。' }
+];
+
+const PET_STAGE_RULES = [
+  { minScore: 0, maxScore: 80, level: 1, name: '幼崽期', description: '刚认识班级，最爱收集夸夸。', color: '#F59E0B' },
+  { minScore: 80, maxScore: 200, level: 2, name: '活力期', description: '开始主动营业，想要更多任务。', color: '#10B981' },
+  { minScore: 200, maxScore: 400, level: 3, name: '进化期', description: '外形和气场都在飞快成长。', color: '#3B82F6' },
+  { minScore: 400, maxScore: 700, level: 4, name: '守护期', description: '会陪着学生一起闯关拿分。', color: '#8B5CF6' },
+  { minScore: 700, maxScore: Infinity, level: 5, name: '闪耀期', description: '已经是班级里最亮眼的存在。', color: '#EC4899' }
+];
+
+const getPetById = (petId) => {
+  const id = validateId(petId);
+  if (!id) return null;
+  return PET_CATALOG.find((pet) => pet.id === id) || null;
+};
+
+const getPetStage = (score) => {
+  const normalized = normalizeScore(score);
+  return PET_STAGE_RULES.find(
+    (stage) => normalized >= stage.minScore && normalized < stage.maxScore
+  ) || PET_STAGE_RULES[PET_STAGE_RULES.length - 1];
+};
+
+const getPetStageProgress = (score) => {
+  const stage = getPetStage(score);
+  if (!stage || stage.maxScore === Infinity) {
+    return 100;
+  }
+
+  const span = stage.maxScore - stage.minScore;
+  if (!span) return 100;
+
+  return Math.min(
+    100,
+    Math.max(0, ((normalizeScore(score) - stage.minScore) / span) * 100)
+  );
+};
+
+const decorateStudent = (student) => {
+  const team = db.teams.find((item) => item.id === student.team_id);
+  const pet = getPetById(student.pet_id);
+  const stage = pet ? getPetStage(student.score) : null;
+
+  return {
+    ...student,
+    score: normalizeScore(student.score),
+    team_name: team?.name || null,
+    team_color: team?.color || null,
+    pet_id: student.pet_id || null,
+    pet_claimed_at: student.pet_claimed_at || null,
+    pet: pet
+      ? {
+          ...pet,
+          stage_name: stage.name,
+          stage_description: stage.description,
+          stage_level: stage.level,
+          stage_color: stage.color,
+          progress: getPetStageProgress(student.score)
+        }
+      : null
+  };
+};
+
 // ============ 班级管理 API ============
+
+const LEGACY_CLASS_PET_CATALOG = [
+  { id: 1, name: '长颈观察员', species: '长颈鹿', artwork_key: 'giraffe', emoji: '🦒', rarity: 'rare', theme: '#FFF7D6', accent: '#F59E0B', quote: '擅长把课堂里的细节都看在眼里。' },
+  { id: 2, name: '乐跑小猎犬', species: '猎犬', artwork_key: 'beagle', emoji: '🐶', rarity: 'common', theme: '#FFF7ED', accent: '#F97316', quote: '最会陪着新同学快速进入编程状态。' },
+  { id: 3, name: '破冰小企鹅', species: '企鹅', artwork_key: 'penguin-buddy', emoji: '🐧', rarity: 'common', theme: '#ECFEFF', accent: '#06B6D4', quote: '擅长把课堂气氛带热，让表达更勇敢。' },
+  { id: 4, name: '代码熊猫', species: '熊猫', artwork_key: 'panda-guardian', emoji: '🐼', rarity: 'legendary', theme: '#F8FAFC', accent: '#111827', quote: '稳定、耐心、会把每一个代码细节照顾到位。' },
+  { id: 5, name: '狮王队长', species: '狮子', artwork_key: 'lion', emoji: '🦁', rarity: 'epic', theme: '#FFF7ED', accent: '#D97706', quote: '最适合带领小组冲榜，是天然的舞台中心。' },
+  { id: 6, name: '冲刺短腿犬', species: '腊肠犬', artwork_key: 'dachshund', emoji: '🐕', rarity: 'common', theme: '#FEF3C7', accent: '#92400E', quote: '步子不大但很稳，特别适合长期进步。' },
+  { id: 7, name: '云团白猫', species: '白猫', artwork_key: 'white-cat', emoji: '🐈', rarity: 'rare', theme: '#F8FAFC', accent: '#64748B', quote: '很会安静专注，适合沉浸式完成项目。' },
+  { id: 8, name: '灰塔猫', species: '灰猫', artwork_key: 'gray-cat', emoji: '🐱', rarity: 'common', theme: '#EEF2FF', accent: '#6366F1', quote: '好奇心强，常常是最先发现新玩法的那只。' },
+  { id: 9, name: '算法金鱼', species: '金鱼', artwork_key: 'goldfish', emoji: '🐠', rarity: 'rare', theme: '#EFF6FF', accent: '#2563EB', quote: '别看它小，转念头的速度特别快。' },
+  { id: 10, name: '冲榜虎崽', species: '虎崽', artwork_key: 'tiger-cub', emoji: '🐯', rarity: 'epic', theme: '#FFF7ED', accent: '#EA580C', quote: '适合竞赛冲刺阶段，越挑战越来劲。' },
+  { id: 11, name: '彩虹锦鲤', species: '锦鲤', artwork_key: 'koi', emoji: '🎏', rarity: 'rare', theme: '#ECFEFF', accent: '#F97316', quote: '课堂表现一亮眼，整只宠物都会跟着发光。' },
+  { id: 12, name: '北极企鹅王', species: '企鹅王', artwork_key: 'penguin-royal', emoji: '🐧', rarity: 'legendary', theme: '#E0F2FE', accent: '#0284C7', quote: '节奏稳定、存在感强，适合做班级明星宠物。' },
+  { id: 13, name: '团子小熊猫', species: '熊猫幼崽', artwork_key: 'panda-baby', emoji: '🐼', rarity: 'common', theme: '#F8FAFC', accent: '#6B7280', quote: '软萌又耐心，最适合陪伴低龄学员成长。' },
+  { id: 14, name: '荣耀猛虎', species: '守护猛虎', artwork_key: 'tiger-guardian', emoji: '🐅', rarity: 'legendary', theme: '#FFF1F2', accent: '#DC2626', quote: '成长拉满后，它会变成班级最有气场的守护者。' }
+];
+
+const CLASS_PET_GROWTH_STAGES = [
+  { minGrowth: 0, maxGrowth: 120, level: 1, name: '幼崽期', description: '刚刚适应课堂节奏，最需要鼓励和照料。', color: '#F59E0B' },
+  { minGrowth: 120, maxGrowth: 260, level: 2, name: '训练期', description: '已经能稳定成长，开始主动响应课堂挑战。', color: '#10B981' },
+  { minGrowth: 260, maxGrowth: 420, level: 3, name: '进阶期', description: '体型和状态都越来越成熟，成为班级里的亮点。', color: '#3B82F6' },
+  { minGrowth: 420, maxGrowth: 620, level: 4, name: '守护期', description: '能够陪着学生一起冲榜，是很有存在感的伙伴。', color: '#8B5CF6' },
+  { minGrowth: 620, maxGrowth: Infinity, level: 5, name: '闪耀期', description: '已经是班级宠物里的明星选手，随时准备进化。', color: '#EC4899' }
+];
+
+const CLASS_PET_DEFAULTS = {
+  pet_status: 'unclaimed',
+  pet_satiety: 82,
+  pet_mood: 80,
+  pet_cleanliness: 85,
+  pet_feed_count: 0,
+  pet_play_count: 0,
+  pet_clean_count: 0,
+  pet_last_care_at: null,
+  pet_hatched_at: null,
+  pet_evolved_at: null
+};
+
+const CLASS_PET_CARE_ACTIONS = {
+  feed: { label: '喂养', metricKey: 'pet_satiety', amount: 18, sideMetricKey: 'pet_mood', sideAmount: 4, countKey: 'pet_feed_count' },
+  play: { label: '互动', metricKey: 'pet_mood', amount: 18, sideMetricKey: 'pet_cleanliness', sideAmount: -4, countKey: 'pet_play_count' },
+  clean: { label: '清洁', metricKey: 'pet_cleanliness', amount: 18, sideMetricKey: 'pet_mood', sideAmount: 3, countKey: 'pet_clean_count' }
+};
+
+const readPetNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const clampPetMetric = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getClassPetById = (petId, options = {}) => {
+  const id = validateId(petId);
+  if (!id) return null;
+  const directPet = CLASS_PET_CATALOG.find((pet) => pet.id === id);
+  if (directPet) return directPet;
+  if (!options.allowLegacyAlias) return null;
+
+  const normalizedId = ((id - 1) % CLASS_PET_CATALOG.length) + 1;
+  return CLASS_PET_CATALOG.find((pet) => pet.id === normalizedId) || null;
+};
+
+const getClassPetStateSnapshot = (student) => {
+  const inferredStatus = student.pet_status || (
+    student.pet_id
+      ? (student.pet_evolved_at ? 'evolved' : (student.pet_hatched_at ? 'hatched' : 'egg'))
+      : 'unclaimed'
+  );
+
+  return {
+    status: inferredStatus,
+    satiety: clampPetMetric(readPetNumber(student.pet_satiety, CLASS_PET_DEFAULTS.pet_satiety), 0, 100),
+    mood: clampPetMetric(readPetNumber(student.pet_mood, CLASS_PET_DEFAULTS.pet_mood), 0, 100),
+    cleanliness: clampPetMetric(readPetNumber(student.pet_cleanliness, CLASS_PET_DEFAULTS.pet_cleanliness), 0, 100),
+    feedCount: Math.max(0, Math.floor(readPetNumber(student.pet_feed_count, CLASS_PET_DEFAULTS.pet_feed_count))),
+    playCount: Math.max(0, Math.floor(readPetNumber(student.pet_play_count, CLASS_PET_DEFAULTS.pet_play_count))),
+    cleanCount: Math.max(0, Math.floor(readPetNumber(student.pet_clean_count, CLASS_PET_DEFAULTS.pet_clean_count))),
+    lastCareAt: student.pet_last_care_at || null,
+    hatchedAt: student.pet_hatched_at || null,
+    evolvedAt: student.pet_evolved_at || null
+  };
+};
+
+const ensureClassPetState = (student) => {
+  const snapshot = getClassPetStateSnapshot(student);
+  student.pet_status = snapshot.status;
+  student.pet_satiety = snapshot.satiety;
+  student.pet_mood = snapshot.mood;
+  student.pet_cleanliness = snapshot.cleanliness;
+  student.pet_feed_count = snapshot.feedCount;
+  student.pet_play_count = snapshot.playCount;
+  student.pet_clean_count = snapshot.cleanCount;
+  student.pet_last_care_at = snapshot.lastCareAt;
+  student.pet_hatched_at = snapshot.hatchedAt;
+  student.pet_evolved_at = snapshot.evolvedAt;
+  return snapshot;
+};
+
+const getClassPetMetricsWithDecay = (student, now = new Date()) => {
+  const snapshot = getClassPetStateSnapshot(student);
+  const referenceTime = snapshot.lastCareAt || student.pet_claimed_at || student.created_at;
+  const referenceDate = referenceTime ? new Date(referenceTime) : now;
+  const hoursElapsed = Math.max(0, (now.getTime() - referenceDate.getTime()) / (1000 * 60 * 60));
+
+  return {
+    satiety: clampPetMetric(Math.round(snapshot.satiety - hoursElapsed * 1.6), 0, 100),
+    mood: clampPetMetric(Math.round(snapshot.mood - hoursElapsed * 1.1), 0, 100),
+    cleanliness: clampPetMetric(Math.round(snapshot.cleanliness - hoursElapsed * 1.4), 0, 100)
+  };
+};
+
+const syncClassPetMetrics = (student, now = new Date()) => {
+  const metrics = getClassPetMetricsWithDecay(student, now);
+  student.pet_satiety = metrics.satiety;
+  student.pet_mood = metrics.mood;
+  student.pet_cleanliness = metrics.cleanliness;
+  return metrics;
+};
+
+const getClassPetGrowthStage = (growthValue) => {
+  return CLASS_PET_GROWTH_STAGES.find(
+    (stage) => growthValue >= stage.minGrowth && growthValue < stage.maxGrowth
+  ) || CLASS_PET_GROWTH_STAGES[CLASS_PET_GROWTH_STAGES.length - 1];
+};
+
+const getClassPetGrowthProgress = (growthValue, stage) => {
+  if (!stage || stage.maxGrowth === Infinity) {
+    return 100;
+  }
+
+  const span = stage.maxGrowth - stage.minGrowth;
+  if (!span) return 100;
+
+  return clampPetMetric(Math.round(((growthValue - stage.minGrowth) / span) * 100), 0, 100);
+};
+
+const getClassPetCareSummary = (metrics) => {
+  const careScore = Math.round((metrics.satiety + metrics.mood + metrics.cleanliness) / 3);
+  const lowestMetric = Math.min(metrics.satiety, metrics.mood, metrics.cleanliness);
+
+  if (lowestMetric < 45) {
+    return { careScore, badge: '急需照料', tip: '先补喂养、互动或清洁，别让宠物状态掉下去。' };
+  }
+
+  if (careScore >= 85) {
+    return { careScore, badge: '状态超好', tip: '现在很适合继续冲成长值，准备下一阶段。' };
+  }
+
+  if (careScore >= 65) {
+    return { careScore, badge: '状态稳定', tip: '保持当前节奏，再补几次照料就能明显成长。' };
+  }
+
+  return { careScore, badge: '需要陪伴', tip: '最近互动有点少，补一补就会恢复活力。' };
+};
+
+const getClassEggProgress = (scoreGrowth, totalCareActions) => {
+  const scoreProgress = clampPetMetric((scoreGrowth / 20) * 60, 0, 60);
+  const careProgress = clampPetMetric((totalCareActions / 2) * 40, 0, 40);
+  return Math.round(scoreProgress + careProgress);
+};
+
+const buildStudentPetJourney = (student) => {
+  const pet = getClassPetById(student.pet_id, { allowLegacyAlias: true });
+  const scoreGrowth = normalizeScore(student.score);
+  const state = getClassPetStateSnapshot(student);
+  const metrics = getClassPetMetricsWithDecay(student);
+  const totalCareActions = state.feedCount + state.playCount + state.cleanCount;
+  const careGrowth = state.feedCount * 12 + state.playCount * 10 + state.cleanCount * 8;
+  const growthValue = scoreGrowth + careGrowth;
+  const careSummary = getClassPetCareSummary(metrics);
+
+  if (!pet) {
+    return {
+      slot_state: 'empty',
+      visual_state: 'egg',
+      claimed: false,
+      status_label: '等待领取',
+      name: '宠物蛋',
+      subtitle: '还没有选择宠物伙伴',
+      selected_species: null,
+      stage_name: '待领取',
+      stage_level: 0,
+      stage_description: '先在宠物中心为学生选择一只班级宠物，再开始成长计划。',
+      stage_color: '#F59E0B',
+      progress: 0,
+      growth_value: 0,
+      growth_from_score: scoreGrowth,
+      growth_from_care: 0,
+      care_score: 0,
+      satiety: 0,
+      mood: 0,
+      cleanliness: 0,
+      total_care_actions: 0,
+      can_hatch: false,
+      can_evolve: false,
+      care_tip: '先完成宠物领取，学生卡片会从宠物蛋进入养成状态。',
+      next_target: '领取一只宠物，开始班级养成',
+      feed_count: 0,
+      play_count: 0,
+      clean_count: 0,
+      accent: '#F59E0B',
+      theme: '#FFF7ED'
+    };
+  }
+
+  const canHatch = !state.hatchedAt && scoreGrowth >= 20 && totalCareActions >= 2;
+  const canEvolve = Boolean(state.hatchedAt) && !state.evolvedAt && growthValue >= 460 && careSummary.careScore >= 72 && totalCareActions >= 8;
+
+  if (!state.hatchedAt) {
+    const missingScore = Math.max(0, 20 - scoreGrowth);
+    const missingCare = Math.max(0, 2 - totalCareActions);
+
+    return {
+      slot_state: 'egg',
+      visual_state: 'egg',
+      claimed: true,
+      status_label: canHatch ? '可以孵化' : '待孵化',
+      name: `${pet.name}蛋`,
+      subtitle: `已选定 ${pet.name}，现在只差一次完整孵化。`,
+      selected_species: pet.name,
+      stage_name: '孵化准备期',
+      stage_level: 0,
+      stage_description: '在乐启享的课堂里，积分和照料次数都会帮助宠物完成孵化。',
+      stage_color: pet.accent,
+      progress: getClassEggProgress(scoreGrowth, totalCareActions),
+      growth_value: growthValue,
+      growth_from_score: scoreGrowth,
+      growth_from_care: careGrowth,
+      care_score: careSummary.careScore,
+      satiety: metrics.satiety,
+      mood: metrics.mood,
+      cleanliness: metrics.cleanliness,
+      total_care_actions: totalCareActions,
+      can_hatch: canHatch,
+      can_evolve: false,
+      care_tip: canHatch ? '条件已经满足，现在可以点击孵化，让宠物正式出生。' : `还差 ${missingScore} 分成长值和 ${missingCare} 次照料，就能完成孵化。`,
+      next_target: canHatch ? '点击“孵化”进入正式养成' : '累计 20 分成长值，并完成 2 次照料后孵化',
+      feed_count: state.feedCount,
+      play_count: state.playCount,
+      clean_count: state.cleanCount,
+      accent: pet.accent,
+      theme: pet.theme
+    };
+  }
+
+  const stage = getClassPetGrowthStage(growthValue);
+  const nextStage = CLASS_PET_GROWTH_STAGES.find((item) => item.minGrowth > growthValue) || null;
+
+  if (state.evolvedAt) {
+    return {
+      slot_state: 'evolved',
+      visual_state: 'pet',
+      claimed: true,
+      status_label: '守护进化',
+      name: pet.name,
+      subtitle: '已经完成进化，是班级里的核心守护宠物。',
+      selected_species: pet.name,
+      stage_name: '守护进化体',
+      stage_level: 6,
+      stage_description: '进化后的宠物会长期保持高成长状态，适合作为班级展示亮点。',
+      stage_color: '#F97316',
+      progress: 100,
+      growth_value: growthValue,
+      growth_from_score: scoreGrowth,
+      growth_from_care: careGrowth,
+      care_score: careSummary.careScore,
+      satiety: metrics.satiety,
+      mood: metrics.mood,
+      cleanliness: metrics.cleanliness,
+      total_care_actions: totalCareActions,
+      can_hatch: false,
+      can_evolve: false,
+      care_tip: careSummary.tip,
+      next_target: '继续通过课堂积分和照料保持巅峰状态',
+      feed_count: state.feedCount,
+      play_count: state.playCount,
+      clean_count: state.cleanCount,
+      accent: pet.accent,
+      theme: pet.theme
+    };
+  }
+
+  return {
+    slot_state: 'hatched',
+    visual_state: 'pet',
+    claimed: true,
+    status_label: canEvolve ? '可进化' : careSummary.badge,
+    name: pet.name,
+    subtitle: canEvolve ? '成长值和照料评分都达标了，可以进入进化阶段。' : `课堂积分 ${scoreGrowth} + 照料成长 ${careGrowth}，正在稳步升级。`,
+    selected_species: pet.name,
+    stage_name: stage.name,
+    stage_level: stage.level,
+    stage_description: stage.description,
+    stage_color: stage.color,
+    progress: getClassPetGrowthProgress(growthValue, stage),
+    growth_value: growthValue,
+    growth_from_score: scoreGrowth,
+    growth_from_care: careGrowth,
+    care_score: careSummary.careScore,
+    satiety: metrics.satiety,
+    mood: metrics.mood,
+    cleanliness: metrics.cleanliness,
+    total_care_actions: totalCareActions,
+    can_hatch: false,
+    can_evolve: canEvolve,
+    care_tip: careSummary.tip,
+    next_target: canEvolve ? '点击“进化”，进入班级守护宠物形态' : nextStage ? `再成长 ${Math.max(0, nextStage.minGrowth - growthValue)} 点，进入${nextStage.name}` : '继续保持高成长状态，准备进化',
+    feed_count: state.feedCount,
+    play_count: state.playCount,
+    clean_count: state.cleanCount,
+    accent: pet.accent,
+    theme: pet.theme
+  };
+};
+
+const initializeClassPet = (student, petId) => {
+  const pet = getClassPetById(petId);
+  if (!pet) return null;
+
+  const now = new Date().toISOString();
+  student.pet_id = pet.id;
+  student.pet_claimed_at = now;
+  student.pet_status = 'egg';
+  student.pet_satiety = 88;
+  student.pet_mood = 86;
+  student.pet_cleanliness = 90;
+  student.pet_feed_count = 0;
+  student.pet_play_count = 0;
+  student.pet_clean_count = 0;
+  student.pet_last_care_at = now;
+  student.pet_hatched_at = null;
+  student.pet_evolved_at = null;
+  return pet;
+};
+
+const decorateStudentWithPetJourney = (student) => {
+  const team = db.teams.find((item) => item.id === student.team_id);
+  const pet = getClassPetById(student.pet_id, { allowLegacyAlias: true });
+  const petJourney = buildStudentPetJourney(student);
+
+  return {
+    ...student,
+    score: normalizeScore(student.score),
+    team_name: team?.name || null,
+    team_color: team?.color || null,
+    pet_id: student.pet_id || null,
+    pet_claimed_at: student.pet_claimed_at || null,
+    pet_status: student.pet_status || petJourney.slot_state,
+    pet_feed_count: readPetNumber(student.pet_feed_count, 0),
+    pet_play_count: readPetNumber(student.pet_play_count, 0),
+    pet_clean_count: readPetNumber(student.pet_clean_count, 0),
+    pet_last_care_at: student.pet_last_care_at || null,
+    pet_hatched_at: student.pet_hatched_at || null,
+    pet_evolved_at: student.pet_evolved_at || null,
+    pet_journey: petJourney,
+    pet: pet ? {
+      ...pet,
+      status_label: petJourney.status_label,
+      stage_name: petJourney.stage_name,
+      stage_description: petJourney.stage_description,
+      stage_level: petJourney.stage_level,
+      stage_color: petJourney.stage_color,
+      progress: petJourney.progress,
+      care_score: petJourney.care_score,
+      growth_value: petJourney.growth_value,
+      visual_state: petJourney.visual_state
+    } : null
+  };
+};
+
+const MAX_CLASS_PET_SLOTS_V2 = 3;
+
+const createClassPetSlotV2 = (petId, claimedAt = new Date().toISOString()) => ({
+  slot_id: uuidv4(),
+  pet_id: petId,
+  pet_claimed_at: claimedAt,
+  pet_status: 'egg',
+  pet_satiety: 88,
+  pet_mood: 86,
+  pet_cleanliness: 90,
+  pet_feed_count: 0,
+  pet_play_count: 0,
+  pet_clean_count: 0,
+  pet_last_care_at: claimedAt,
+  pet_hatched_at: null,
+  pet_evolved_at: null
+});
+
+const normalizeClassPetSlotV2 = (slot, fallbackClaimedAt = null) => {
+  const petId = validateId(slot?.pet_id);
+  if (!petId) return null;
+
+  const claimedAt = slot.pet_claimed_at || fallbackClaimedAt || new Date().toISOString();
+  const normalized = {
+    ...createClassPetSlotV2(petId, claimedAt),
+    ...slot,
+    slot_id: slot?.slot_id || uuidv4(),
+    pet_id: petId,
+    pet_claimed_at: claimedAt
+  };
+
+  normalized.pet_status = normalized.pet_status || (
+    normalized.pet_evolved_at ? 'evolved' : (normalized.pet_hatched_at ? 'hatched' : 'egg')
+  );
+  normalized.pet_satiety = clampPetMetric(readPetNumber(normalized.pet_satiety, CLASS_PET_DEFAULTS.pet_satiety), 0, 100);
+  normalized.pet_mood = clampPetMetric(readPetNumber(normalized.pet_mood, CLASS_PET_DEFAULTS.pet_mood), 0, 100);
+  normalized.pet_cleanliness = clampPetMetric(readPetNumber(normalized.pet_cleanliness, CLASS_PET_DEFAULTS.pet_cleanliness), 0, 100);
+  normalized.pet_feed_count = Math.max(0, Math.floor(readPetNumber(normalized.pet_feed_count, 0)));
+  normalized.pet_play_count = Math.max(0, Math.floor(readPetNumber(normalized.pet_play_count, 0)));
+  normalized.pet_clean_count = Math.max(0, Math.floor(readPetNumber(normalized.pet_clean_count, 0)));
+
+  return normalized;
+};
+
+const syncStudentActivePetFieldsV2 = (student, activeSlot) => {
+  if (!activeSlot) {
+    student.pet_id = null;
+    student.pet_claimed_at = null;
+    student.pet_status = 'unclaimed';
+    student.pet_satiety = CLASS_PET_DEFAULTS.pet_satiety;
+    student.pet_mood = CLASS_PET_DEFAULTS.pet_mood;
+    student.pet_cleanliness = CLASS_PET_DEFAULTS.pet_cleanliness;
+    student.pet_feed_count = 0;
+    student.pet_play_count = 0;
+    student.pet_clean_count = 0;
+    student.pet_last_care_at = null;
+    student.pet_hatched_at = null;
+    student.pet_evolved_at = null;
+    return;
+  }
+
+  student.pet_id = activeSlot.pet_id;
+  student.pet_claimed_at = activeSlot.pet_claimed_at || null;
+  student.pet_status = activeSlot.pet_status || 'egg';
+  student.pet_satiety = activeSlot.pet_satiety;
+  student.pet_mood = activeSlot.pet_mood;
+  student.pet_cleanliness = activeSlot.pet_cleanliness;
+  student.pet_feed_count = activeSlot.pet_feed_count;
+  student.pet_play_count = activeSlot.pet_play_count;
+  student.pet_clean_count = activeSlot.pet_clean_count;
+  student.pet_last_care_at = activeSlot.pet_last_care_at || null;
+  student.pet_hatched_at = activeSlot.pet_hatched_at || null;
+  student.pet_evolved_at = activeSlot.pet_evolved_at || null;
+};
+
+const ensureStudentPetCollectionV2 = (student) => {
+  const rawSlots = Array.isArray(student.pet_collection) ? student.pet_collection : [];
+  let slots = rawSlots
+    .map((slot) => normalizeClassPetSlotV2(slot, student.pet_claimed_at))
+    .filter(Boolean);
+
+  if (!slots.length && student.pet_id) {
+    const legacySlot = normalizeClassPetSlotV2({
+      slot_id: student.active_pet_slot_id || uuidv4(),
+      pet_id: student.pet_id,
+      pet_claimed_at: student.pet_claimed_at || student.created_at || new Date().toISOString(),
+      pet_status: student.pet_status,
+      pet_satiety: student.pet_satiety,
+      pet_mood: student.pet_mood,
+      pet_cleanliness: student.pet_cleanliness,
+      pet_feed_count: student.pet_feed_count,
+      pet_play_count: student.pet_play_count,
+      pet_clean_count: student.pet_clean_count,
+      pet_last_care_at: student.pet_last_care_at,
+      pet_hatched_at: student.pet_hatched_at,
+      pet_evolved_at: student.pet_evolved_at
+    });
+
+    if (legacySlot) {
+      slots = [legacySlot];
+    }
+  }
+
+  const dedupedSlots = [];
+  const seenPetIds = new Set();
+
+  slots.forEach((slot) => {
+    if (seenPetIds.has(slot.pet_id)) return;
+    seenPetIds.add(slot.pet_id);
+    dedupedSlots.push(slot);
+  });
+
+  const normalizedSlots = dedupedSlots.slice(0, MAX_CLASS_PET_SLOTS_V2);
+  const activeSlot =
+    normalizedSlots.find((slot) => slot.slot_id === student.active_pet_slot_id) ||
+    normalizedSlots[0] ||
+    null;
+
+  student.pet_collection = normalizedSlots;
+  student.active_pet_slot_id = activeSlot?.slot_id || null;
+  syncStudentActivePetFieldsV2(student, activeSlot);
+
+  return {
+    slots: normalizedSlots,
+    activeSlot
+  };
+};
+
+const getStudentPetCapacityV2 = (student) => {
+  const { slots } = ensureStudentPetCollectionV2(student);
+  const evolvedCount = slots.filter((slot) => Boolean(slot.pet_evolved_at)).length;
+  return Math.max(1, Math.min(MAX_CLASS_PET_SLOTS_V2, 1 + evolvedCount));
+};
+
+const canStudentClaimAnotherPetV2 = (student) => {
+  const { slots } = ensureStudentPetCollectionV2(student);
+  return slots.length < getStudentPetCapacityV2(student);
+};
+
+const getStudentNextPetSlotHintV2 = (student) => {
+  const { slots } = ensureStudentPetCollectionV2(student);
+  const capacity = getStudentPetCapacityV2(student);
+
+  if (!slots.length) {
+    return '领取第一只宠物后，就会正式开启宠物培养线。';
+  }
+
+  if (slots.length < capacity) {
+    return `已解锁第 ${slots.length + 1} 宠物位，可以继续领取孩子喜欢的新宠物。`;
+  }
+
+  if (capacity >= MAX_CLASS_PET_SLOTS_V2) {
+    return '全部宠物位都已解锁，后续可以在收藏宠物之间自由切换培养。';
+  }
+
+  return `先让当前收藏中的任意 1 只宠物完成进化，即可解锁第 ${slots.length + 1} 宠物位。`;
+};
+
+const getStudentPetScoreGrowthV2 = (student, petSlot) => {
+  const claimedAt = petSlot?.pet_claimed_at ? new Date(petSlot.pet_claimed_at).getTime() : null;
+  if (!claimedAt || Number.isNaN(claimedAt)) {
+    return Math.max(0, normalizeScore(student.score));
+  }
+
+  const scoreGrowth = db.scoreLogs
+    .filter((log) => log.type === 'student' && log.student_id === student.id)
+    .filter((log) => {
+      const createdAt = new Date(log.created_at).getTime();
+      return Number.isFinite(createdAt) && createdAt >= claimedAt;
+    })
+    .reduce((sum, log) => sum + Number(log.delta || 0), 0);
+
+  return Math.max(0, normalizeScore(scoreGrowth));
+};
+
+const buildPetJourneyFromSlotV2 = (student, petSlot) => {
+  const pet = getClassPetById(petSlot?.pet_id, { allowLegacyAlias: true });
+  const scoreGrowth = getStudentPetScoreGrowthV2(student, petSlot);
+  const state = getClassPetStateSnapshot(petSlot || {});
+  const metrics = getClassPetMetricsWithDecay(petSlot || {});
+  const totalCareActions = state.feedCount + state.playCount + state.cleanCount;
+  const careGrowth = state.feedCount * 12 + state.playCount * 10 + state.cleanCount * 8;
+  const growthValue = scoreGrowth + careGrowth;
+  const careSummary = getClassPetCareSummary(metrics);
+  const { slots } = ensureStudentPetCollectionV2(student);
+  const petCapacity = getStudentPetCapacityV2(student);
+  const canClaimNextPet = slots.length < petCapacity;
+
+  if (!pet) {
+    return {
+      slot_state: 'empty',
+      visual_state: 'egg',
+      claimed: false,
+      status_label: '等待领取',
+      name: '宠物蛋',
+      subtitle: '还没有选择宠物伙伴',
+      selected_species: null,
+      stage_name: '待领取',
+      stage_level: 0,
+      stage_description: '先在宠物中心为学生选择一只班级宠物，再开始成长计划。',
+      stage_color: '#F59E0B',
+      progress: 0,
+      growth_value: 0,
+      growth_from_score: 0,
+      growth_from_care: 0,
+      care_score: 0,
+      satiety: 0,
+      mood: 0,
+      cleanliness: 0,
+      total_care_actions: 0,
+      can_hatch: false,
+      can_evolve: false,
+      care_tip: '先完成宠物领取，学生卡片会从宠物蛋进入养成状态。',
+      next_target: '领取一只宠物，开始班级养成',
+      feed_count: 0,
+      play_count: 0,
+      clean_count: 0,
+      accent: '#F59E0B',
+      theme: '#FFF7ED'
+    };
+  }
+
+  const canHatch = !state.hatchedAt && scoreGrowth >= 20 && totalCareActions >= 2;
+  const canEvolve = Boolean(state.hatchedAt) && !state.evolvedAt && growthValue >= 460 && careSummary.careScore >= 72 && totalCareActions >= 8;
+
+  if (!state.hatchedAt) {
+    const missingScore = Math.max(0, 20 - scoreGrowth);
+    const missingCare = Math.max(0, 2 - totalCareActions);
+
+    return {
+      slot_state: 'egg',
+      visual_state: 'egg',
+      claimed: true,
+      status_label: canHatch ? '可以孵化' : '待孵化',
+      name: `${pet.name}蛋`,
+      subtitle: `已选定 ${pet.name}，现在只差一次完整孵化。`,
+      selected_species: pet.name,
+      stage_name: '孵化准备期',
+      stage_level: 0,
+      stage_description: '在乐启享的课堂里，积分和照料次数都会帮助宠物完成孵化。',
+      stage_color: pet.accent,
+      progress: getClassEggProgress(scoreGrowth, totalCareActions),
+      growth_value: growthValue,
+      growth_from_score: scoreGrowth,
+      growth_from_care: careGrowth,
+      care_score: careSummary.careScore,
+      satiety: metrics.satiety,
+      mood: metrics.mood,
+      cleanliness: metrics.cleanliness,
+      total_care_actions: totalCareActions,
+      can_hatch: canHatch,
+      can_evolve: false,
+      care_tip: canHatch ? '条件已经满足，现在可以点击孵化，让宠物正式出生。' : `还差 ${missingScore} 分成长值和 ${missingCare} 次照料，就能完成孵化。`,
+      next_target: canHatch ? '点击“孵化”进入正式养成' : '累计 20 分成长值，并完成 2 次照料后孵化',
+      feed_count: state.feedCount,
+      play_count: state.playCount,
+      clean_count: state.cleanCount,
+      accent: pet.accent,
+      theme: pet.theme
+    };
+  }
+
+  const stage = getClassPetGrowthStage(growthValue);
+  const nextStage = CLASS_PET_GROWTH_STAGES.find((item) => item.minGrowth > growthValue) || null;
+
+  if (state.evolvedAt) {
+    return {
+      slot_state: 'evolved',
+      visual_state: 'pet',
+      claimed: true,
+      status_label: '守护进化',
+      name: pet.name,
+      subtitle: '已经完成进化，是班级里的核心守护宠物。',
+      selected_species: pet.name,
+      stage_name: '守护进化体',
+      stage_level: 6,
+      stage_description: '进化后的宠物会长期保持高成长状态，适合作为班级展示亮点。',
+      stage_color: '#F97316',
+      progress: 100,
+      growth_value: growthValue,
+      growth_from_score: scoreGrowth,
+      growth_from_care: careGrowth,
+      care_score: careSummary.careScore,
+      satiety: metrics.satiety,
+      mood: metrics.mood,
+      cleanliness: metrics.cleanliness,
+      total_care_actions: totalCareActions,
+      can_hatch: false,
+      can_evolve: false,
+      care_tip: careSummary.tip,
+      next_target: canClaimNextPet
+        ? `已解锁第 ${slots.length + 1} 宠物位，可以继续领取新的喜欢宠物。`
+        : '继续通过课堂积分和照料保持巅峰状态',
+      feed_count: state.feedCount,
+      play_count: state.playCount,
+      clean_count: state.cleanCount,
+      accent: pet.accent,
+      theme: pet.theme
+    };
+  }
+
+  return {
+    slot_state: 'hatched',
+    visual_state: 'pet',
+    claimed: true,
+    status_label: canEvolve ? '可进化' : careSummary.badge,
+    name: pet.name,
+    subtitle: canEvolve ? '成长值和照料评分都达标了，可以进入进化阶段。' : `课堂积分 ${scoreGrowth} + 照料成长 ${careGrowth}，正在稳步升级。`,
+    selected_species: pet.name,
+    stage_name: stage.name,
+    stage_level: stage.level,
+    stage_description: stage.description,
+    stage_color: stage.color,
+    progress: getClassPetGrowthProgress(growthValue, stage),
+    growth_value: growthValue,
+    growth_from_score: scoreGrowth,
+    growth_from_care: careGrowth,
+    care_score: careSummary.careScore,
+    satiety: metrics.satiety,
+    mood: metrics.mood,
+    cleanliness: metrics.cleanliness,
+    total_care_actions: totalCareActions,
+    can_hatch: false,
+    can_evolve: canEvolve,
+    care_tip: careSummary.tip,
+    next_target: canEvolve
+      ? '点击“进化”，进入班级守护宠物形态'
+      : nextStage
+        ? `再成长 ${Math.max(0, nextStage.minGrowth - growthValue)} 点，进入${nextStage.name}`
+        : '继续保持高成长状态，准备进化',
+    feed_count: state.feedCount,
+    play_count: state.playCount,
+    clean_count: state.cleanCount,
+    accent: pet.accent,
+    theme: pet.theme
+  };
+};
+
+const decorateStudentPetCollectionV2 = (student) => {
+  const { slots, activeSlot } = ensureStudentPetCollectionV2(student);
+
+  return slots.map((slot, index) => {
+    const pet = getClassPetById(slot.pet_id, { allowLegacyAlias: true });
+    const journey = buildPetJourneyFromSlotV2(student, slot);
+
+    return {
+      ...slot,
+      slot_index: index + 1,
+      is_active: activeSlot?.slot_id === slot.slot_id,
+      pet,
+      journey
+    };
+  });
+};
+
+const decorateStudentWithPetJourneyV2 = (student) => {
+  const { activeSlot } = ensureStudentPetCollectionV2(student);
+  const team = db.teams.find((item) => item.id === student.team_id);
+  const pet = getClassPetById(activeSlot?.pet_id || student.pet_id, { allowLegacyAlias: true });
+  const petJourney = buildPetJourneyFromSlotV2(student, activeSlot);
+  const petCollection = decorateStudentPetCollectionV2(student);
+  const petCapacity = getStudentPetCapacityV2(student);
+
+  return {
+    ...student,
+    score: normalizeScore(student.score),
+    team_name: team?.name || null,
+    team_color: team?.color || null,
+    pet_id: student.pet_id || null,
+    pet_claimed_at: student.pet_claimed_at || null,
+    pet_status: student.pet_status || petJourney.slot_state,
+    pet_feed_count: readPetNumber(student.pet_feed_count, 0),
+    pet_play_count: readPetNumber(student.pet_play_count, 0),
+    pet_clean_count: readPetNumber(student.pet_clean_count, 0),
+    pet_last_care_at: student.pet_last_care_at || null,
+    pet_hatched_at: student.pet_hatched_at || null,
+    pet_evolved_at: student.pet_evolved_at || null,
+    active_pet_slot_id: student.active_pet_slot_id || null,
+    pet_collection: petCollection,
+    pet_capacity: petCapacity,
+    pet_total_collected: petCollection.length,
+    can_claim_more_pets: canStudentClaimAnotherPetV2(student),
+    next_pet_slot_hint: getStudentNextPetSlotHintV2(student),
+    pet_journey: petJourney,
+    pet: pet ? {
+      ...pet,
+      status_label: petJourney.status_label,
+      stage_name: petJourney.stage_name,
+      stage_description: petJourney.stage_description,
+      stage_level: petJourney.stage_level,
+      stage_color: petJourney.stage_color,
+      progress: petJourney.progress,
+      care_score: petJourney.care_score,
+      growth_value: petJourney.growth_value,
+      visual_state: petJourney.visual_state
+    } : null
+  };
+};
 
 app.get('/api/classes', (req, res) => {
   res.json(db.classes);
@@ -298,6 +1179,11 @@ app.delete('/api/classes/:id', (req, res) => {
   const id = validateId(req.params.id);
   if (!id) return res.status(400).json({ error: '无效的班级ID' });
   
+  // 清理评分数据
+  const sessionIds = db.ratingSessions.filter(s => s.class_id === id).map(s => s.id);
+  db.ratingVotes = db.ratingVotes.filter(v => !sessionIds.includes(v.session_id));
+  db.ratingSessions = db.ratingSessions.filter(s => s.class_id !== id);
+  
   db.students = db.students.filter(s => s.class_id !== id);
   db.teams = db.teams.filter(t => t.class_id !== id);
   db.lotteryLogs = db.lotteryLogs.filter(l => l.class_id !== id);
@@ -312,7 +1198,9 @@ app.get('/api/classes/:classId/teams', (req, res) => {
   const classId = validateId(req.params.classId);
   if (!classId) return res.status(400).json({ error: '无效的班级ID' });
   
-  const teams = db.teams.filter(t => t.class_id === classId);
+  const teams = db.teams
+    .filter(t => t.class_id === classId)
+    .map(t => ({ ...t, score: normalizeScore(t.score) }));
   res.json(teams);
 });
 
@@ -350,7 +1238,7 @@ app.patch('/api/teams/:id/score', (req, res) => {
   
   const team = db.teams.find(t => t.id === id);
   if (team) {
-    team.score += delta;
+    team.score = normalizeScore(team.score + delta);
     db.scoreLogs.push({
       id: db.nextId.scoreLogs++,
       team_id: id,
@@ -386,14 +1274,7 @@ app.get('/api/classes/:classId/students', (req, res) => {
   
   const students = db.students
     .filter(s => s.class_id === classId)
-    .map(s => {
-      const team = db.teams.find(t => t.id === s.team_id);
-      return {
-        ...s,
-        team_name: team?.name || null,
-        team_color: team?.color || null
-      };
-    })
+    .map(decorateStudentWithPetJourneyV2)
     .sort((a, b) => b.score - a.score);
   res.json(students);
 });
@@ -415,11 +1296,25 @@ app.post('/api/students', (req, res) => {
     team_id,
     score: 0,
     avatar,
+    pet_id: null,
+    pet_claimed_at: null,
+    pet_status: 'unclaimed',
+    pet_satiety: CLASS_PET_DEFAULTS.pet_satiety,
+    pet_mood: CLASS_PET_DEFAULTS.pet_mood,
+    pet_cleanliness: CLASS_PET_DEFAULTS.pet_cleanliness,
+    pet_feed_count: 0,
+    pet_play_count: 0,
+    pet_clean_count: 0,
+    pet_last_care_at: null,
+    pet_hatched_at: null,
+    pet_evolved_at: null,
+    pet_collection: [],
+    active_pet_slot_id: null,
     created_at: new Date().toISOString()
   };
   db.students.push(newStudent);
   saveDb();
-  res.json(newStudent);
+  res.json(decorateStudentWithPetJourneyV2(newStudent));
 });
 
 app.patch('/api/students/:id', (req, res) => {
@@ -442,6 +1337,317 @@ app.patch('/api/students/:id', (req, res) => {
   }
 });
 
+app.get('/api/pets', (req, res) => {
+  res.json(CLASS_PET_CATALOG);
+});
+
+/*
+app.post('/api/students/:id/claim-pet', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '鏃犳晥鐨勫鍛業D' });
+
+  const petId = validateId(req.body.pet_id);
+  const overwrite = Boolean(req.body.overwrite);
+  const student = db.students.find((item) => item.id === id);
+  const pet = getClassPetById(petId);
+
+  if (!student) {
+    return res.status(404).json({ error: '瀛﹀憳涓嶅瓨鍦? });
+  }
+
+  if (!pet) {
+    return res.status(400).json({ error: '瀹犵墿涓嶅瓨鍦? });
+  }
+
+  if (student.pet_id && student.pet_id !== pet.id && !overwrite) {
+    return res.status(409).json({ error: '璇ュ鐢熷凡缁忛鍙栧叾浠栧疇鐗╋紝闇€瑕佺‘璁ゆ槸鍚︽洿鎹? });
+  }
+
+  initializeClassPet(student, pet.id);
+
+  saveDb();
+  res.json(decorateStudentWithPetJourney(student));
+});
+
+*/
+
+app.post('/api/students/:id/claim-pet', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid student id' });
+
+  const petId = validateId(req.body.pet_id);
+  const student = db.students.find((item) => item.id === id);
+  const pet = getClassPetById(petId, { allowLegacyAlias: true });
+
+  if (!student) {
+    return res.status(404).json({ error: 'Student not found' });
+  }
+
+  if (!pet) {
+    return res.status(400).json({ error: 'Pet not found' });
+  }
+
+  const { slots } = ensureStudentPetCollectionV2(student);
+  const existingSlot = slots.find((slot) => slot.pet_id === pet.id);
+
+  if (existingSlot) {
+    student.pet_collection = slots;
+    student.active_pet_slot_id = existingSlot.slot_id;
+    syncStudentActivePetFieldsV2(student, existingSlot);
+    saveDb();
+    return res.json(decorateStudentWithPetJourneyV2(student));
+  }
+
+  if (!canStudentClaimAnotherPetV2(student)) {
+    return res.status(409).json({ error: getStudentNextPetSlotHintV2(student) });
+  }
+
+  const nextSlot = createClassPetSlotV2(pet.id);
+  slots.push(nextSlot);
+  student.pet_collection = slots;
+  student.active_pet_slot_id = nextSlot.slot_id;
+  syncStudentActivePetFieldsV2(student, nextSlot);
+
+  saveDb();
+  return res.json(decorateStudentWithPetJourneyV2(student));
+});
+
+app.post('/api/students/:id/pet-slots/:slotId/activate', (req, res) => {
+  const id = validateId(req.params.id);
+  const slotId = sanitizeString(req.params.slotId, 120);
+
+  if (!id) {
+    return res.status(400).json({ error: 'Invalid student id' });
+  }
+
+  if (!slotId) {
+    return res.status(400).json({ error: 'Invalid pet slot id' });
+  }
+
+  const student = db.students.find((item) => item.id === id);
+  if (!student) {
+    return res.status(404).json({ error: 'Student not found' });
+  }
+
+  const { slots } = ensureStudentPetCollectionV2(student);
+  const nextActiveSlot = slots.find((slot) => slot.slot_id === slotId);
+
+  if (!nextActiveSlot) {
+    return res.status(404).json({ error: 'Pet slot not found' });
+  }
+
+  student.pet_collection = slots;
+  student.active_pet_slot_id = nextActiveSlot.slot_id;
+  syncStudentActivePetFieldsV2(student, nextActiveSlot);
+
+  saveDb();
+  return res.json(decorateStudentWithPetJourneyV2(student));
+});
+
+app.post('/api/students/:id/pet/:action', (req, res) => {
+  const id = validateId(req.params.id);
+  const action = sanitizeString(req.params.action, 20);
+
+  if (!id) {
+    return res.status(400).json({ error: 'Invalid student id' });
+  }
+
+  const student = db.students.find((item) => item.id === id);
+  if (!student) {
+    return res.status(404).json({ error: 'Student not found' });
+  }
+
+  const { slots, activeSlot } = ensureStudentPetCollectionV2(student);
+  if (!activeSlot) {
+    return res.status(400).json({ error: 'Student has not claimed a pet yet' });
+  }
+
+  const now = new Date();
+  const persistStudent = () => {
+    student.pet_collection = slots;
+    syncStudentActivePetFieldsV2(student, activeSlot);
+  };
+
+  if (action === 'hatch') {
+    const petJourney = buildPetJourneyFromSlotV2(student, activeSlot);
+    if (activeSlot.pet_hatched_at) {
+      return res.status(409).json({ error: 'This pet has already hatched' });
+    }
+    if (!petJourney.can_hatch) {
+      return res.status(400).json({ error: 'This pet is not ready to hatch yet' });
+    }
+
+    syncClassPetMetrics(activeSlot, now);
+    activeSlot.pet_status = 'hatched';
+    activeSlot.pet_hatched_at = now.toISOString();
+    activeSlot.pet_last_care_at = now.toISOString();
+
+    persistStudent();
+    saveDb();
+    return res.json(decorateStudentWithPetJourneyV2(student));
+  }
+
+  if (action === 'evolve') {
+    const petJourney = buildPetJourneyFromSlotV2(student, activeSlot);
+    if (!activeSlot.pet_hatched_at) {
+      return res.status(400).json({ error: 'This pet has not hatched yet' });
+    }
+    if (activeSlot.pet_evolved_at) {
+      return res.status(409).json({ error: 'This pet has already evolved' });
+    }
+    if (!petJourney.can_evolve) {
+      return res.status(400).json({ error: 'This pet is not ready to evolve yet' });
+    }
+
+    syncClassPetMetrics(activeSlot, now);
+    activeSlot.pet_status = 'evolved';
+    activeSlot.pet_evolved_at = now.toISOString();
+    activeSlot.pet_last_care_at = now.toISOString();
+
+    persistStudent();
+    saveDb();
+    return res.json(decorateStudentWithPetJourneyV2(student));
+  }
+
+  const actionConfig = CLASS_PET_CARE_ACTIONS[action];
+  if (!actionConfig) {
+    return res.status(404).json({ error: 'Pet action not found' });
+  }
+
+  syncClassPetMetrics(activeSlot, now);
+  activeSlot[actionConfig.metricKey] = clampPetMetric(
+    readPetNumber(activeSlot[actionConfig.metricKey], 0) + actionConfig.amount,
+    0,
+    100
+  );
+  activeSlot[actionConfig.sideMetricKey] = clampPetMetric(
+    readPetNumber(activeSlot[actionConfig.sideMetricKey], 0) + actionConfig.sideAmount,
+    0,
+    100
+  );
+  activeSlot[actionConfig.countKey] = readPetNumber(activeSlot[actionConfig.countKey], 0) + 1;
+  activeSlot.pet_last_care_at = now.toISOString();
+  if (!activeSlot.pet_status || activeSlot.pet_status === 'unclaimed') {
+    activeSlot.pet_status = 'egg';
+  }
+
+  persistStudent();
+  saveDb();
+  return res.json(decorateStudentWithPetJourneyV2(student));
+});
+
+app.post('/api/students/:id/claim-pet', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '无效的学生 ID' });
+
+  const petId = validateId(req.body.pet_id);
+  const overwrite = Boolean(req.body.overwrite);
+  const student = db.students.find((item) => item.id === id);
+  const pet = getClassPetById(petId);
+
+  if (!student) {
+    return res.status(404).json({ error: '未找到该学生' });
+  }
+
+  if (!pet) {
+    return res.status(400).json({ error: '未找到该宠物' });
+  }
+
+  if (student.pet_id && student.pet_id !== pet.id && !overwrite) {
+    return res.status(409).json({ error: '该学生已经领取过宠物，请先确认是否覆盖。' });
+  }
+
+  initializeClassPet(student, pet.id);
+
+  saveDb();
+  res.json(decorateStudentWithPetJourney(student));
+});
+
+app.post('/api/students/:id/pet/:action', (req, res) => {
+  const id = validateId(req.params.id);
+  const action = sanitizeString(req.params.action, 20);
+
+  if (!id) {
+    return res.status(400).json({ error: '无效的学生 ID' });
+  }
+
+  const student = db.students.find((item) => item.id === id);
+  if (!student) {
+    return res.status(404).json({ error: '未找到该学生' });
+  }
+
+  if (!student.pet_id) {
+    return res.status(400).json({ error: '该学生还没有领取宠物' });
+  }
+
+  ensureClassPetState(student);
+  const now = new Date();
+
+  if (action === 'hatch') {
+    const petJourney = buildStudentPetJourney(student);
+    if (student.pet_hatched_at) {
+      return res.status(409).json({ error: '该宠物已经孵化，不需要重复操作。' });
+    }
+    if (!petJourney.can_hatch) {
+      return res.status(400).json({ error: '当前还没有达到孵化条件，请先补课堂成长值和照料次数。' });
+    }
+
+    syncClassPetMetrics(student, now);
+    student.pet_status = 'hatched';
+    student.pet_hatched_at = now.toISOString();
+    student.pet_last_care_at = now.toISOString();
+
+    saveDb();
+    return res.json(decorateStudentWithPetJourney(student));
+  }
+
+  if (action === 'evolve') {
+    const petJourney = buildStudentPetJourney(student);
+    if (!student.pet_hatched_at) {
+      return res.status(400).json({ error: '宠物还没有孵化，暂时不能进化。' });
+    }
+    if (student.pet_evolved_at) {
+      return res.status(409).json({ error: '该宠物已经完成进化。' });
+    }
+    if (!petJourney.can_evolve) {
+      return res.status(400).json({ error: '还没有达到进化条件，请继续提升成长值和照料评分。' });
+    }
+
+    syncClassPetMetrics(student, now);
+    student.pet_status = 'evolved';
+    student.pet_evolved_at = now.toISOString();
+    student.pet_last_care_at = now.toISOString();
+
+    saveDb();
+    return res.json(decorateStudentWithPetJourney(student));
+  }
+
+  const actionConfig = CLASS_PET_CARE_ACTIONS[action];
+  if (!actionConfig) {
+    return res.status(404).json({ error: '未找到该宠物操作' });
+  }
+
+  syncClassPetMetrics(student, now);
+  student[actionConfig.metricKey] = clampPetMetric(
+    readPetNumber(student[actionConfig.metricKey], 0) + actionConfig.amount,
+    0,
+    100
+  );
+  student[actionConfig.sideMetricKey] = clampPetMetric(
+    readPetNumber(student[actionConfig.sideMetricKey], 0) + actionConfig.sideAmount,
+    0,
+    100
+  );
+  student[actionConfig.countKey] = readPetNumber(student[actionConfig.countKey], 0) + 1;
+  student.pet_last_care_at = now.toISOString();
+  if (!student.pet_status || student.pet_status === 'unclaimed') {
+    student.pet_status = 'egg';
+  }
+
+  saveDb();
+  return res.json(decorateStudentWithPetJourney(student));
+});
+
 app.patch('/api/students/:id/score', (req, res) => {
   const id = validateId(req.params.id);
   if (!id) return res.status(400).json({ error: '无效的学员ID' });
@@ -454,7 +1660,7 @@ app.patch('/api/students/:id/score', (req, res) => {
   
   const student = db.students.find(s => s.id === id);
   if (student) {
-    student.score += delta;
+    student.score = normalizeScore(student.score + delta);
     
     db.scoreLogs.push({
       id: db.nextId.scoreLogs++,
@@ -469,7 +1675,7 @@ app.patch('/api/students/:id/score', (req, res) => {
     if (student.team_id) {
       const team = db.teams.find(t => t.id === student.team_id);
       if (team) {
-        team.score += delta;
+        team.score = normalizeScore(team.score + delta);
       }
     }
     
@@ -483,6 +1689,19 @@ app.patch('/api/students/:id/score', (req, res) => {
 app.delete('/api/students/:id', (req, res) => {
   const id = validateId(req.params.id);
   if (!id) return res.status(400).json({ error: '无效的学员ID' });
+  
+  const student = db.students.find(s => s.id === id);
+  if (!student) {
+    return res.status(404).json({ error: '学员不存在' });
+  }
+  
+  // 检查是否有进行中的评分会话涉及该学生
+  const activeSession = db.ratingSessions.find(s => 
+    s.student_id === id && s.status === 'active'
+  );
+  if (activeSession) {
+    return res.status(400).json({ error: '该学员正在接受评分，请先结束评分后再删除' });
+  }
   
   db.students = db.students.filter(s => s.id !== id);
   saveDb();
@@ -499,6 +1718,7 @@ app.get('/api/classes/:classId/leaderboard/students', (req, res) => {
       const team = db.teams.find(t => t.id === s.team_id);
       return {
         ...s,
+        score: normalizeScore(s.score),
         team_name: team?.name || null,
         team_color: team?.color || null
       };
@@ -513,10 +1733,401 @@ app.get('/api/classes/:classId/leaderboard/teams', (req, res) => {
     .filter(t => t.class_id === classId)
     .map(t => ({
       ...t,
+      score: normalizeScore(t.score),
       member_count: db.students.filter(s => s.team_id === t.id).length
     }))
     .sort((a, b) => b.score - a.score);
   res.json(teams);
+});
+
+// ============ 展示评分 API ============
+
+// 创建评分会话（发起对某学生的打分）
+app.post('/api/rating-sessions', (req, res) => {
+  const class_id = validateId(req.body.class_id);
+  const student_id = validateId(req.body.student_id);
+  
+  if (!class_id || !student_id) {
+    return res.status(400).json({ error: '缺少班级ID或学员ID' });
+  }
+  
+  // 检查是否已有进行中的会话
+  const activeSession = db.ratingSessions.find(s => s.class_id === class_id && s.status === 'active');
+  if (activeSession) {
+    return res.status(400).json({ error: '当前班级已有进行中的评分，请先结束' });
+  }
+  
+  const student = db.students.find(s => s.id === student_id);
+  if (!student) {
+    return res.status(404).json({ error: '学员不存在' });
+  }
+  
+  const newSession = {
+    id: db.nextId.ratingSessions++,
+    class_id,
+    student_id,
+    student_name: student.name,
+    student_avatar: student.avatar,
+    status: 'active',
+    created_at: new Date().toISOString(),
+    closed_at: null,
+    total_score: 0,
+    avg_score: 0,
+    applied_to_student: false
+  };
+  
+  db.ratingSessions.push(newSession);
+  saveDb();
+  res.json(newSession);
+});
+
+// 获取班级所有评分会话
+app.get('/api/classes/:classId/rating-sessions', (req, res) => {
+  const classId = validateId(req.params.classId);
+  if (!classId) return res.status(400).json({ error: '无效的班级ID' });
+  
+  const sessions = db.ratingSessions
+    .filter(s => s.class_id === classId)
+    .map(s => {
+      const votes = db.ratingVotes.filter(v => v.session_id === s.id);
+      return {
+        ...s,
+        vote_count: votes.length
+      };
+    })
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  
+  res.json(sessions);
+});
+
+// 获取当前进行中的评分会话
+app.get('/api/classes/:classId/active-session', (req, res) => {
+  const classId = validateId(req.params.classId);
+  if (!classId) return res.status(400).json({ error: '无效的班级ID' });
+  
+  const session = db.ratingSessions.find(s => s.class_id === classId && s.status === 'active');
+  
+  if (!session) {
+    return res.json(null);
+  }
+  
+  // 获取所有打分记录（不包含打分者姓名，匿名展示）
+  const votes = db.ratingVotes
+    .filter(v => v.session_id === session.id)
+    .map(v => ({
+      id: v.id,
+      score: v.score,
+      created_at: v.created_at
+    }));
+  
+  res.json({
+    ...session,
+    votes,
+    vote_count: votes.length
+  });
+});
+
+// 获取会话详情（含所有打分，管理员用）
+app.get('/api/rating-sessions/:id', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '无效的会话ID' });
+  
+  const session = db.ratingSessions.find(s => s.id === id);
+  if (!session) {
+    return res.status(404).json({ error: '会话不存在' });
+  }
+  
+  // 获取所有打分记录（包含打分者姓名，供管理员查看）
+  const votes = db.ratingVotes
+    .filter(v => v.session_id === id)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  
+  // 获取班级学员数量（用于显示打分进度）
+  const totalStudents = db.students.filter(s => s.class_id === session.class_id).length;
+  
+  res.json({
+    ...session,
+    votes,
+    vote_count: votes.length,
+    total_students: totalStudents
+  });
+});
+
+// 提交打分
+app.post('/api/rating-sessions/:id/vote', (req, res) => {
+  const sessionId = validateId(req.params.id);
+  if (!sessionId) return res.status(400).json({ error: '无效的会话ID' });
+  
+  const voter_name = sanitizeString(req.body.voter_name, 20);
+  const score = parseInt(req.body.score);
+  
+  if (!voter_name) {
+    return res.status(400).json({ error: '请选择你的姓名' });
+  }
+  
+  if (isNaN(score) || score < 0 || score > 10) {
+    return res.status(400).json({ error: '分数必须在0-10之间' });
+  }
+  
+  const session = db.ratingSessions.find(s => s.id === sessionId);
+  if (!session) {
+    return res.status(404).json({ error: '评分会话不存在' });
+  }
+  
+  if (session.status !== 'active') {
+    return res.status(400).json({ error: '评分已结束' });
+  }
+  
+  // 验证打分者是否在本班学员名单中
+  const voter = db.students.find(s => s.class_id === session.class_id && s.name === voter_name);
+  if (!voter) {
+    return res.status(400).json({ error: '你不在本班学员名单中' });
+  }
+  
+  // 不允许给自己打分
+  if (voter_name === session.student_name) {
+    return res.status(400).json({ error: '不能给自己打分' });
+  }
+  
+  // 检查是否已经打过分
+  const existingVote = db.ratingVotes.find(v => v.session_id === sessionId && v.voter_name === voter_name);
+  if (existingVote) {
+    return res.status(400).json({ error: '你已经打过分了', voted: true, your_score: existingVote.score });
+  }
+  
+  const newVote = {
+    id: db.nextId.ratingVotes++,
+    session_id: sessionId,
+    voter_name,
+    score,
+    created_at: new Date().toISOString(),
+    is_excluded: false
+  };
+  
+  db.ratingVotes.push(newVote);
+  saveDb();
+  
+  res.json({ success: true, vote: { id: newVote.id, score: newVote.score } });
+});
+
+// 检查用户是否已打分
+app.get('/api/rating-sessions/:id/check-voted', (req, res) => {
+  const sessionId = validateId(req.params.id);
+  const voter_name = sanitizeString(req.query.voter_name, 20);
+  
+  if (!sessionId || !voter_name) {
+    return res.status(400).json({ error: '参数不完整' });
+  }
+  
+  const vote = db.ratingVotes.find(v => v.session_id === sessionId && v.voter_name === voter_name);
+  
+  res.json({
+    voted: !!vote,
+    your_score: vote?.score || null
+  });
+});
+
+// 删除打分记录（管理员用）
+app.delete('/api/rating-votes/:id', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '无效的记录ID' });
+  
+  const vote = db.ratingVotes.find(v => v.id === id);
+  if (!vote) {
+    return res.status(404).json({ error: '记录不存在' });
+  }
+  
+  // 检查会话是否已结束
+  const session = db.ratingSessions.find(s => s.id === vote.session_id);
+  if (session && session.status === 'closed') {
+    return res.status(400).json({ error: '评分已结束，无法删除' });
+  }
+  
+  db.ratingVotes = db.ratingVotes.filter(v => v.id !== id);
+  saveDb();
+  res.json({ success: true });
+});
+
+// 编辑打分记录（管理员用）
+app.patch('/api/rating-votes/:id', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '无效的记录ID' });
+  
+  const score = parseInt(req.body.score);
+  if (isNaN(score) || score < 0 || score > 10) {
+    return res.status(400).json({ error: '分数必须在0-10之间' });
+  }
+  
+  const vote = db.ratingVotes.find(v => v.id === id);
+  if (!vote) {
+    return res.status(404).json({ error: '记录不存在' });
+  }
+  
+  // 检查会话是否已结束
+  const session = db.ratingSessions.find(s => s.id === vote.session_id);
+  if (session && session.status === 'closed') {
+    return res.status(400).json({ error: '评分已结束，无法编辑' });
+  }
+  
+  vote.score = score;
+  saveDb();
+  res.json({ success: true, vote });
+});
+
+// 结束评分会话并计算最终分数
+app.patch('/api/rating-sessions/:id/close', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '无效的会话ID' });
+  
+  const session = db.ratingSessions.find(s => s.id === id);
+  if (!session) {
+    return res.status(404).json({ error: '会话不存在' });
+  }
+  
+  if (session.status === 'closed') {
+    return res.status(400).json({ error: '评分已结束' });
+  }
+  
+  // 获取所有打分记录
+  const votes = db.ratingVotes.filter(v => v.session_id === id);
+  
+  if (votes.length === 0) {
+    return res.status(400).json({ error: '还没有人打分，无法结束' });
+  }
+  
+  // 计算总分
+  const scores = votes.map(v => v.score);
+  const totalScore = scores.reduce((a, b) => a + b, 0);
+  
+  // 计算平均分（去掉最高最低）
+  let avgScore;
+  if (votes.length <= 2) {
+    // 人数不足，直接取平均
+    avgScore = totalScore / votes.length;
+  } else {
+    // 排序并标记最高最低
+    const sortedVotes = [...votes].sort((a, b) => a.score - b.score);
+    const minVote = sortedVotes[0];
+    const maxVote = sortedVotes[sortedVotes.length - 1];
+    
+    // 标记被排除的打分
+    minVote.is_excluded = true;
+    maxVote.is_excluded = true;
+    
+    // 计算去掉最高最低后的平均分
+    const validScores = sortedVotes.slice(1, -1).map(v => v.score);
+    avgScore = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+  }
+  
+  // 四舍五入保留一位小数
+  avgScore = normalizeScore(avgScore);
+  
+  // 更新会话状态
+  session.status = 'closed';
+  session.closed_at = new Date().toISOString();
+  session.total_score = normalizeScore(totalScore);
+  session.avg_score = avgScore;
+  
+  // 将平均分累加到学生积分
+  const student = db.students.find(s => s.id === session.student_id);
+  if (student) {
+    student.score = normalizeScore(student.score + avgScore);
+    session.applied_to_student = true;
+    
+    // 记录到积分日志
+    db.scoreLogs.push({
+      id: db.nextId.scoreLogs++,
+      student_id: session.student_id,
+      delta: avgScore,
+      reason: '展示评分',
+      type: 'rating',
+      created_at: new Date().toISOString()
+    });
+    
+    // 同步更新战队积分
+    if (student.team_id) {
+      const team = db.teams.find(t => t.id === student.team_id);
+      if (team) {
+        team.score = normalizeScore(team.score + avgScore);
+      }
+    }
+  }
+  
+  saveDb();
+  
+  res.json({
+    ...session,
+    votes: votes.map(v => ({ id: v.id, score: v.score, is_excluded: v.is_excluded })),
+    vote_count: votes.length
+  });
+});
+
+// 获取展示评分排行榜
+app.get('/api/classes/:classId/rating-leaderboard', (req, res) => {
+  const classId = validateId(req.params.classId);
+  if (!classId) return res.status(400).json({ error: '无效的班级ID' });
+  
+  // 获取所有已结束的评分会话
+  const closedSessions = db.ratingSessions
+    .filter(s => s.class_id === classId && s.status === 'closed')
+    .map(s => {
+      const votes = db.ratingVotes.filter(v => v.session_id === s.id);
+      return {
+        id: s.id,
+        student_id: s.student_id,
+        student_name: s.student_name,
+        student_avatar: s.student_avatar,
+        total_score: normalizeScore(s.total_score),
+        avg_score: normalizeScore(s.avg_score),
+        vote_count: votes.length,
+        created_at: s.created_at
+      };
+    })
+    .sort((a, b) => b.avg_score - a.avg_score);
+  
+  res.json(closedSessions);
+});
+
+// 取消评分会话（不计分，直接删除）
+app.patch('/api/rating-sessions/:id/cancel', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '无效的会话ID' });
+  
+  const session = db.ratingSessions.find(s => s.id === id);
+  if (!session) {
+    return res.status(404).json({ error: '会话不存在' });
+  }
+  
+  if (session.status === 'closed') {
+    return res.status(400).json({ error: '评分已结束，无法取消' });
+  }
+  
+  // 删除相关打分记录
+  db.ratingVotes = db.ratingVotes.filter(v => v.session_id !== id);
+  // 删除会话
+  db.ratingSessions = db.ratingSessions.filter(s => s.id !== id);
+  
+  saveDb();
+  res.json({ success: true, message: '评分已取消' });
+});
+
+// 删除评分会话（管理员用）
+app.delete('/api/rating-sessions/:id', (req, res) => {
+  const id = validateId(req.params.id);
+  if (!id) return res.status(400).json({ error: '无效的会话ID' });
+  
+  const session = db.ratingSessions.find(s => s.id === id);
+  if (!session) {
+    return res.status(404).json({ error: '会话不存在' });
+  }
+  
+  // 删除相关打分记录
+  db.ratingVotes = db.ratingVotes.filter(v => v.session_id !== id);
+  // 删除会话
+  db.ratingSessions = db.ratingSessions.filter(s => s.id !== id);
+  
+  saveDb();
+  res.json({ success: true });
 });
 
 // ============ 奖惩配置 API ============
@@ -744,6 +2355,45 @@ function generateShortId() {
   return result;
 }
 
+// 上传报告照片（最多9张）
+app.post('/api/reports/upload', (req, res) => {
+  upload.array('photos', 9)(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: '单张图片不能超过10MB' });
+        }
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({ error: '最多上传9张图片' });
+        }
+      }
+      return res.status(400).json({ error: err.message || '上传失败' });
+    }
+
+    const files = req.files || [];
+    if (files.length === 0) {
+      return res.status(400).json({ error: '请先选择图片' });
+    }
+
+    const items = files.map(file => ({
+      id: db.nextId.photos++,
+      filename: file.filename,
+      url: `/uploads/photos/${file.filename}`,
+      size: file.size,
+      mimetype: file.mimetype,
+      created_at: new Date().toISOString()
+    }));
+
+    db.photos.push(...items);
+    saveDb();
+
+    res.json({
+      photos: items.map(i => i.url),
+      items
+    });
+  });
+});
+
 // 保存报告
 app.post('/api/reports', (req, res) => {
   const { student_id, class_id, photos, ai_comment, traits, teacher_name } = req.body;
@@ -757,6 +2407,16 @@ app.post('/api/reports', (req, res) => {
     return res.status(404).json({ error: '学员不存在' });
   }
 
+  const team = student.team_id ? db.teams.find(t => t.id === student.team_id) : null;
+
+  if (Array.isArray(photos) && photos.length > 9) {
+    return res.status(400).json({ error: '报告图片最多9张' });
+  }
+
+  const reportPhotos = Array.isArray(photos)
+    ? photos.filter(p => typeof p === 'string').slice(0, 9)
+    : [];
+
   const shortId = generateShortId();
   const newReport = {
     id: db.nextId.reports++,
@@ -765,10 +2425,10 @@ app.post('/api/reports', (req, res) => {
     class_id,
     student_name: student.name,
     student_avatar: student.avatar,
-    student_score: student.score,
+    student_score: normalizeScore(student.score),
     team_id: student.team_id,
-    team_name: student.team_name,
-    photos: photos || [],
+    team_name: team?.name || null,
+    photos: reportPhotos,
     ai_comment: ai_comment || '',
     teacher_name: teacher_name || '老师',
     traits: traits || {},
@@ -785,6 +2445,118 @@ app.post('/api/reports', (req, res) => {
   saveDb();
   
   res.json({ id: shortId, report: newReport });
+});
+
+// 获取班级报告列表（管理员）
+app.get('/api/classes/:classId/reports', (req, res) => {
+  const classId = validateId(req.params.classId);
+  if (!classId) return res.status(400).json({ error: '无效的班级ID' });
+
+  const reports = db.reports
+    .filter(r => r.class_id === classId)
+    .map(r => ({
+      short_id: r.short_id,
+      student_id: r.student_id,
+      student_name: r.student_name,
+      student_avatar: r.student_avatar,
+      student_score: normalizeScore(r.student_score),
+      team_name: r.team_name || '',
+      teacher_name: r.teacher_name || '老师',
+      created_at: r.created_at
+    }))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  res.json(reports);
+});
+
+// 生成奖状
+app.post('/api/certificates', (req, res) => {
+  const student_id = validateId(req.body.student_id);
+  const class_id = validateId(req.body.class_id);
+  const title = sanitizeString(req.body.title || '优秀学员奖状', 50);
+  const subtitle = sanitizeString(req.body.subtitle || '在创赛营中表现优异，特发此状以资鼓励。', 120);
+  const teacher_name = sanitizeString(req.body.teacher_name || '老师', 20) || '老师';
+
+  if (!student_id || !class_id) {
+    return res.status(400).json({ error: '缺少必要参数' });
+  }
+
+  const student = db.students.find(s => s.id === student_id);
+  if (!student) {
+    return res.status(404).json({ error: '学员不存在' });
+  }
+
+  if (student.class_id !== class_id) {
+    return res.status(400).json({ error: '学员不属于该班级' });
+  }
+
+  const team = student.team_id ? db.teams.find(t => t.id === student.team_id) : null;
+  const classInfo = db.classes.find(c => c.id === class_id);
+
+  const shortId = generateShortId();
+  const certificate = {
+    id: db.nextId.certificates++,
+    short_id: shortId,
+    student_id,
+    class_id,
+    class_name: classInfo?.name || '',
+    student_name: student.name,
+    student_avatar: student.avatar,
+    student_score: normalizeScore(student.score),
+    team_name: team?.name || '',
+    title,
+    subtitle,
+    teacher_name,
+    issued_at: new Date().toISOString(),
+    created_at: new Date().toISOString()
+  };
+
+  db.certificates.push(certificate);
+  saveDb();
+
+  res.json({ id: shortId, certificate });
+});
+
+// 获取班级奖状列表（管理员）
+app.get('/api/classes/:classId/certificates', (req, res) => {
+  const classId = validateId(req.params.classId);
+  if (!classId) return res.status(400).json({ error: '无效的班级ID' });
+
+  const certificates = db.certificates
+    .filter(c => c.class_id === classId)
+    .map(c => ({
+      short_id: c.short_id,
+      student_id: c.student_id,
+      student_name: c.student_name,
+      student_avatar: c.student_avatar,
+      student_score: normalizeScore(c.student_score),
+      team_name: c.team_name || '',
+      title: c.title,
+      teacher_name: c.teacher_name,
+      issued_at: c.issued_at,
+      created_at: c.created_at
+    }))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  res.json(certificates);
+});
+
+// 获取奖状详情
+app.get('/api/certificates/:shortId', (req, res) => {
+  const { shortId } = req.params;
+  const certificate = db.certificates.find(c => c.short_id === shortId);
+
+  if (!certificate) {
+    return res.status(404).json({ error: '奖状不存在' });
+  }
+
+  const classInfo = db.classes.find(c => c.id === certificate.class_id);
+
+  res.json({
+    ...certificate,
+    student_score: normalizeScore(certificate.student_score),
+    class_name: classInfo?.name || certificate.class_name || ''
+  });
 });
 
 // 报告有效期（天）
@@ -813,8 +2585,26 @@ app.get('/api/reports/:shortId', (req, res) => {
   
   res.json({
     ...report,
+    student_score: normalizeScore(report.student_score),
     class_name: classInfo?.name || ''
   });
+});
+
+// 版本检查接口（用于调试）
+app.get('/api/version', (req, res) => {
+  const indexPath = path.join(__dirname, '../client/dist/index.html');
+  try {
+    const html = fs.readFileSync(indexPath, 'utf-8');
+    const jsMatch = html.match(/index-([^.]+)\.js/);
+    const cssMatch = html.match(/index-([^.]+)\.css/);
+    res.json({
+      jsFile: jsMatch ? jsMatch[0] : 'not found',
+      cssFile: cssMatch ? cssMatch[0] : 'not found',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // SPA路由处理

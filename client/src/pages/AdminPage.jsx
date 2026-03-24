@@ -4,11 +4,20 @@ import { useStore } from '../store/useStore';
 import ClassSelector from '../components/ClassSelector';
 import TeamManager from '../components/TeamManager';
 import StudentManager from '../components/StudentManager';
+import PetCenter from '../components/PetCenter';
 import LotteryWheel from '../components/LotteryWheel';
 import PunishmentDisplay from '../components/PunishmentDisplay';
 import LotteryHistory from '../components/LotteryHistory';
-import Footer from '../components/Footer';
+import RatingManager from '../components/RatingManager';
+import ReportGenerator from '../components/report/ReportGenerator';
+import CertificateManager from '../components/report/CertificateManager';
 import { soundManager } from '../utils/sounds';
+import { formatScore } from '../utils/score';
+
+const TAB_PANE_TRANSITION = {
+  duration: 0.2,
+  ease: [0.22, 1, 0.36, 1]
+};
 
 function PinVerify({ onSuccess }) {
   const [pin, setPin] = useState('');
@@ -86,11 +95,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (currentClass) {
+      if (currentClass && !document.hidden) {
         fetchTeams(currentClass.id);
         fetchStudents(currentClass.id);
       }
-    }, 3000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [currentClass]);
 
@@ -107,8 +116,9 @@ export default function AdminPage() {
     return <PinVerify onSuccess={() => setVerified(true)} />;
   }
 
-  const sortedTeams = [...teams].sort((a, b) => b.score - a.score);
+  const sortedTeams = [...teams].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
   const losingTeam = sortedTeams.length >= 2 ? sortedTeams[sortedTeams.length - 1] : null;
+  const isPetWorkspace = activeTab === 'pets';
 
   return (
     <div className="min-h-screen p-6">
@@ -124,12 +134,6 @@ export default function AdminPage() {
           </motion.h1>
           
           <div className="flex items-center gap-3">
-            <a
-              href="/report"
-              className="px-4 py-2 rounded-xl bg-white/20 text-white hover:bg-white/30 font-bold"
-            >
-              📋 结营报告
-            </a>
             <button
               onClick={toggleSound}
               className="px-4 py-2 rounded-xl bg-white/20 text-white hover:bg-white/30 font-bold"
@@ -158,56 +162,157 @@ export default function AdminPage() {
           <p className="text-xl text-white font-bold">请先选择或创建一个班级</p>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${isPetWorkspace ? '' : 'lg:grid-cols-3'}`}>
           {/* 左侧管理区 */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex gap-3">
+          <div className={isPetWorkspace ? 'space-y-6' : 'lg:col-span-2 space-y-6'}>
+            <div className="flex gap-3 flex-wrap">
               <button
+                type="button"
                 onClick={() => setActiveTab('students')}
+                aria-pressed={activeTab === 'students'}
                 className={`px-6 py-2 rounded-full font-bold transition-all ${
                   activeTab === 'students'
-                    ? 'bg-white text-orange-500 shadow-lg'
+                    ? 'bg-white text-cyan-600 shadow-lg'
                     : 'bg-white/30 text-white hover:bg-white/50'
                 }`}
               >
                 👥 学员管理
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab('teams')}
+                aria-pressed={activeTab === 'teams'}
                 className={`px-6 py-2 rounded-full font-bold transition-all ${
                   activeTab === 'teams'
-                    ? 'bg-white text-orange-500 shadow-lg'
+                    ? 'bg-white text-cyan-600 shadow-lg'
                     : 'bg-white/30 text-white hover:bg-white/50'
                 }`}
               >
                 ⚔️ 战队管理
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('pets')}
+                aria-pressed={activeTab === 'pets'}
+                data-testid="admin-tab-pets"
+                className={`px-6 py-2 rounded-full font-bold transition-all ${
+                  activeTab === 'pets'
+                    ? 'bg-white text-cyan-600 shadow-lg'
+                    : 'bg-white/30 text-white hover:bg-white/50'
+                }`}
+              >
+                🐾 宠物中心
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('rating')}
+                aria-pressed={activeTab === 'rating'}
+                className={`px-6 py-2 rounded-full font-bold transition-all ${
+                  activeTab === 'rating'
+                    ? 'bg-white text-cyan-600 shadow-lg'
+                    : 'bg-white/30 text-white hover:bg-white/50'
+                }`}
+              >
+                🎯 展示评分
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('report')}
+                aria-pressed={activeTab === 'report'}
+                className={`px-6 py-2 rounded-full font-bold transition-all ${
+                  activeTab === 'report'
+                    ? 'bg-white text-cyan-600 shadow-lg'
+                    : 'bg-white/30 text-white hover:bg-white/50'
+                }`}
+              >
+                📄 结营报告
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('certificate')}
+                aria-pressed={activeTab === 'certificate'}
+                className={`px-6 py-2 rounded-full font-bold transition-all ${
+                  activeTab === 'certificate'
+                    ? 'bg-white text-cyan-600 shadow-lg'
+                    : 'bg-white/30 text-white hover:bg-white/50'
+                }`}
+              >
+                🏅 奖状导出
+              </button>
             </div>
 
-            <AnimatePresence mode="wait">
-              {activeTab === 'students' ? (
+            <>
+              {activeTab === 'students' && (
                 <motion.div
                   key="students"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  transition={TAB_PANE_TRANSITION}
                 >
                   <StudentManager />
                 </motion.div>
-              ) : (
+              )}
+              {activeTab === 'teams' && (
                 <motion.div
                   key="teams"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  transition={TAB_PANE_TRANSITION}
                 >
                   <TeamManager />
                 </motion.div>
               )}
-            </AnimatePresence>
+              {activeTab === 'pets' && (
+                <motion.div
+                  key="pets"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={TAB_PANE_TRANSITION}
+                >
+                  <PetCenter />
+                </motion.div>
+              )}
+              {activeTab === 'rating' && (
+                <motion.div
+                  key="rating"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={TAB_PANE_TRANSITION}
+                >
+                  <RatingManager />
+                </motion.div>
+              )}
+              {activeTab === 'report' && (
+                <motion.div
+                  key="report"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={TAB_PANE_TRANSITION}
+                >
+                  <ReportGenerator />
+                </motion.div>
+              )}
+              {activeTab === 'certificate' && (
+                <motion.div
+                  key="certificate"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={TAB_PANE_TRANSITION}
+                >
+                  <CertificateManager />
+                </motion.div>
+              )}
+            </>
           </div>
 
           {/* 右侧快捷操作 */}
+          {!isPetWorkspace && (
           <div className="space-y-4">
             {/* 战队积分 */}
             <div className="card-game">
@@ -228,7 +333,7 @@ export default function AdminPage() {
                       </span>
                     </div>
                     <span className="text-2xl font-black" style={{ color: team.color }}>
-                      {team.score}
+                      {formatScore(team.score)}
                     </span>
                   </div>
                 ))}
@@ -299,7 +404,7 @@ export default function AdminPage() {
                   >
                     <option value="">-- 请选择战队 --</option>
                     {sortedTeams.map(team => (
-                      <option key={team.id} value={team.id}>{team.name} ({team.score}分)</option>
+                      <option key={team.id} value={team.id}>{team.name} ({formatScore(team.score)}分)</option>
                     ))}
                   </select>
                 ) : (
@@ -363,7 +468,7 @@ export default function AdminPage() {
                     <span style={{ color: losingTeam.color }} className="font-bold">
                       {losingTeam.name}
                     </span>
-                    <span className="text-red-500 font-bold">{losingTeam.score}分</span>
+                    <span className="text-red-500 font-bold">{formatScore(losingTeam.score)}分</span>
                   </div>
                 </div>
               )}
@@ -380,6 +485,7 @@ export default function AdminPage() {
               </ul>
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -459,9 +565,6 @@ export default function AdminPage() {
           <LotteryHistory onClose={() => setShowHistory(false)} />
         )}
       </AnimatePresence>
-
-      {/* 备案信息 */}
-      <Footer className="mt-8" />
     </div>
   );
 }

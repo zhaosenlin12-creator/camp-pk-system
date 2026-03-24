@@ -1,28 +1,39 @@
-# 依赖
+# Dependencies
 node_modules/
 client/node_modules/
 
-# 构建输出
+# Build output
 client/dist/
+client/dist.zip
 
-# 敏感配置文件（加密的密钥存储）
+# Local QA and temp artifacts
+.gstack/
+.tmp/
+temp-assets/
+test-results/
+logs/
+
+# Sensitive config
 .secrets.enc
 .env
 .env.local
 .env.production
+.htaccess
+.user.ini
 
-# 数据库文件（包含用户数据）
+# Runtime data
 database/data.json
+database/data.*.json
 
-# 上传文件
+# Uploads
 uploads/photos/*
 !uploads/photos/.gitkeep
 
-# 日志
+# Logs
 *.log
 npm-debug.log*
 
-# 系统文件
+# System files
 .DS_Store
 Thumbs.db
 
@@ -32,6 +43,8 @@ Thumbs.db
 *.swp
 *.swo
 
-# 临时文件
+# Temporary files
 *.tmp
 *.temp
+404.html
+index.html

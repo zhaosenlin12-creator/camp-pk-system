@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { CERTIFICATE_TEMPLATES, getRankCertificateStyle, CERTIFICATE_TYPES, ORG_INFO } from '../../utils/certificates';
 import { getRank } from '../../utils/ranks';
+import { formatScore } from '../../utils/score';
 
 // 装饰图案组件
 const DecorativePattern = ({ pattern }) => {
@@ -51,7 +52,7 @@ const CertificateTemplate = forwardRef(({
       ...rankStyle,
       title: rankInfo.name,
       decoration: rankInfo.icon,
-      description: `在2025寒假创赛营中通过不懈努力，最终积分${score}分，成功达成`,
+      description: `在2025寒假创赛营中通过不懈努力，最终积分${formatScore(score)}分，成功达成`,
     };
   }
 
@@ -175,7 +176,7 @@ const CertificateTemplate = forwardRef(({
               className="font-bold text-sm"
               style={{ color: finalTemplate.textColor }}
             >
-              {rankInfo.name} · {score}分
+              {rankInfo.name} · {formatScore(score)}分
             </span>
           </div>
         )}

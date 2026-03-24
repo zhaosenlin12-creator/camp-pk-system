@@ -5,10 +5,11 @@ const API_BASE = '/api';
 // 统一的请求处理函数
 const request = async (url, options = {}) => {
   try {
+    const isFormData = options.body instanceof FormData;
     const res = await fetch(url, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...options.headers
       }
     });
@@ -31,6 +32,7 @@ export const useStore = create((set, get) => ({
   currentClass: null,
   teams: [],
   students: [],
+  pets: [],
   rewards: [],
   punishments: [],
   isAdmin: false,
@@ -247,6 +249,72 @@ export const useStore = create((set, get) => ({
   },
 
   // 获取奖励列表
+  fetchPets: async () => {
+    try {
+      const pets = await request(`${API_BASE}/pets`);
+      set({ pets: pets || [] });
+      return pets || [];
+    } catch (err) {
+      set({ pets: [] });
+      return [];
+    }
+  },
+
+  claimStudentPet: async (studentId, petId, overwrite = false) => {
+    try {
+      const updatedStudent = await request(`${API_BASE}/students/${studentId}/claim-pet`, {
+        method: 'POST',
+        body: JSON.stringify({ pet_id: petId, overwrite })
+      });
+      set((state) => ({
+        students: state.students.map((student) =>
+          student.id === studentId ? updatedStudent : student
+        ),
+        error: null
+      }));
+      return updatedStudent;
+    } catch (err) {
+      set({ error: err.message || '领取宠物失败' });
+      throw err;
+    }
+  },
+
+  activateStudentPetSlot: async (studentId, slotId) => {
+    try {
+      const updatedStudent = await request(`${API_BASE}/students/${studentId}/pet-slots/${slotId}/activate`, {
+        method: 'POST'
+      });
+      set((state) => ({
+        students: state.students.map((student) =>
+          student.id === studentId ? updatedStudent : student
+        ),
+        error: null
+      }));
+      return updatedStudent;
+    } catch (err) {
+      set({ error: err.message || '切换宠物失败' });
+      throw err;
+    }
+  },
+
+  runStudentPetAction: async (studentId, action) => {
+    try {
+      const updatedStudent = await request(`${API_BASE}/students/${studentId}/pet/${action}`, {
+        method: 'POST'
+      });
+      set((state) => ({
+        students: state.students.map((student) =>
+          student.id === studentId ? updatedStudent : student
+        ),
+        error: null
+      }));
+      return updatedStudent;
+    } catch (err) {
+      set({ error: err.message || '宠物操作失败' });
+      throw err;
+    }
+  },
+
   fetchRewards: async () => {
     try {
       const rewards = await request(`${API_BASE}/rewards`);
@@ -329,6 +397,266 @@ export const useStore = create((set, get) => ({
       return true;
     } catch (err) {
       return false;
+    }
+  },
+
+  // ============ 展示评分 ============
+  activeSession: null,
+  ratingSessions: [],
+  ratingLeaderboard: [],
+
+  // 获取当前进行中的评分会话
+  fetchActiveSession: async (classId) => {
+    try {
+      const session = await request(`${API_BASE}/classes/${classId}/active-session`);
+      set({ activeSession: session });
+      return session;
+    } catch (err) {
+      set({ activeSession: null });
+      return null;
+    }
+  },
+
+  // 获取所有评分会话
+  fetchRatingSessions: async (classId) => {
+    try {
+      const sessions = await request(`${API_BASE}/classes/${classId}/rating-sessions`);
+      set({ ratingSessions: sessions || [] });
+      return sessions;
+    } catch (err) {
+      set({ ratingSessions: [] });
+      return [];
+    }
+  },
+
+  // 获取会话详情（管理员用）
+  fetchSessionDetail: async (sessionId) => {
+    try {
+      return await request(`${API_BASE}/rating-sessions/${sessionId}`);
+    } catch (err) {
+      return null;
+    }
+  },
+
+  // 创建评分会话
+  createRatingSession: async (classId, studentId) => {
+    try {
+      const session = await request(`${API_BASE}/rating-sessions`, {
+        method: 'POST',
+        body: JSON.stringify({ class_id: classId, student_id: studentId })
+      });
+      set({ activeSession: session });
+      return session;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // 提交打分
+  submitVote: async (sessionId, voterName, score) => {
+    try {
+      const result = await request(`${API_BASE}/rating-sessions/${sessionId}/vote`, {
+        method: 'POST',
+        body: JSON.stringify({ voter_name: voterName, score })
+      });
+      return result;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // 检查是否已打分
+  checkVoted: async (sessionId, voterName) => {
+    try {
+      return await request(`${API_BASE}/rating-sessions/${sessionId}/check-voted?voter_name=${encodeURIComponent(voterName)}`);
+    } catch (err) {
+      return { voted: false, your_score: null };
+    }
+  },
+
+  // 结束评分会话
+  closeRatingSession: async (sessionId) => {
+    try {
+      const result = await request(`${API_BASE}/rating-sessions/${sessionId}/close`, {
+        method: 'PATCH'
+      });
+      set({ activeSession: null });
+      // 刷新学生数据
+      const currentClass = get().currentClass;
+      if (currentClass) {
+        get().fetchStudents(currentClass.id);
+        get().fetchTeams(currentClass.id);
+        get().fetchRatingSessions(currentClass.id);
+        get().fetchRatingLeaderboard(currentClass.id);
+      }
+      return result;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // 取消评分会话（不计分）
+  cancelRatingSession: async (sessionId) => {
+    try {
+      await request(`${API_BASE}/rating-sessions/${sessionId}/cancel`, {
+        method: 'PATCH'
+      });
+      set({ activeSession: null });
+      const currentClass = get().currentClass;
+      if (currentClass) {
+        get().fetchRatingSessions(currentClass.id);
+      }
+      return true;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // 删除打分记录
+  deleteVote: async (voteId) => {
+    try {
+      await request(`${API_BASE}/rating-votes/${voteId}`, { method: 'DELETE' });
+      return true;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // 编辑打分记录
+  editVote: async (voteId, score) => {
+    try {
+      await request(`${API_BASE}/rating-votes/${voteId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ score })
+      });
+      return true;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // 删除评分会话
+  deleteRatingSession: async (sessionId) => {
+    try {
+      await request(`${API_BASE}/rating-sessions/${sessionId}`, { method: 'DELETE' });
+      const currentClass = get().currentClass;
+      if (currentClass) {
+        get().fetchRatingSessions(currentClass.id);
+        get().fetchActiveSession(currentClass.id);
+      }
+      return true;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // 获取评分排行榜
+  fetchRatingLeaderboard: async (classId) => {
+    try {
+      const leaderboard = await request(`${API_BASE}/classes/${classId}/rating-leaderboard`);
+      set({ ratingLeaderboard: leaderboard || [] });
+      return leaderboard;
+    } catch (err) {
+      set({ ratingLeaderboard: [] });
+      return [];
+    }
+  },
+
+  // ============ 结营报告 ============
+  reports: [],
+
+  fetchStudentScoreLogs: async (studentId) => {
+    try {
+      return await request(`${API_BASE}/students/${studentId}/score-logs`)
+    } catch (err) {
+      return []
+    }
+  },
+
+  uploadReportPhotos: async (files) => {
+    try {
+      const formData = new FormData()
+      files.forEach(file => formData.append('photos', file))
+      return await request(`${API_BASE}/reports/upload`, {
+        method: 'POST',
+        body: formData
+      })
+    } catch (err) {
+      throw err
+    }
+  },
+
+  generateAiComment: async ({ studentInfo, customPrompt = '' }) => {
+    try {
+      return await request(`${API_BASE}/ai/generate-comment`, {
+        method: 'POST',
+        body: JSON.stringify({ studentInfo, customPrompt })
+      })
+    } catch (err) {
+      throw err
+    }
+  },
+
+  createReport: async (payload) => {
+    try {
+      return await request(`${API_BASE}/reports`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+    } catch (err) {
+      throw err
+    }
+  },
+
+  fetchClassReports: async (classId) => {
+    try {
+      const reports = await request(`${API_BASE}/classes/${classId}/reports`)
+      set({ reports: reports || [] })
+      return reports || []
+    } catch (err) {
+      set({ reports: [] })
+      return []
+    }
+  },
+
+  getReportByShortId: async (shortId) => {
+    try {
+      return await request(`${API_BASE}/reports/${shortId}`)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // ============ 奖状 ============
+  certificates: [],
+
+  createCertificate: async (payload) => {
+    try {
+      return await request(`${API_BASE}/certificates`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+    } catch (err) {
+      throw err
+    }
+  },
+
+  fetchClassCertificates: async (classId) => {
+    try {
+      const certificates = await request(`${API_BASE}/classes/${classId}/certificates`)
+      set({ certificates: certificates || [] })
+      return certificates || []
+    } catch (err) {
+      set({ certificates: [] })
+      return []
+    }
+  },
+
+  getCertificateByShortId: async (shortId) => {
+    try {
+      return await request(`${API_BASE}/certificates/${shortId}`)
+    } catch (err) {
+      throw err
     }
   }
 }));

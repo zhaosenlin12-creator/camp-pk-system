@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useStore } from '../store/useStore';
 import { soundManager } from '../utils/sounds';
+import { formatScore } from '../utils/score';
 
 const SCORE_OPTIONS = [
   { value: 1, label: '+1', color: '#6BCB77' },
@@ -31,21 +32,25 @@ const REASONS = [
 export default function ScoreModifier({ student, onClose }) {
   const { updateStudentScore } = useStore();
   const [selectedScore, setSelectedScore] = useState(null);
+  const [customScore, setCustomScore] = useState('');
   const [selectedReason, setSelectedReason] = useState(null);
   const [showAnimation, setShowAnimation] = useState(false);
   const [animationData, setAnimationData] = useState(null);
 
   const handleConfirm = async () => {
-    if (!selectedScore || !selectedReason) return;
+    const finalScore = customScore ? parseInt(customScore) : selectedScore?.value;
+    
+    if (!finalScore || !selectedReason) return;
+    if (isNaN(finalScore)) return;
 
     setAnimationData({
-      score: selectedScore.value,
+      score: finalScore,
       reason: selectedReason.text,
       studentName: student.name,
     });
     setShowAnimation(true);
 
-    if (selectedScore.value > 0) {
+    if (finalScore > 0) {
       soundManager.playScoreUp();
       confetti({
         particleCount: 100,
@@ -57,7 +62,7 @@ export default function ScoreModifier({ student, onClose }) {
       soundManager.playScoreDown();
     }
 
-    await updateStudentScore(student.id, selectedScore.value, selectedReason.text);
+    await updateStudentScore(student.id, finalScore, selectedReason.text);
 
     setTimeout(() => {
       setShowAnimation(false);
@@ -118,7 +123,7 @@ export default function ScoreModifier({ student, onClose }) {
           <span className="text-5xl">{student.avatar}</span>
           <div>
             <h3 className="text-2xl font-bold text-gray-800">{student.name}</h3>
-            <p className="text-gray-500">当前积分: {student.score}</p>
+            <p className="text-gray-500">当前积分: {formatScore(student.score)}</p>
           </div>
         </div>
 
@@ -133,16 +138,32 @@ export default function ScoreModifier({ student, onClose }) {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setSelectedScore(option);
+                  setCustomScore('');
                   soundManager.playClick();
                 }}
                 className={`py-4 rounded-xl font-bold text-xl text-white transition-all ${
-                  selectedScore?.value === option.value ? 'ring-4 ring-yellow-400 ring-offset-2' : ''
+                  selectedScore?.value === option.value && !customScore ? 'ring-4 ring-yellow-400 ring-offset-2' : ''
                 }`}
                 style={{ backgroundColor: option.color }}
               >
                 {option.label}
               </motion.button>
             ))}
+          </div>
+          
+          {/* 自定义分数输入 */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-600 mb-2">或自定义分数：</label>
+            <input
+              type="number"
+              value={customScore}
+              onChange={(e) => {
+                setCustomScore(e.target.value);
+                setSelectedScore(null);
+              }}
+              placeholder="输入任意分数（可为负数）"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none text-center text-xl font-bold"
+            />
           </div>
         </div>
 
@@ -183,9 +204,9 @@ export default function ScoreModifier({ student, onClose }) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleConfirm}
-            disabled={!selectedScore || !selectedReason}
+            disabled={(!selectedScore && !customScore) || !selectedReason}
             className={`flex-1 py-3 rounded-xl font-bold text-white transition-all ${
-              selectedScore && selectedReason
+              (selectedScore || customScore) && selectedReason
                 ? 'bg-gradient-to-r from-orange-500 to-pink-500 shadow-lg'
                 : 'bg-gray-300 cursor-not-allowed'
             }`}

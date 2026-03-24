@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas';
 import CertificateTemplate from './CertificateTemplate';
 import { CERTIFICATE_TEMPLATES, getStudentCertificateTypes, getTeamCertificateTypes, CERTIFICATE_TYPES } from '../../utils/certificates';
 import { useStore } from '../../store/useStore';
+import { formatScore } from '../../utils/score';
 
 export default function CertificateManager() {
   const { students, teams, currentClass } = useStore();
@@ -24,13 +25,12 @@ export default function CertificateManager() {
     
     setIsExporting(true);
     try {
-      const dataUrl = await toPng(certificateRef.current, {
-        quality: 0.92,
-        pixelRatio: 1.5, // 降低以提高速度
+      const canvas = await html2canvas(certificateRef.current, {
+        scale: 2,
+        useCORS: true,
         backgroundColor: '#ffffff',
-        cacheBust: true,
-        skipFonts: true, // 跳过字体处理提高速度
       });
+      const dataUrl = canvas.toDataURL('image/png');
       
       // 下载图片
       const link = document.createElement('a');
@@ -119,7 +119,7 @@ export default function CertificateManager() {
             <option value="">-- 请选择学员 --</option>
             {students.map(student => (
               <option key={student.id} value={student.id}>
-                {student.avatar} {student.name} ({student.score}分)
+                {student.avatar} {student.name} ({formatScore(student.score)}分)
                 {student.team_name && ` - ${student.team_name}`}
               </option>
             ))}
@@ -136,7 +136,7 @@ export default function CertificateManager() {
             <option value="">-- 请选择战队 --</option>
             {teams.map(team => (
               <option key={team.id} value={team.id}>
-                ⚔️ {team.name} ({team.score}分)
+                ⚔️ {team.name} ({formatScore(team.score)}分)
               </option>
             ))}
           </select>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import { soundManager } from '../utils/sounds';
 import { TEAM_COLORS } from '../utils/ranks';
+import { formatScore } from '../utils/score';
 
 export default function TeamManager() {
   const { currentClass, teams, createTeam, deleteTeam, students, updateStudent } = useStore();
@@ -109,7 +110,7 @@ export default function TeamManager() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xl" style={{ color: team.color }}>
-                      {team.score}分
+                      {formatScore(team.score)}分
                     </span>
                     <button
                       onClick={() => handleDelete(team.id)}

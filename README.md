@@ -13,6 +13,20 @@
 - 🎨 **游戏化UI** - 阳光活力的界面设计
 - 🔊 **音效系统** - 加分、扣分、抽奖都有音效反馈
 
+
+#PM2应用是game用户部署的切换
+su - game
+cd /www/wwwroot/camp-pk-system
+pm2 list
+pm2 restart camp-pk-system
+
+
+
+
+
+
+
+
 ## 🚀 快速开始
 
 ### 1. 安装依赖
@@ -197,19 +211,3 @@ PORT=3001 npm start
 ---
 
 Made with ❤️ for 创赛营
-
-
-
-#快速启动（推荐）
-
-# 2. 进入目录
-cd /www/wwwroot/camp-pk-system
-
-# 3. 启动服务
-pm2 start ecosystem.config.js --env production
-
-# 4. 保存配置
-pm2 save
-
-# 5. 查看状态
-pm2 list

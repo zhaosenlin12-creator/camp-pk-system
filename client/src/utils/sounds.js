@@ -43,6 +43,13 @@ class SoundManager {
     frequencies.forEach(freq => this.playNote(freq, duration, type, volume));
   }
 
+  playSequence(notes, defaultType = 'sine', defaultVolume = 0.2, spacing = 90) {
+    notes.forEach((note, index) => {
+      const [frequency, duration = 0.12, type = defaultType, volume = defaultVolume] = note;
+      setTimeout(() => this.playNote(frequency, duration, type, volume), index * spacing);
+    });
+  }
+
   // 加分音效 - 欢快上升
   playScoreUp() {
     const notes = [523, 659, 784, 1047];
@@ -137,6 +144,123 @@ class SoundManager {
   // 点击音效
   playClick() {
     this.playNote(600, 0.05, 'sine', 0.15);
+  }
+
+  playPetProfileOpen() {
+    this.playSequence(
+      [
+        [659, 0.06, 'triangle', 0.1],
+        [880, 0.08, 'sine', 0.12],
+        [1047, 0.12, 'triangle', 0.12],
+        [1319, 0.16, 'sine', 0.08]
+      ],
+      'sine',
+      0.12,
+      68
+    );
+  }
+
+  playPetClaim() {
+    this.playSequence(
+      [
+        [523, 0.08, 'triangle', 0.08],
+        [659, 0.08, 'triangle', 0.1],
+        [784, 0.12, 'sine', 0.14],
+        [988, 0.14, 'sine', 0.16],
+        [1319, 0.18, 'triangle', 0.14]
+      ],
+      'sine',
+      0.12,
+      74
+    );
+
+    setTimeout(() => {
+      this.playChord([392, 523, 659], 0.24, 'triangle', 0.05);
+    }, 120);
+
+    setTimeout(() => {
+      this.playChord([659, 784, 988, 1319], 0.38, 'sine', 0.06);
+    }, 360);
+  }
+
+  playPetHatch() {
+    this.playSequence(
+      [
+        [392, 0.08, 'triangle', 0.08],
+        [523, 0.08, 'triangle', 0.12],
+        [659, 0.1, 'sine', 0.15],
+        [784, 0.12, 'sine', 0.18],
+        [1047, 0.18, 'sine', 0.2],
+        [1319, 0.24, 'triangle', 0.16],
+        [1568, 0.24, 'sine', 0.12]
+      ],
+      'sine',
+      0.16,
+      78
+    );
+
+    setTimeout(() => {
+      this.playChord([262, 392, 523], 0.22, 'triangle', 0.05);
+    }, 140);
+
+    setTimeout(() => {
+      this.playChord([523, 659, 784, 1047], 0.36, 'sine', 0.07);
+    }, 410);
+
+    setTimeout(() => {
+      this.playNote(1568, 0.22, 'triangle', 0.08);
+    }, 560);
+
+    setTimeout(() => {
+      this.playChord([784, 1047, 1319], 0.3, 'sine', 0.05);
+    }, 760);
+  }
+
+  playPetEvolve() {
+    this.playSequence(
+      [
+        [330, 0.1, 'triangle', 0.1],
+        [440, 0.1, 'triangle', 0.12],
+        [659, 0.12, 'sine', 0.14],
+        [880, 0.16, 'sawtooth', 0.14],
+        [1175, 0.2, 'sine', 0.2],
+        [1319, 0.26, 'triangle', 0.22],
+        [1568, 0.32, 'sine', 0.18],
+        [1760, 0.34, 'sine', 0.12]
+      ],
+      'sine',
+      0.16,
+      88
+    );
+
+    setTimeout(() => {
+      this.playChord([220, 330, 440], 0.24, 'triangle', 0.06);
+    }, 120);
+
+    setTimeout(() => {
+      this.playChord([523, 659, 880, 1319], 0.54, 'sine', 0.1);
+    }, 520);
+
+    setTimeout(() => {
+      this.playChord([659, 988, 1319, 1760], 0.62, 'triangle', 0.08);
+    }, 760);
+
+    setTimeout(() => {
+      this.playChord([784, 1175, 1568, 2093], 0.68, 'sine', 0.06);
+    }, 1080);
+  }
+
+  playRankingHighlight() {
+    this.playSequence(
+      [
+        [784, 0.08, 'sine', 0.1],
+        [988, 0.08, 'sine', 0.1],
+        [1175, 0.14, 'sine', 0.12]
+      ],
+      'sine',
+      0.1,
+      65
+    );
   }
 
   // 播放舞蹈背景音乐（简单节拍）
