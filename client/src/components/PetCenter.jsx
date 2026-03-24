@@ -367,99 +367,79 @@ function ButtonTooltip({ text, align = 'center' }) {
   );
 }
 
-function PetActionFeedbackPanel({ feedback }) {
+function PetActionFeedbackPanel({ feedback, className = '' }) {
   if (!feedback) return null;
+
+  const compactMetrics = feedback.metrics.slice(0, 3);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16, scale: 0.98 }}
+      initial={{ opacity: 0, y: 14, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 260, damping: 24 }}
       data-testid="pet-action-feedback"
-      className="pet-care-feedback-panel relative overflow-hidden rounded-[30px] border border-white/80 px-5 py-5 text-slate-700 shadow-[0_20px_46px_rgba(35,49,79,0.14)]"
-      style={buildSoftPanelStyle(feedback.theme, feedback.accent, 132)}
+      className={`pet-care-feedback-panel relative overflow-hidden rounded-[26px] border border-white/75 px-4 py-3 text-slate-700 shadow-[0_18px_40px_rgba(35,49,79,0.16)] ${className}`}
+      style={{
+        ...buildSoftPanelStyle(feedback.theme, feedback.accent, 138),
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)'
+      }}
     >
       <div
-        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full blur-3xl"
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl"
         style={{ backgroundColor: withAlpha(feedback.accent, '28') }}
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -left-6 bottom-3 h-20 w-20 rounded-full blur-3xl"
+        className="pointer-events-none absolute -left-6 bottom-2 h-16 w-16 rounded-full blur-3xl"
         style={{ backgroundColor: withAlpha(feedback.accent, '18') }}
         aria-hidden="true"
       />
 
-      <div className="relative flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-1 items-start gap-4">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-white/92 text-3xl shadow-sm"
-            style={{ boxShadow: `0 12px 28px ${withAlpha(feedback.accent, '20')}` }}
-          >
-            {feedback.icon}
+      <div className="relative flex items-start gap-3">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-white/90 text-2xl shadow-sm"
+          style={{ boxShadow: `0 10px 24px ${withAlpha(feedback.accent, '18')}` }}
+        >
+          {feedback.icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${feedback.badgeClass}`}>
+              {feedback.title}
+            </span>
+            {feedback.scoreSpent > 0 && (
+              <span className="rounded-full bg-white/88 px-3 py-1 text-[11px] font-black text-slate-600 shadow-sm">
+                消耗 {feedback.scoreSpent} 积分
+              </span>
+            )}
+            <span className="rounded-full bg-white/82 px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
+              剩余 {feedback.scoreBalance}
+            </span>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${feedback.badgeClass}`}>
-                {feedback.badge}
-              </span>
-              <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
-                {feedback.stageName}
-              </span>
-            </div>
-            <div className="mt-3 text-xl font-black text-slate-800">
-              {feedback.studentName} · {feedback.title}
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{feedback.flavor}</p>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            {compactMetrics.map((item) => (
+              <div
+                key={item.key}
+                className="pet-care-feedback-chip rounded-full bg-white/88 px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-sm"
+              >
+                {item.label} {item.delta > 0 ? `+${item.delta}` : item.delta}
+              </div>
+            ))}
+            {feedback.revived && (
+              <div className="rounded-full bg-emerald-100 px-3 py-1.5 text-[11px] font-black text-emerald-700 shadow-sm">
+                已唤醒
+              </div>
+            )}
+            {feedback.stillDormant && (
+              <div className="rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-black text-amber-700 shadow-sm">
+                继续照料
+              </div>
+            )}
           </div>
         </div>
-
-        {feedback.pet && (
-          <div className="pet-hero-frame flex h-20 w-20 shrink-0 items-center justify-center rounded-[24px] bg-white/92">
-            <PetArtwork
-              pet={feedback.pet}
-              journey={feedback.journey}
-              className="flex h-14 w-14 items-center justify-center"
-              imageClassName="h-12 w-12 object-contain"
-              fallbackClassName="text-3xl"
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="relative mt-4 flex flex-wrap gap-2">
-        {feedback.metrics.map((item) => (
-          <div
-            key={item.key}
-            className="pet-care-feedback-chip rounded-full bg-white/92 px-3 py-2 text-xs font-black text-slate-700 shadow-sm"
-          >
-            {item.label} {item.delta > 0 ? `+${item.delta}` : item.delta}
-            <span className="ml-1 text-slate-400">当前 {item.value}</span>
-          </div>
-        ))}
-        {feedback.scoreSpent > 0 && (
-          <div className="rounded-full bg-slate-900 px-3 py-2 text-xs font-black text-white shadow-sm">
-            消耗 {feedback.scoreSpent} 积分
-          </div>
-        )}
-        <div className="rounded-full bg-white/92 px-3 py-2 text-xs font-black text-slate-700 shadow-sm">
-          剩余 {feedback.scoreBalance} 积分
-        </div>
-        {feedback.revived && (
-          <div className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-700 shadow-sm">
-            已重新苏醒
-          </div>
-        )}
-        {feedback.stillDormant && (
-          <div className="rounded-full bg-amber-100 px-3 py-2 text-xs font-black text-amber-700 shadow-sm">
-            继续照料可完全恢复
-          </div>
-        )}
-      </div>
-
-      <div className="relative mt-4 text-xs font-bold leading-6 text-slate-500">
-        {feedback.petName} 的状态已经刷新，继续照顾会更快接近下一次孵化或进化仪式。
       </div>
     </motion.div>
   );
@@ -1350,9 +1330,6 @@ export default function PetCenter() {
   if (selectedJourney.can_hatch) ritualActionButtons.push('hatch');
   if (selectedJourney.can_evolve) ritualActionButtons.push('evolve');
   const selectedScoreBalance = Number(selectedJourney.score_balance ?? selectedStudent?.score ?? 0);
-  const selectedConditionCopy = selectedJourney.is_dormant
-    ? (selectedJourney.revive_hint || selectedJourney.condition_tip || selectedJourney.next_target)
-    : (selectedJourney.condition_tip || selectedJourney.next_target);
   const handleCeremonyContinue = () => {
     if (ceremony?.profileTarget) {
       setProfileTarget(ceremony.profileTarget);
@@ -1873,6 +1850,15 @@ export default function PetCenter() {
                         />
                       </div>
                     </div>
+
+                    <AnimatePresence>
+                      {actionFeedback && (
+                        <PetActionFeedbackPanel
+                          feedback={actionFeedback}
+                          className="pointer-events-none absolute inset-x-4 bottom-4 z-20 sm:inset-x-6"
+                        />
+                      )}
+                    </AnimatePresence>
                   </button>
 
                   <div
@@ -1880,20 +1866,32 @@ export default function PetCenter() {
                     data-testid="pet-care-action-cluster"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
+                      <div className="space-y-2">
                         <div className="text-xs font-black tracking-[0.18em]" style={{ color: selectedSpotlightAccent }}>
-                          宠物联动区
+                          照料台
                         </div>
-                        <div className="mt-2 text-lg font-black text-slate-800">
-                          {selectedJourney.is_dormant ? '先赚分，再把它叫醒' : '照料按钮直接贴着宠物主体'}
+                        <div className="inline-flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                          <span className="rounded-full border border-white/80 bg-white/82 px-3 py-1.5 shadow-sm">
+                            {selectedJourney.is_dormant ? '先赚分，再把它叫醒' : '操作后会直接同步到宠物状态'}
+                          </span>
+                          {selectedJourney.score_debt > 0 && (
+                            <span className="rounded-full bg-rose-100 px-3 py-1.5 text-rose-700 shadow-sm">
+                              欠账 {selectedJourney.score_debt} 分
+                            </span>
+                          )}
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">{selectedConditionCopy}</p>
                       </div>
-                      <div className="rounded-[22px] bg-slate-900 px-4 py-3 text-right text-white shadow-sm">
-                        <div className="text-[11px] font-bold text-white/70">当前积分</div>
-                        <div className="mt-1 text-2xl font-black">{selectedScoreBalance}</div>
-                        <div className="mt-1 text-[11px] font-bold text-white/70">
-                          {selectedJourney.score_debt > 0 ? `欠账 ${selectedJourney.score_debt} 分` : '每次照料都会消耗积分'}
+                      <div
+                        className="rounded-[24px] border border-white/80 px-4 py-3 text-right shadow-sm"
+                        style={{
+                          background: `linear-gradient(135deg, rgba(255,255,255,0.94) 0%, ${withAlpha(selectedSpotlightAccent, '12')} 100%)`,
+                          boxShadow: `0 16px 34px ${withAlpha(selectedSpotlightAccent, '14')}`
+                        }}
+                      >
+                        <div className="text-[11px] font-black" style={{ color: selectedSpotlightAccent }}>当前积分</div>
+                        <div className="mt-1 text-2xl font-black text-slate-800">{selectedScoreBalance}</div>
+                        <div className="mt-1 text-[11px] font-bold text-slate-500">
+                          {selectedJourney.score_debt > 0 ? '先补回欠账再稳定照料' : '每次操作都会消耗积分'}
                         </div>
                       </div>
                     </div>
@@ -1918,87 +1916,76 @@ export default function PetCenter() {
 
                         return (
                           <div key={action} className="pet-tip-trigger relative">
-                          <motion.button
-                            type="button"
-                            onClick={() => handlePetAction(action)}
-                            data-testid={`pet-action-${action}`}
-                            title={`${meta.description} ${helperText}`}
-                            disabled={disabled}
-                            whileHover={disabled ? undefined : { y: -3, scale: 1.01 }}
-                            whileTap={disabled ? undefined : { scale: 0.985 }}
-                            className={`pet-care-action-card relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-4 py-4 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                              isFeedbackAction ? 'pet-care-action-card-active' : ''
-                            }`}
-                            style={{
-                              backgroundImage: `linear-gradient(160deg, rgba(255,255,255,0.98) 0%, ${meta.theme || '#ffffff'} 76%, ${withAlpha(meta.accent || '#38bdf8', '10')} 100%)`,
-                              borderColor: withAlpha(meta.accent || '#38bdf8', '26'),
-                              boxShadow: isFeedbackAction
-                                ? `0 18px 40px ${withAlpha(meta.accent || '#38bdf8', '30')}`
-                                : `0 14px 30px ${withAlpha(meta.accent || '#38bdf8', '14')}`
-                            }}
-                          >
-                            <span
-                              className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl"
-                              style={{ backgroundColor: withAlpha(meta.accent || '#38bdf8', isFeedbackAction ? '34' : '18') }}
-                              aria-hidden="true"
-                            />
-                            {(isWorking || isFeedbackAction) && (
-                              <motion.span
-                                className="pointer-events-none absolute inset-0 opacity-60"
-                                initial={{ opacity: 0.2 }}
-                                animate={{ opacity: [0.18, 0.5, 0.2] }}
-                                transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-                                style={{
-                                  background: `radial-gradient(circle at top, ${withAlpha(meta.accent || '#38bdf8', '22')} 0%, rgba(255,255,255,0) 72%)`
-                                }}
+                            <motion.button
+                              type="button"
+                              onClick={() => handlePetAction(action)}
+                              data-testid={`pet-action-${action}`}
+                              title={`${meta.description} ${helperText}`}
+                              disabled={disabled}
+                              whileHover={disabled ? undefined : { y: -3, scale: 1.01 }}
+                              whileTap={disabled ? undefined : { scale: 0.985 }}
+                              className={`pet-care-action-card relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-4 py-3.5 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                isFeedbackAction ? 'pet-care-action-card-active' : ''
+                              }`}
+                              style={{
+                                backgroundImage: `linear-gradient(160deg, rgba(255,255,255,0.98) 0%, ${meta.theme || '#ffffff'} 76%, ${withAlpha(meta.accent || '#38bdf8', '10')} 100%)`,
+                                borderColor: withAlpha(meta.accent || '#38bdf8', '26'),
+                                boxShadow: isFeedbackAction
+                                  ? `0 18px 40px ${withAlpha(meta.accent || '#38bdf8', '30')}`
+                                  : `0 14px 30px ${withAlpha(meta.accent || '#38bdf8', '14')}`
+                              }}
+                            >
+                              <span
+                                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl"
+                                style={{ backgroundColor: withAlpha(meta.accent || '#38bdf8', isFeedbackAction ? '34' : '18') }}
                                 aria-hidden="true"
                               />
-                            )}
+                              {(isWorking || isFeedbackAction) && (
+                                <motion.span
+                                  className="pointer-events-none absolute inset-0 opacity-60"
+                                  initial={{ opacity: 0.2 }}
+                                  animate={{ opacity: [0.18, 0.5, 0.2] }}
+                                  transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                                  style={{
+                                    background: `radial-gradient(circle at top, ${withAlpha(meta.accent || '#38bdf8', '22')} 0%, rgba(255,255,255,0) 72%)`
+                                  }}
+                                  aria-hidden="true"
+                                />
+                              )}
 
-                            <div className="relative">
-                              <div className="flex items-center justify-between gap-3">
+                              <div className="relative flex items-center gap-3">
                                 <span
-                                  className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/92 text-2xl shadow-sm"
+                                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white/92 text-2xl shadow-sm"
                                   style={{ boxShadow: `0 10px 24px ${withAlpha(meta.accent || '#38bdf8', '18')}` }}
                                 >
                                   {meta.icon}
                                 </span>
-                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${meta.badgeClass}`}>
-                                  -{actionCost} 积分
-                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-sm font-black text-slate-800">
+                                    {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
+                                  </div>
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-2">
+                                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${meta.badgeClass}`}>
+                                    -{actionCost} 积分
+                                  </span>
+                                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${
+                                    scoreShortage > 0
+                                      ? 'bg-rose-100 text-rose-700'
+                                      : selectedJourney.is_dormant
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : 'bg-white/92 text-slate-500'
+                                  }`}>
+                                    {scoreShortage > 0 ? `差 ${scoreShortage}` : selectedJourney.is_dormant ? '可唤醒' : meta.badge}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="mt-4 text-sm font-black text-slate-800">
-                                {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
-                              </div>
-                              <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${
-                                  scoreShortage > 0
-                                    ? 'bg-rose-100 text-rose-700'
-                                    : selectedJourney.is_dormant
-                                      ? 'bg-amber-100 text-amber-700'
-                                      : 'bg-white/92 text-slate-500'
-                                }`}>
-                                  {scoreShortage > 0 ? `差 ${scoreShortage}` : selectedJourney.is_dormant ? '唤醒' : '提示'}
-                                </span>
-                                <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-400 shadow-sm">
-                                  悬停
-                                </span>
-                              </div>
-                            </div>
-                          </motion.button>
-                          <ButtonTooltip text={`${meta.description} ${helperText}`} />
+                            </motion.button>
+                            <ButtonTooltip text={`${meta.description} ${helperText}`} />
                           </div>
                         );
                       })}
                     </div>
-
-                    <AnimatePresence>
-                      {actionFeedback && (
-                        <div className="mt-4">
-                          <PetActionFeedbackPanel feedback={actionFeedback} />
-                        </div>
-                      )}
-                    </AnimatePresence>
 
                     {ritualActionButtons.length > 0 && (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -2012,36 +1999,33 @@ export default function PetCenter() {
 
                           return (
                             <div key={action} className="pet-tip-trigger relative">
-                            <motion.button
-                              type="button"
-                              onClick={() => handlePetAction(action)}
-                              data-testid={`pet-action-${action}`}
-                              title={meta.description}
-                              disabled={selectedCollection.length === 0 || Boolean(busyKey)}
-                              whileHover={busyKey ? undefined : { y: -3, scale: 1.01 }}
-                              whileTap={busyKey ? undefined : { scale: 0.985 }}
-                              className={`pet-care-action-card relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-4 py-4 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${cardClass} ${
-                                isFeedbackAction ? 'pet-care-action-card-active' : ''
-                              }`}
-                            >
-                              <div className="relative flex items-start justify-between gap-3">
-                                <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/92 text-2xl shadow-sm">
-                                  {meta.icon}
-                                </span>
-                                <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
-                                  仪式
-                                </span>
-                              </div>
-                              <div className="relative mt-4 text-sm font-black text-slate-800">
-                                {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
-                              </div>
-                              <div className="relative mt-3 flex justify-end">
-                                <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-400 shadow-sm">
-                                  悬停
-                                </span>
-                              </div>
-                            </motion.button>
-                            <ButtonTooltip text={meta.description} />
+                              <motion.button
+                                type="button"
+                                onClick={() => handlePetAction(action)}
+                                data-testid={`pet-action-${action}`}
+                                title={meta.description}
+                                disabled={selectedCollection.length === 0 || Boolean(busyKey)}
+                                whileHover={busyKey ? undefined : { y: -3, scale: 1.01 }}
+                                whileTap={busyKey ? undefined : { scale: 0.985 }}
+                                className={`pet-care-action-card relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-4 py-3.5 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${cardClass} ${
+                                  isFeedbackAction ? 'pet-care-action-card-active' : ''
+                                }`}
+                              >
+                                <div className="relative flex items-center gap-3">
+                                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white/92 text-2xl shadow-sm">
+                                    {meta.icon}
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate text-sm font-black text-slate-800">
+                                      {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
+                                    </div>
+                                  </div>
+                                  <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+                                    仪式
+                                  </span>
+                                </div>
+                              </motion.button>
+                              <ButtonTooltip text={meta.description} />
                             </div>
                           );
                         })}
@@ -2051,8 +2035,8 @@ export default function PetCenter() {
 
                   <div className="relative mt-5">
                     <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-700">点击宠物卡片查看完整成长档案</div>
-                      <p className="mt-2 text-xs leading-6 text-slate-500">{selectedConditionCopy}</p>
+                      <div className="text-sm font-black text-slate-700">点击宠物卡片查看成长档案</div>
+                      <p className="mt-2 text-xs leading-6 text-slate-500">具体形态、里程碑和收藏位都放在档案里，这里只保留课堂操作必需信息。</p>
                     </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-2">

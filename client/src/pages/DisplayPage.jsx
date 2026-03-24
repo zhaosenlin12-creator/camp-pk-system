@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import ClassSelector from '../components/ClassSelector';
@@ -90,6 +90,14 @@ export default function DisplayPage() {
     [sortedStudents]
   );
   const spotlightPet = petLeaderboard[0] || null;
+  const rankingHighlightSignature = useMemo(
+    () => petLeaderboard
+      .map((entry) => `${entry.student.id}:${entry.journey.power_score}:${Number(entry.student.score || 0)}`)
+      .join('|'),
+    [petLeaderboard]
+  );
+  const previousRankingHighlightRef = useRef('');
+  const rankingHighlightReadyRef = useRef(false);
 
   useEffect(() => {
     if (currentClass) {
@@ -117,10 +125,20 @@ export default function DisplayPage() {
   }, [currentClass]);
 
   useEffect(() => {
-    if (activeTab === 'pets' && petLeaderboard.length > 0) {
+    if (activeTab !== 'pets' || !rankingHighlightSignature) return;
+
+    if (!rankingHighlightReadyRef.current) {
+      rankingHighlightReadyRef.current = true;
+      previousRankingHighlightRef.current = rankingHighlightSignature;
+      return;
+    }
+
+    if (!document.hidden && previousRankingHighlightRef.current && previousRankingHighlightRef.current !== rankingHighlightSignature) {
       soundManager.playRankingHighlight();
     }
-  }, [activeTab, petLeaderboard]);
+
+    previousRankingHighlightRef.current = rankingHighlightSignature;
+  }, [activeTab, rankingHighlightSignature]);
 
   const handleRewardResult = () => {};
 

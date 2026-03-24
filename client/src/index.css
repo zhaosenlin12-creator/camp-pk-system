@@ -297,6 +297,11 @@ body {
   animation: care-action-aura 1.6s ease-in-out infinite;
 }
 
+.pet-care-feedback-panel {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
 .pet-care-feedback-panel::after {
   content: '';
   position: absolute;
