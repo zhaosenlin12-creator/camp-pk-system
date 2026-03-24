@@ -322,6 +322,28 @@ body {
   font-weight: 800;
 }
 
+.pet-tip-trigger {
+  position: relative;
+}
+
+.pet-hover-tip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 48px));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.pet-tip-trigger:hover .pet-hover-tip,
+.pet-tip-trigger:focus-within .pet-hover-tip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
   .animate-bounce-in,
@@ -339,7 +361,8 @@ body {
 
   .btn-game,
   .pet-passport-card,
-  .pet-care-action-card {
+  .pet-care-action-card,
+  .pet-hover-tip {
     transition: none !important;
   }
 }

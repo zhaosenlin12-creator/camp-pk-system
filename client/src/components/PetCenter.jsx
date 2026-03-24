@@ -348,6 +348,25 @@ function buildSoftPanelStyle(theme, accent, angle = 145) {
   };
 }
 
+function ButtonTooltip({ text, align = 'center' }) {
+  if (!text) return null;
+
+  const alignClass = align === 'right'
+    ? 'right-0'
+    : align === 'left'
+      ? 'left-0'
+      : 'left-1/2 -translate-x-1/2';
+
+  return (
+    <span
+      className={`pet-hover-tip ${alignClass} rounded-[18px] bg-slate-900 px-3 py-2 text-[11px] font-bold leading-5 text-white shadow-xl`}
+      aria-hidden="true"
+    >
+      {text}
+    </span>
+  );
+}
+
 function PetActionFeedbackPanel({ feedback }) {
   if (!feedback) return null;
 
@@ -773,7 +792,8 @@ function StudentPetShelfCard({ slot, busy, onActivate, onPreview }) {
         <button
           type="button"
           onClick={() => onPreview(slot)}
-          className="flex-1 rounded-2xl bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+          title="查看这只宠物的完整成长档案"
+          className="w-full rounded-2xl bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
         >
           查看档案
         </button>
@@ -819,6 +839,16 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
     buttonClassName = 'btn-game btn-orange flex-1 text-sm';
   }
 
+  const claimButtonLabel = !selectedStudent
+    ? '选学生'
+    : isCurrentPet
+      ? '已选中'
+      : ownedSlot
+        ? '切换'
+        : canClaimNewPet
+          ? '领取'
+          : '待解锁';
+
   return (
     <motion.article
       layout
@@ -846,6 +876,7 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
         type="button"
         onClick={() => onPreview(pet)}
         data-testid={`pet-catalog-preview-${pet.id}`}
+        title="预览这只宠物的完整形态与成长档案"
         className="mt-4 block w-full rounded-[32px] border border-white/80 p-5 transition hover:-translate-y-0.5 hover:shadow-lg"
         style={{
           background: `radial-gradient(circle at top, rgba(255,255,255,0.98), ${pet.theme} 54%, ${pet.accent}18 100%)`
@@ -886,6 +917,7 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
         <button
           type="button"
           onClick={() => onPreview(pet)}
+          title="预览这只宠物的完整形态与成长档案"
           className="flex-1 rounded-xl bg-white/90 px-4 py-3 text-sm font-black text-slate-600 shadow-sm transition hover:bg-white"
         >
           查看形态
@@ -894,6 +926,7 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
           type="button"
           onClick={() => onClaim(pet)}
           data-testid={`pet-catalog-claim-${pet.id}`}
+          title={claimHint}
           disabled={buttonDisabled}
           className={buttonClassName}
         >
@@ -1884,11 +1917,12 @@ export default function PetCenter() {
                           : (scoreShortage > 0 ? `还差 ${scoreShortage} 积分` : meta.flavor);
 
                         return (
+                          <div key={action} className="pet-tip-trigger relative">
                           <motion.button
-                            key={action}
                             type="button"
                             onClick={() => handlePetAction(action)}
                             data-testid={`pet-action-${action}`}
+                            title={`${meta.description} ${helperText}`}
                             disabled={disabled}
                             whileHover={disabled ? undefined : { y: -3, scale: 1.01 }}
                             whileTap={disabled ? undefined : { scale: 0.985 }}
@@ -1936,10 +1970,24 @@ export default function PetCenter() {
                               <div className="mt-4 text-sm font-black text-slate-800">
                                 {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
                               </div>
-                              <p className="mt-1 text-xs leading-5 text-slate-500">{meta.description}</p>
-                              <div className="mt-3 text-[11px] font-bold text-slate-500">{helperText}</div>
+                              <div className="mt-3 flex items-center justify-between gap-2">
+                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${
+                                  scoreShortage > 0
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : selectedJourney.is_dormant
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-white/92 text-slate-500'
+                                }`}>
+                                  {scoreShortage > 0 ? `差 ${scoreShortage}` : selectedJourney.is_dormant ? '唤醒' : '提示'}
+                                </span>
+                                <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-400 shadow-sm">
+                                  悬停
+                                </span>
+                              </div>
                             </div>
                           </motion.button>
+                          <ButtonTooltip text={`${meta.description} ${helperText}`} />
+                          </div>
                         );
                       })}
                     </div>
@@ -1963,11 +2011,12 @@ export default function PetCenter() {
                             : 'from-amber-50 via-white to-orange-50 border-amber-100';
 
                           return (
+                            <div key={action} className="pet-tip-trigger relative">
                             <motion.button
-                              key={action}
                               type="button"
                               onClick={() => handlePetAction(action)}
                               data-testid={`pet-action-${action}`}
+                              title={meta.description}
                               disabled={selectedCollection.length === 0 || Boolean(busyKey)}
                               whileHover={busyKey ? undefined : { y: -3, scale: 1.01 }}
                               whileTap={busyKey ? undefined : { scale: 0.985 }}
@@ -1986,8 +2035,14 @@ export default function PetCenter() {
                               <div className="relative mt-4 text-sm font-black text-slate-800">
                                 {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
                               </div>
-                              <p className="relative mt-1 text-xs leading-5 text-slate-500">{meta.description}</p>
+                              <div className="relative mt-3 flex justify-end">
+                                <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-400 shadow-sm">
+                                  悬停
+                                </span>
+                              </div>
                             </motion.button>
+                            <ButtonTooltip text={meta.description} />
+                            </div>
                           );
                         })}
                       </div>
