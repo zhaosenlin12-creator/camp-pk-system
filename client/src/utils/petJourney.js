@@ -28,6 +28,24 @@ const EMPTY_JOURNEY = {
   feed_count: 0,
   play_count: 0,
   clean_count: 0,
+  score_balance: 0,
+  score_debt: 0,
+  is_dormant: false,
+  is_fragile: false,
+  is_warning: false,
+  condition_label: '等待领取',
+  condition_tip: '',
+  revive_hint: '',
+  action_costs: {
+    feed: 4,
+    play: 3,
+    clean: 2,
+    hatch: 0,
+    evolve: 0
+  },
+  min_care_cost: 2,
+  score_needed_for_next_care: 2,
+  decay_hours: 0,
   accent: '#F59E0B',
   theme: '#FFF7ED'
 };
@@ -38,8 +56,10 @@ export function calculatePetPower(journey) {
   const careWeight = (journey.care_score || 0) * 2.1;
   const readinessWeight = (journey.satiety || 0) * 0.35 + (journey.mood || 0) * 0.35 + (journey.cleanliness || 0) * 0.3;
   const actionBonus = (journey.total_care_actions || 0) * 6;
+  const debtPenalty = (journey.score_debt || 0) * 8;
+  const vitalityPenalty = journey.is_dormant ? 140 : journey.is_fragile ? 40 : 0;
 
-  return Math.max(0, Math.round(stageBonus + growthWeight + careWeight + readinessWeight + actionBonus));
+  return Math.max(0, Math.round(stageBonus + growthWeight + careWeight + readinessWeight + actionBonus - debtPenalty - vitalityPenalty));
 }
 
 export function getPetPowerTone(powerScore) {
@@ -246,7 +266,25 @@ export function getPetActionLabel(journey, action) {
   return labels[action] || action;
 }
 
+export function getPetActionCost(journey, action) {
+  return Number(journey?.action_costs?.[action] || 0);
+}
+
 export function getPetStatusTone(journey) {
+  if (journey.is_dormant) {
+    return {
+      bg: 'bg-slate-200',
+      text: 'text-slate-700'
+    };
+  }
+
+  if (journey.score_debt > 0 || journey.is_fragile) {
+    return {
+      bg: 'bg-rose-100',
+      text: 'text-rose-700'
+    };
+  }
+
   if (journey.can_evolve) {
     return {
       bg: 'bg-fuchsia-100',

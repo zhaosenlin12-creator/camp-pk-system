@@ -420,16 +420,38 @@ const CLASS_PET_DEFAULTS = {
   pet_feed_count: 0,
   pet_play_count: 0,
   pet_clean_count: 0,
+  pet_last_score_sync: 0,
   pet_last_care_at: null,
   pet_hatched_at: null,
   pet_evolved_at: null
 };
 
-const CLASS_PET_CARE_ACTIONS = {
+const LEGACY_CLASS_PET_CARE_ACTIONS = {
   feed: { label: '喂养', metricKey: 'pet_satiety', amount: 18, sideMetricKey: 'pet_mood', sideAmount: 4, countKey: 'pet_feed_count' },
   play: { label: '互动', metricKey: 'pet_mood', amount: 18, sideMetricKey: 'pet_cleanliness', sideAmount: -4, countKey: 'pet_play_count' },
   clean: { label: '清洁', metricKey: 'pet_cleanliness', amount: 18, sideMetricKey: 'pet_mood', sideAmount: 3, countKey: 'pet_clean_count' }
 };
+
+const CLASS_PET_CARE_ACTIONS = {
+  feed: { label: '喂养', metricKey: 'pet_satiety', amount: 18, sideMetricKey: 'pet_mood', sideAmount: 4, countKey: 'pet_feed_count', scoreCost: 4 },
+  play: { label: '互动', metricKey: 'pet_mood', amount: 18, sideMetricKey: 'pet_cleanliness', sideAmount: -4, countKey: 'pet_play_count', scoreCost: 3 },
+  clean: { label: '清洁', metricKey: 'pet_cleanliness', amount: 18, sideMetricKey: 'pet_mood', sideAmount: 3, countKey: 'pet_clean_count', scoreCost: 2 }
+};
+
+const CLASS_PET_ACTION_COSTS = {
+  feed: CLASS_PET_CARE_ACTIONS.feed.scoreCost,
+  play: CLASS_PET_CARE_ACTIONS.play.scoreCost,
+  clean: CLASS_PET_CARE_ACTIONS.clean.scoreCost,
+  hatch: 0,
+  evolve: 0
+};
+
+const CLASS_PET_MINIMUM_CARE_COST = Math.min(
+  ...Object.values(CLASS_PET_CARE_ACTIONS).map((action) => action.scoreCost || 0)
+);
+
+const CLASS_PET_WARNING_THRESHOLD = 48;
+const CLASS_PET_CRITICAL_THRESHOLD = 24;
 
 const readPetNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -464,6 +486,7 @@ const getClassPetStateSnapshot = (student) => {
     feedCount: Math.max(0, Math.floor(readPetNumber(student.pet_feed_count, CLASS_PET_DEFAULTS.pet_feed_count))),
     playCount: Math.max(0, Math.floor(readPetNumber(student.pet_play_count, CLASS_PET_DEFAULTS.pet_play_count))),
     cleanCount: Math.max(0, Math.floor(readPetNumber(student.pet_clean_count, CLASS_PET_DEFAULTS.pet_clean_count))),
+    lastScoreSync: normalizeScore(readPetNumber(student.pet_last_score_sync, 0)),
     lastCareAt: student.pet_last_care_at || null,
     hatchedAt: student.pet_hatched_at || null,
     evolvedAt: student.pet_evolved_at || null
@@ -479,6 +502,7 @@ const ensureClassPetState = (student) => {
   student.pet_feed_count = snapshot.feedCount;
   student.pet_play_count = snapshot.playCount;
   student.pet_clean_count = snapshot.cleanCount;
+  student.pet_last_score_sync = snapshot.lastScoreSync;
   student.pet_last_care_at = snapshot.lastCareAt;
   student.pet_hatched_at = snapshot.hatchedAt;
   student.pet_evolved_at = snapshot.evolvedAt;
@@ -494,7 +518,8 @@ const getClassPetMetricsWithDecay = (student, now = new Date()) => {
   return {
     satiety: clampPetMetric(Math.round(snapshot.satiety - hoursElapsed * 1.6), 0, 100),
     mood: clampPetMetric(Math.round(snapshot.mood - hoursElapsed * 1.1), 0, 100),
-    cleanliness: clampPetMetric(Math.round(snapshot.cleanliness - hoursElapsed * 1.4), 0, 100)
+    cleanliness: clampPetMetric(Math.round(snapshot.cleanliness - hoursElapsed * 1.4), 0, 100),
+    hoursElapsed
   };
 };
 
@@ -504,6 +529,143 @@ const syncClassPetMetrics = (student, now = new Date()) => {
   student.pet_mood = metrics.mood;
   student.pet_cleanliness = metrics.cleanliness;
   return metrics;
+};
+
+const getStudentScoreDebt = (score) => {
+  const normalized = normalizeScore(score);
+  return normalized < 0 ? Math.abs(normalized) : 0;
+};
+
+const applyStudentDebtPressureToPetSlotV2 = (student, petSlot, now = new Date()) => {
+  if (!student || !petSlot) {
+    return { debtDelta: 0, currentDebt: 0 };
+  }
+
+  const currentScore = normalizeScore(student.score);
+  const previousScoreSync = normalizeScore(readPetNumber(petSlot.pet_last_score_sync, currentScore));
+  const previousDebt = getStudentScoreDebt(previousScoreSync);
+  const currentDebt = getStudentScoreDebt(currentScore);
+  const debtDelta = Math.max(0, currentDebt - previousDebt);
+
+  petSlot.pet_last_score_sync = currentScore;
+
+  if (!debtDelta) {
+    return { debtDelta: 0, currentDebt };
+  }
+
+  syncClassPetMetrics(petSlot, now);
+  petSlot.pet_satiety = clampPetMetric(readPetNumber(petSlot.pet_satiety, 0) - Math.round(debtDelta * 2.6), 0, 100);
+  petSlot.pet_mood = clampPetMetric(readPetNumber(petSlot.pet_mood, 0) - Math.round(debtDelta * 2.2), 0, 100);
+  petSlot.pet_cleanliness = clampPetMetric(readPetNumber(petSlot.pet_cleanliness, 0) - Math.round(debtDelta * 1.8), 0, 100);
+
+  return { debtDelta, currentDebt };
+};
+
+const getClassPetCareSummary = (metrics, studentScore = 0) => {
+  const careScore = Math.round((metrics.satiety + metrics.mood + metrics.cleanliness) / 3);
+  const lowestMetric = Math.min(metrics.satiety, metrics.mood, metrics.cleanliness);
+  const scoreDebt = getStudentScoreDebt(studentScore);
+  const isDormant = lowestMetric <= 0;
+  const isFragile = !isDormant && lowestMetric < CLASS_PET_CRITICAL_THRESHOLD;
+  const isWarning = !isDormant && (lowestMetric < CLASS_PET_WARNING_THRESHOLD || scoreDebt > 0);
+
+  if (isDormant) {
+    return {
+      careScore,
+      badge: '进入沉睡',
+      tip: scoreDebt > 0
+        ? '积分已经透支，宠物把之前积累的状态吐出来了。先把积分补回正数，再安排照料唤醒。'
+        : '状态已经掉到底了。先重新获得积分，再连续安排照料把它唤醒。',
+      isDormant,
+      isFragile: false,
+      isWarning: false,
+      scoreDebt,
+      reviveHint: `至少准备 ${CLASS_PET_MINIMUM_CARE_COST} 积分，重新进行喂养、互动或清洁。`
+    };
+  }
+
+  if (scoreDebt > 0) {
+    return {
+      careScore,
+      badge: '积分透支',
+      tip: '分数被扣成负数后，宠物会慢慢吐掉之前吃进去的状态。先追分，再继续照料。',
+      isDormant,
+      isFragile: true,
+      isWarning: true,
+      scoreDebt,
+      reviveHint: `先把积分补回 0 分以上，再准备 ${CLASS_PET_MINIMUM_CARE_COST} 分继续照料。`
+    };
+  }
+
+  if (isFragile) {
+    return {
+      careScore,
+      badge: '状态告急',
+      tip: '现在要优先补喂养、互动和清洁，别让它掉进沉睡状态。',
+      isDormant,
+      isFragile,
+      isWarning: true,
+      scoreDebt,
+      reviveHint: null
+    };
+  }
+
+  if (careScore >= 85) {
+    return {
+      careScore,
+      badge: '状态超稳',
+      tip: '当前状态很适合继续冲成长值，准备下一次高光仪式。',
+      isDormant,
+      isFragile: false,
+      isWarning: false,
+      scoreDebt,
+      reviveHint: null
+    };
+  }
+
+  if (careScore >= 65) {
+    return {
+      careScore,
+      badge: '状态平稳',
+      tip: '保持当前节奏，再照料几次就能明显长大。',
+      isDormant,
+      isFragile: false,
+      isWarning,
+      scoreDebt,
+      reviveHint: null
+    };
+  }
+
+  return {
+    careScore,
+    badge: isWarning ? '需要陪伴' : '稳步成长',
+    tip: '最近互动有点少，补一补就会恢复活力。',
+    isDormant,
+    isFragile: false,
+    isWarning,
+    scoreDebt,
+    reviveHint: null
+  };
+};
+
+const buildClassPetJourneyEconomy = (student, metrics, careSummary) => {
+  const scoreBalance = normalizeScore(student?.score);
+  const scoreDebt = careSummary?.scoreDebt ?? getStudentScoreDebt(scoreBalance);
+
+  return {
+    score_balance: scoreBalance,
+    score_debt: scoreDebt,
+    is_dormant: Boolean(careSummary?.isDormant),
+    is_fragile: Boolean(careSummary?.isFragile),
+    is_warning: Boolean(careSummary?.isWarning),
+    condition_label: careSummary?.badge || '等待领取',
+    condition_tip: careSummary?.tip || '',
+    revive_hint: careSummary?.reviveHint || '',
+    action_costs: CLASS_PET_ACTION_COSTS,
+    min_care_cost: CLASS_PET_MINIMUM_CARE_COST,
+    score_needed_for_next_care: Math.max(0, CLASS_PET_MINIMUM_CARE_COST - scoreBalance),
+    decay_hours: Number.isFinite(metrics?.hoursElapsed) ? Math.round(metrics.hoursElapsed * 10) / 10 : 0
+  };
 };
 
 const getClassPetGrowthStage = (growthValue) => {
@@ -523,7 +685,7 @@ const getClassPetGrowthProgress = (growthValue, stage) => {
   return clampPetMetric(Math.round(((growthValue - stage.minGrowth) / span) * 100), 0, 100);
 };
 
-const getClassPetCareSummary = (metrics) => {
+const LEGACY_getClassPetCareSummary = (metrics) => {
   const careScore = Math.round((metrics.satiety + metrics.mood + metrics.cleanliness) / 3);
   const lowestMetric = Math.min(metrics.satiety, metrics.mood, metrics.cleanliness);
 
@@ -716,6 +878,7 @@ const initializeClassPet = (student, petId) => {
   student.pet_feed_count = 0;
   student.pet_play_count = 0;
   student.pet_clean_count = 0;
+  student.pet_last_score_sync = normalizeScore(student.score);
   student.pet_last_care_at = now;
   student.pet_hatched_at = null;
   student.pet_evolved_at = null;
@@ -759,7 +922,7 @@ const decorateStudentWithPetJourney = (student) => {
 
 const MAX_CLASS_PET_SLOTS_V2 = 3;
 
-const createClassPetSlotV2 = (petId, claimedAt = new Date().toISOString()) => ({
+const createClassPetSlotV2 = (petId, claimedAt = new Date().toISOString(), scoreSnapshot = 0) => ({
   slot_id: uuidv4(),
   pet_id: petId,
   pet_claimed_at: claimedAt,
@@ -770,6 +933,7 @@ const createClassPetSlotV2 = (petId, claimedAt = new Date().toISOString()) => ({
   pet_feed_count: 0,
   pet_play_count: 0,
   pet_clean_count: 0,
+  pet_last_score_sync: normalizeScore(scoreSnapshot),
   pet_last_care_at: claimedAt,
   pet_hatched_at: null,
   pet_evolved_at: null
@@ -781,7 +945,7 @@ const normalizeClassPetSlotV2 = (slot, fallbackClaimedAt = null) => {
 
   const claimedAt = slot.pet_claimed_at || fallbackClaimedAt || new Date().toISOString();
   const normalized = {
-    ...createClassPetSlotV2(petId, claimedAt),
+    ...createClassPetSlotV2(petId, claimedAt, slot?.pet_last_score_sync || 0),
     ...slot,
     slot_id: slot?.slot_id || uuidv4(),
     pet_id: petId,
@@ -797,6 +961,7 @@ const normalizeClassPetSlotV2 = (slot, fallbackClaimedAt = null) => {
   normalized.pet_feed_count = Math.max(0, Math.floor(readPetNumber(normalized.pet_feed_count, 0)));
   normalized.pet_play_count = Math.max(0, Math.floor(readPetNumber(normalized.pet_play_count, 0)));
   normalized.pet_clean_count = Math.max(0, Math.floor(readPetNumber(normalized.pet_clean_count, 0)));
+  normalized.pet_last_score_sync = normalizeScore(readPetNumber(normalized.pet_last_score_sync, 0));
 
   return normalized;
 };
@@ -812,6 +977,7 @@ const syncStudentActivePetFieldsV2 = (student, activeSlot) => {
     student.pet_feed_count = 0;
     student.pet_play_count = 0;
     student.pet_clean_count = 0;
+    student.pet_last_score_sync = 0;
     student.pet_last_care_at = null;
     student.pet_hatched_at = null;
     student.pet_evolved_at = null;
@@ -827,6 +993,7 @@ const syncStudentActivePetFieldsV2 = (student, activeSlot) => {
   student.pet_feed_count = activeSlot.pet_feed_count;
   student.pet_play_count = activeSlot.pet_play_count;
   student.pet_clean_count = activeSlot.pet_clean_count;
+  student.pet_last_score_sync = normalizeScore(readPetNumber(activeSlot.pet_last_score_sync, 0));
   student.pet_last_care_at = activeSlot.pet_last_care_at || null;
   student.pet_hatched_at = activeSlot.pet_hatched_at || null;
   student.pet_evolved_at = activeSlot.pet_evolved_at || null;
@@ -850,6 +1017,7 @@ const ensureStudentPetCollectionV2 = (student) => {
       pet_feed_count: student.pet_feed_count,
       pet_play_count: student.pet_play_count,
       pet_clean_count: student.pet_clean_count,
+      pet_last_score_sync: student.pet_last_score_sync,
       pet_last_care_at: student.pet_last_care_at,
       pet_hatched_at: student.pet_hatched_at,
       pet_evolved_at: student.pet_evolved_at
@@ -932,7 +1100,7 @@ const getStudentPetScoreGrowthV2 = (student, petSlot) => {
   return Math.max(0, normalizeScore(scoreGrowth));
 };
 
-const buildPetJourneyFromSlotV2 = (student, petSlot) => {
+const LEGACY_buildPetJourneyFromSlotV2 = (student, petSlot) => {
   const pet = getClassPetById(petSlot?.pet_id, { allowLegacyAlias: true });
   const scoreGrowth = getStudentPetScoreGrowthV2(student, petSlot);
   const state = getClassPetStateSnapshot(petSlot || {});
@@ -1092,6 +1260,197 @@ const buildPetJourneyFromSlotV2 = (student, petSlot) => {
     clean_count: state.cleanCount,
     accent: pet.accent,
     theme: pet.theme
+  };
+};
+
+const buildPetJourneyFromSlotV2 = (student, petSlot) => {
+  const pet = getClassPetById(petSlot?.pet_id, { allowLegacyAlias: true });
+  const scoreGrowth = getStudentPetScoreGrowthV2(student, petSlot);
+  const state = getClassPetStateSnapshot(petSlot || {});
+  const metrics = getClassPetMetricsWithDecay(petSlot || {});
+  const totalCareActions = state.feedCount + state.playCount + state.cleanCount;
+  const careGrowth = state.feedCount * 12 + state.playCount * 10 + state.cleanCount * 8;
+  const growthValue = scoreGrowth + careGrowth;
+  const careSummary = getClassPetCareSummary(metrics, student?.score);
+  const journeyEconomy = buildClassPetJourneyEconomy(student, metrics, careSummary);
+  const { slots } = ensureStudentPetCollectionV2(student);
+  const petCapacity = getStudentPetCapacityV2(student);
+  const canClaimNextPet = slots.length < petCapacity;
+
+  if (!pet) {
+    return {
+      slot_state: 'empty',
+      visual_state: 'egg',
+      claimed: false,
+      status_label: '等待领取',
+      name: '宠物蛋',
+      subtitle: '还没有选择宠物伙伴',
+      selected_species: null,
+      stage_name: '待领取',
+      stage_level: 0,
+      stage_description: '先在宠物中心为学生选择一只班级宠物，再开始成长计划。',
+      stage_color: '#F59E0B',
+      progress: 0,
+      growth_value: 0,
+      growth_from_score: 0,
+      growth_from_care: 0,
+      care_score: 0,
+      satiety: 0,
+      mood: 0,
+      cleanliness: 0,
+      total_care_actions: 0,
+      can_hatch: false,
+      can_evolve: false,
+      care_tip: '先完成宠物领取，学生卡片才会进入养成状态。',
+      next_target: '领取一只宠物，开始班级养成。',
+      feed_count: 0,
+      play_count: 0,
+      clean_count: 0,
+      accent: '#F59E0B',
+      theme: '#FFF7ED',
+      ...journeyEconomy
+    };
+  }
+
+  const canHatch = !state.hatchedAt && !careSummary.isDormant && scoreGrowth >= 20 && totalCareActions >= 2;
+  const canEvolve = Boolean(state.hatchedAt)
+    && !state.evolvedAt
+    && !careSummary.isDormant
+    && growthValue >= 460
+    && careSummary.careScore >= 72
+    && totalCareActions >= 8;
+
+  if (!state.hatchedAt) {
+    const missingScore = Math.max(0, 20 - scoreGrowth);
+    const missingCare = Math.max(0, 2 - totalCareActions);
+
+    return {
+      slot_state: 'egg',
+      visual_state: 'egg',
+      claimed: true,
+      status_label: careSummary.isDormant ? '沉睡宠物蛋' : (canHatch ? '可以孵化' : '等待孵化'),
+      name: `${pet.name}蛋`,
+      subtitle: careSummary.isDormant
+        ? `${pet.name}蛋现在缩成一团了，需要重新赚到积分后继续照料。`
+        : `已经选定 ${pet.name}，现在只差一次完整孵化。`,
+      selected_species: pet.name,
+      stage_name: '孵化准备期',
+      stage_level: 0,
+      stage_description: '在乐启享的课堂里，积分和照料次数都会帮助宠物完成孵化。',
+      stage_color: pet.accent,
+      progress: getClassEggProgress(scoreGrowth, totalCareActions),
+      growth_value: growthValue,
+      growth_from_score: scoreGrowth,
+      growth_from_care: careGrowth,
+      care_score: careSummary.careScore,
+      satiety: metrics.satiety,
+      mood: metrics.mood,
+      cleanliness: metrics.cleanliness,
+      total_care_actions: totalCareActions,
+      can_hatch: canHatch,
+      can_evolve: false,
+      care_tip: careSummary.isDormant
+        ? careSummary.tip
+        : (canHatch
+          ? '条件已经满足，现在可以点击孵化，让宠物正式出生。'
+          : `还差 ${missingScore} 点课堂成长值和 ${missingCare} 次照料，就能完成孵化。`),
+      next_target: careSummary.isDormant
+        ? (careSummary.reviveHint || '先赚到积分，再用喂养、互动或清洁把它重新叫醒。')
+        : (canHatch ? '点击“孵化”进入正式养成。' : '累计 20 点课堂成长值，并完成 2 次照料后孵化。'),
+      feed_count: state.feedCount,
+      play_count: state.playCount,
+      clean_count: state.cleanCount,
+      accent: pet.accent,
+      theme: pet.theme,
+      ...journeyEconomy
+    };
+  }
+
+  const stage = getClassPetGrowthStage(growthValue);
+  const nextStage = CLASS_PET_GROWTH_STAGES.find((item) => item.minGrowth > growthValue) || null;
+
+  if (state.evolvedAt) {
+    return {
+      slot_state: 'evolved',
+      visual_state: 'pet',
+      claimed: true,
+      status_label: careSummary.isDormant ? '守护沉睡' : '守护进化',
+      name: pet.name,
+      subtitle: careSummary.isDormant
+        ? '它已经完成进化，但最近状态见底，正在沉睡等待被重新照料。'
+        : '已经完成进化，是班级里的核心守护宠物。',
+      selected_species: pet.name,
+      stage_name: '守护进化体',
+      stage_level: 6,
+      stage_description: '进化后的宠物会长期保持高成长上限，适合作为班级展示亮点。',
+      stage_color: '#F97316',
+      progress: 100,
+      growth_value: growthValue,
+      growth_from_score: scoreGrowth,
+      growth_from_care: careGrowth,
+      care_score: careSummary.careScore,
+      satiety: metrics.satiety,
+      mood: metrics.mood,
+      cleanliness: metrics.cleanliness,
+      total_care_actions: totalCareActions,
+      can_hatch: false,
+      can_evolve: false,
+      care_tip: careSummary.tip,
+      next_target: careSummary.isDormant
+        ? (careSummary.reviveHint || '先把积分补回来，再用照料动作把它唤醒。')
+        : (canClaimNextPet
+          ? `已解锁第 ${slots.length + 1} 宠物位，可以继续领取新的喜欢宠物。`
+          : '继续通过课堂积分和照料保持巅峰状态。'),
+      feed_count: state.feedCount,
+      play_count: state.playCount,
+      clean_count: state.cleanCount,
+      accent: pet.accent,
+      theme: pet.theme,
+      ...journeyEconomy
+    };
+  }
+
+  return {
+    slot_state: 'hatched',
+    visual_state: 'pet',
+    claimed: true,
+    status_label: careSummary.isDormant ? '进入沉睡' : (canEvolve ? '可以进化' : careSummary.badge),
+    name: pet.name,
+    subtitle: careSummary.isDormant
+      ? '它现在已经缩进沉睡状态，需要重新通过积分和照料把它叫醒。'
+      : (canEvolve
+        ? '成长值和照料评分都达标了，可以进入进化阶段。'
+        : `课堂积分 ${scoreGrowth} + 照料成长 ${careGrowth}，正在稳步升级。`),
+    selected_species: pet.name,
+    stage_name: stage.name,
+    stage_level: stage.level,
+    stage_description: stage.description,
+    stage_color: stage.color,
+    progress: getClassPetGrowthProgress(growthValue, stage),
+    growth_value: growthValue,
+    growth_from_score: scoreGrowth,
+    growth_from_care: careGrowth,
+    care_score: careSummary.careScore,
+    satiety: metrics.satiety,
+    mood: metrics.mood,
+    cleanliness: metrics.cleanliness,
+    total_care_actions: totalCareActions,
+    can_hatch: false,
+    can_evolve: canEvolve,
+    care_tip: careSummary.tip,
+    next_target: careSummary.isDormant
+      ? (careSummary.reviveHint || '先赚到积分，再安排照料唤醒它。')
+      : (canEvolve
+        ? '点击“进化”，进入班级守护宠物形态。'
+        : (nextStage
+          ? `再成长 ${Math.max(0, nextStage.minGrowth - growthValue)} 点，进入${nextStage.name}。`
+          : '继续保持高成长状态，准备进化。')),
+    feed_count: state.feedCount,
+    play_count: state.playCount,
+    clean_count: state.cleanCount,
+    accent: pet.accent,
+    theme: pet.theme,
+    ...journeyEconomy
   };
 };
 
@@ -1402,7 +1761,7 @@ app.post('/api/students/:id/claim-pet', (req, res) => {
     return res.status(409).json({ error: getStudentNextPetSlotHintV2(student) });
   }
 
-  const nextSlot = createClassPetSlotV2(pet.id);
+  const nextSlot = createClassPetSlotV2(pet.id, new Date().toISOString(), student.score);
   slots.push(nextSlot);
   student.pet_collection = slots;
   student.active_pet_slot_id = nextSlot.slot_id;
@@ -1514,7 +1873,37 @@ app.post('/api/students/:id/pet/:action', (req, res) => {
     return res.status(404).json({ error: 'Pet action not found' });
   }
 
+  const currentJourney = buildPetJourneyFromSlotV2(student, activeSlot);
+  const actionCost = actionConfig.scoreCost || 0;
+  const currentScore = normalizeScore(student.score);
+
+  if (currentScore < actionCost) {
+    return res.status(400).json({
+      error: currentJourney.is_dormant
+        ? `宠物已经进入沉睡，至少先获得 ${actionCost} 积分再来唤醒。`
+        : `${actionConfig.label}需要消耗 ${actionCost} 积分，当前积分不足。`
+    });
+  }
+
   syncClassPetMetrics(activeSlot, now);
+  student.score = normalizeScore(currentScore - actionCost);
+  activeSlot.pet_last_score_sync = student.score;
+  db.scoreLogs.push({
+    id: db.nextId.scoreLogs++,
+    student_id: id,
+    delta: -actionCost,
+    reason: `宠物${actionConfig.label}`,
+    type: 'pet-care',
+    created_at: now.toISOString()
+  });
+
+  if (student.team_id) {
+    const team = db.teams.find((item) => item.id === student.team_id);
+    if (team) {
+      team.score = normalizeScore(team.score - actionCost);
+    }
+  }
+
   activeSlot[actionConfig.metricKey] = clampPetMetric(
     readPetNumber(activeSlot[actionConfig.metricKey], 0) + actionConfig.amount,
     0,
@@ -1660,6 +2049,8 @@ app.patch('/api/students/:id/score', (req, res) => {
   
   const student = db.students.find(s => s.id === id);
   if (student) {
+    const now = new Date();
+    const nowIso = now.toISOString();
     student.score = normalizeScore(student.score + delta);
     
     db.scoreLogs.push({
@@ -1668,7 +2059,7 @@ app.patch('/api/students/:id/score', (req, res) => {
       delta,
       reason,
       type: 'student',
-      created_at: new Date().toISOString()
+      created_at: nowIso
     });
     
     // 同步更新战队积分
@@ -1678,9 +2069,16 @@ app.patch('/api/students/:id/score', (req, res) => {
         team.score = normalizeScore(team.score + delta);
       }
     }
+
+    const { slots, activeSlot } = ensureStudentPetCollectionV2(student);
+    if (activeSlot) {
+      applyStudentDebtPressureToPetSlotV2(student, activeSlot, now);
+      student.pet_collection = slots;
+      syncStudentActivePetFieldsV2(student, activeSlot);
+    }
     
     saveDb();
-    res.json(student);
+    res.json(decorateStudentWithPetJourneyV2(student));
   } else {
     res.status(404).json({ error: 'Student not found' });
   }

@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const path = require('node:path');
 const fs = require('node:fs');
 
-const baseUrl = 'http://localhost:3001';
+const baseUrl = process.env.QA_BASE_URL || 'http://localhost:3001';
 const classId = 8;
 const adminPin = '980116';
 const outputDir = path.join(process.cwd(), '.tmp', 'qa', 'screenshots');
@@ -61,6 +61,12 @@ async function runAction(request, studentId, action) {
   return parseJson(await request.post(`${baseUrl}/api/students/${studentId}/pet/${action}`));
 }
 
+async function runActionExpectError(request, studentId, action, status = 400) {
+  const response = await request.post(`${baseUrl}/api/students/${studentId}/pet/${action}`);
+  expect(response.status()).toBe(status);
+  return response.json();
+}
+
 async function deleteStudent(request, studentId) {
   await request.delete(`${baseUrl}/api/students/${studentId}`);
 }
@@ -100,6 +106,27 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
 
     const claimUiStudent = await createStudent(request, `QA-CLAIM-${suffix}`);
     createdStudentIds.push(claimUiStudent.id);
+    await updateScore(request, claimUiStudent.id, 20);
+
+    const economyStudent = await createStudent(request, `QA-ECON-${suffix}`);
+    createdStudentIds.push(economyStudent.id);
+    await claimPet(request, economyStudent.id, 11);
+    const noScoreError = await runActionExpectError(request, economyStudent.id, 'feed');
+    expect(noScoreError.error).toMatch(/积分/);
+    await updateScore(request, economyStudent.id, 12);
+    const economyAfterFeed = await runAction(request, economyStudent.id, 'feed');
+    expect(economyAfterFeed.score).toBe(8);
+    expect(economyAfterFeed.pet_journey.action_costs.feed).toBe(4);
+    expect(economyAfterFeed.pet_journey.score_balance).toBe(8);
+    expect(economyAfterFeed.pet_journey.is_dormant).toBeFalsy();
+
+    const dormantStudent = await createStudent(request, `QA-DORMANT-${suffix}`);
+    createdStudentIds.push(dormantStudent.id);
+    await claimPet(request, dormantStudent.id, 12);
+    const dormantAfterPenalty = await updateScore(request, dormantStudent.id, -35);
+    expect(dormantAfterPenalty.pet_journey.is_dormant).toBeTruthy();
+    const dormantError = await runActionExpectError(request, dormantStudent.id, 'feed');
+    expect(dormantError.error).toMatch(/沉睡|积分/);
 
     const hatchStudent = await createStudent(request, `QA-HATCH-${suffix}`);
     createdStudentIds.push(hatchStudent.id);
@@ -183,10 +210,22 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await expect(page.getByTestId('pet-profile-modal')).toBeVisible();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(600);
+    await expect(page.getByTestId('pet-care-action-cluster')).toBeVisible();
+    await expect(page.getByTestId('pet-care-action-cluster')).toContainText('-4 积分');
     await page.getByTestId('pet-action-feed').click();
     await expect(page.getByTestId('pet-action-feedback')).toBeVisible();
+    await expect(page.getByTestId('pet-action-feedback')).toContainText('消耗 4 积分');
     await saveShot(page, 'admin-feed-feedback.png', false);
     await page.waitForTimeout(500);
+
+    await studentSelect.selectOption(String(dormantStudent.id));
+    await page.waitForTimeout(900);
+    await expect(page.getByTestId('pet-care-action-cluster')).toContainText('先赚分，再把它叫醒');
+    await saveShot(page, 'admin-dormant-pet-center.png', false);
+    await updateScore(request, dormantStudent.id, 50);
+    const revivedAfterFeed = await runAction(request, dormantStudent.id, 'feed');
+    expect(revivedAfterFeed.pet_journey.is_dormant).toBeFalsy();
+    expect(revivedAfterFeed.score).toBe(11);
 
     await studentSelect.selectOption(String(hatchStudent.id));
     await page.waitForTimeout(900);

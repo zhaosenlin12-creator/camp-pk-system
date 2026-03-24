@@ -8,6 +8,7 @@ import {
   canStudentClaimMorePets,
   getClassPetSummary,
   getNextPetSlotHint,
+  getPetActionCost,
   getPetActionLabel,
   getPetCareItems,
   getPetPowerTone,
@@ -174,6 +175,9 @@ function buildPetActionFeedback({ action, previousJourney, nextJourney, studentN
     .map((key) => getJourneyMetricDelta(previousJourney, nextJourney, key))
     .filter(Boolean)
     .slice(0, 4);
+  const scoreSpent = Math.max(0, Number(previousJourney?.score_balance || 0) - Number(nextJourney?.score_balance || 0));
+  const revived = Boolean(previousJourney?.is_dormant && !nextJourney?.is_dormant);
+  const stillDormant = Boolean(nextJourney?.is_dormant);
 
   return {
     action,
@@ -182,9 +186,17 @@ function buildPetActionFeedback({ action, previousJourney, nextJourney, studentN
     theme: meta.theme,
     badgeClass: meta.badgeClass,
     badge: meta.badge,
-    title: nextJourney.visual_state === 'egg' ? meta.eggSuccessTitle : meta.petSuccessTitle,
-    flavor: meta.flavor,
+    title: revived ? '成功唤醒' : (nextJourney.visual_state === 'egg' ? meta.eggSuccessTitle : meta.petSuccessTitle),
+    flavor: revived
+      ? '小家伙重新睁开眼睛了，继续照料几次就能把状态稳住。'
+      : (stillDormant
+        ? '状态开始回暖了，但还没有完全恢复，再照料一次会更稳。'
+        : meta.flavor),
     metrics,
+    scoreSpent,
+    scoreBalance: Number(nextJourney?.score_balance || 0),
+    revived,
+    stillDormant,
     studentName,
     petName: nextJourney.name || pet?.name || '课堂伙伴',
     stageName: nextJourney.stage_name,
@@ -255,6 +267,14 @@ function createCatalogPreviewJourney(pet) {
 }
 
 function getRosterStatusMeta(journey) {
+  if (journey.is_dormant) {
+    return {
+      label: '待唤醒',
+      detail: journey.revive_hint || '需要先重新获得积分，再照料把它叫醒。',
+      className: 'bg-slate-200 text-slate-700'
+    };
+  }
+
   if (journey.can_evolve) {
     return {
       label: '可进化',
@@ -399,6 +419,24 @@ function PetActionFeedbackPanel({ feedback }) {
             <span className="ml-1 text-slate-400">当前 {item.value}</span>
           </div>
         ))}
+        {feedback.scoreSpent > 0 && (
+          <div className="rounded-full bg-slate-900 px-3 py-2 text-xs font-black text-white shadow-sm">
+            消耗 {feedback.scoreSpent} 积分
+          </div>
+        )}
+        <div className="rounded-full bg-white/92 px-3 py-2 text-xs font-black text-slate-700 shadow-sm">
+          剩余 {feedback.scoreBalance} 积分
+        </div>
+        {feedback.revived && (
+          <div className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-700 shadow-sm">
+            已重新苏醒
+          </div>
+        )}
+        {feedback.stillDormant && (
+          <div className="rounded-full bg-amber-100 px-3 py-2 text-xs font-black text-amber-700 shadow-sm">
+            继续照料可完全恢复
+          </div>
+        )}
       </div>
 
       <div className="relative mt-4 text-xs font-bold leading-6 text-slate-500">
@@ -1274,9 +1312,14 @@ export default function PetCenter() {
     collectionLength: selectedCollection.length,
     collectionCapacity: selectedPetCapacity
   });
-  const actionButtons = ['feed', 'play', 'clean'];
-  if (selectedJourney.can_hatch) actionButtons.push('hatch');
-  if (selectedJourney.can_evolve) actionButtons.push('evolve');
+  const careActionButtons = ['feed', 'play', 'clean'];
+  const ritualActionButtons = [];
+  if (selectedJourney.can_hatch) ritualActionButtons.push('hatch');
+  if (selectedJourney.can_evolve) ritualActionButtons.push('evolve');
+  const selectedScoreBalance = Number(selectedJourney.score_balance ?? selectedStudent?.score ?? 0);
+  const selectedConditionCopy = selectedJourney.is_dormant
+    ? (selectedJourney.revive_hint || selectedJourney.condition_tip || selectedJourney.next_target)
+    : (selectedJourney.condition_tip || selectedJourney.next_target);
   const handleCeremonyContinue = () => {
     if (ceremony?.profileTarget) {
       setProfileTarget(ceremony.profileTarget);
@@ -1635,12 +1678,12 @@ export default function PetCenter() {
                   </div>
 
                   <AnimatePresence>
-                    {actionFeedback && (
+                    {false && actionFeedback && (
                       <PetActionFeedbackPanel feedback={actionFeedback} />
                     )}
                   </AnimatePresence>
 
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {false && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {actionButtons.map((action) => {
                       const meta = ACTION_META[action];
                       const disabled = selectedCollection.length === 0 || Boolean(busyKey);
@@ -1728,7 +1771,7 @@ export default function PetCenter() {
                         </motion.button>
                       );
                     })}
-                  </div>
+                  </div>}
                 </div>
 
                 <div
@@ -1792,17 +1835,169 @@ export default function PetCenter() {
                           pet={selectedStudent.pet}
                           journey={selectedJourney}
                           className="flex h-44 w-44 items-center justify-center"
-                          imageClassName="h-36 w-36 object-contain"
+                          imageClassName={`h-36 w-36 object-contain ${selectedJourney.is_dormant ? 'grayscale opacity-80' : ''}`}
                           fallbackClassName="text-7xl"
                         />
                       </div>
                     </div>
                   </button>
 
+                  <div
+                    className="mt-5 rounded-[28px] border border-white/80 bg-white/82 px-4 py-4 shadow-sm"
+                    data-testid="pet-care-action-cluster"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-black tracking-[0.18em]" style={{ color: selectedSpotlightAccent }}>
+                          宠物联动区
+                        </div>
+                        <div className="mt-2 text-lg font-black text-slate-800">
+                          {selectedJourney.is_dormant ? '先赚分，再把它叫醒' : '照料按钮直接贴着宠物主体'}
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">{selectedConditionCopy}</p>
+                      </div>
+                      <div className="rounded-[22px] bg-slate-900 px-4 py-3 text-right text-white shadow-sm">
+                        <div className="text-[11px] font-bold text-white/70">当前积分</div>
+                        <div className="mt-1 text-2xl font-black">{selectedScoreBalance}</div>
+                        <div className="mt-1 text-[11px] font-bold text-white/70">
+                          {selectedJourney.score_debt > 0 ? `欠账 ${selectedJourney.score_debt} 分` : '每次照料都会消耗积分'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      {careItems.map((item) => (
+                        <CareMeter key={item.key} label={item.label} value={item.value} color={item.color} />
+                      ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      {careActionButtons.map((action) => {
+                        const meta = ACTION_META[action];
+                        const actionCost = getPetActionCost(selectedJourney, action);
+                        const scoreShortage = Math.max(0, actionCost - selectedScoreBalance);
+                        const disabled = selectedCollection.length === 0 || Boolean(busyKey) || scoreShortage > 0;
+                        const isFeedbackAction = actionFeedback?.action === action;
+                        const isWorking = busyKey === action;
+                        const helperText = selectedJourney.is_dormant
+                          ? (scoreShortage > 0 ? `还差 ${scoreShortage} 积分才能唤醒` : '立刻照料，让它慢慢醒来')
+                          : (scoreShortage > 0 ? `还差 ${scoreShortage} 积分` : meta.flavor);
+
+                        return (
+                          <motion.button
+                            key={action}
+                            type="button"
+                            onClick={() => handlePetAction(action)}
+                            data-testid={`pet-action-${action}`}
+                            disabled={disabled}
+                            whileHover={disabled ? undefined : { y: -3, scale: 1.01 }}
+                            whileTap={disabled ? undefined : { scale: 0.985 }}
+                            className={`pet-care-action-card relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-4 py-4 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                              isFeedbackAction ? 'pet-care-action-card-active' : ''
+                            }`}
+                            style={{
+                              backgroundImage: `linear-gradient(160deg, rgba(255,255,255,0.98) 0%, ${meta.theme || '#ffffff'} 76%, ${withAlpha(meta.accent || '#38bdf8', '10')} 100%)`,
+                              borderColor: withAlpha(meta.accent || '#38bdf8', '26'),
+                              boxShadow: isFeedbackAction
+                                ? `0 18px 40px ${withAlpha(meta.accent || '#38bdf8', '30')}`
+                                : `0 14px 30px ${withAlpha(meta.accent || '#38bdf8', '14')}`
+                            }}
+                          >
+                            <span
+                              className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl"
+                              style={{ backgroundColor: withAlpha(meta.accent || '#38bdf8', isFeedbackAction ? '34' : '18') }}
+                              aria-hidden="true"
+                            />
+                            {(isWorking || isFeedbackAction) && (
+                              <motion.span
+                                className="pointer-events-none absolute inset-0 opacity-60"
+                                initial={{ opacity: 0.2 }}
+                                animate={{ opacity: [0.18, 0.5, 0.2] }}
+                                transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                                style={{
+                                  background: `radial-gradient(circle at top, ${withAlpha(meta.accent || '#38bdf8', '22')} 0%, rgba(255,255,255,0) 72%)`
+                                }}
+                                aria-hidden="true"
+                              />
+                            )}
+
+                            <div className="relative">
+                              <div className="flex items-center justify-between gap-3">
+                                <span
+                                  className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/92 text-2xl shadow-sm"
+                                  style={{ boxShadow: `0 10px 24px ${withAlpha(meta.accent || '#38bdf8', '18')}` }}
+                                >
+                                  {meta.icon}
+                                </span>
+                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${meta.badgeClass}`}>
+                                  -{actionCost} 积分
+                                </span>
+                              </div>
+                              <div className="mt-4 text-sm font-black text-slate-800">
+                                {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
+                              </div>
+                              <p className="mt-1 text-xs leading-5 text-slate-500">{meta.description}</p>
+                              <div className="mt-3 text-[11px] font-bold text-slate-500">{helperText}</div>
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+
+                    <AnimatePresence>
+                      {actionFeedback && (
+                        <div className="mt-4">
+                          <PetActionFeedbackPanel feedback={actionFeedback} />
+                        </div>
+                      )}
+                    </AnimatePresence>
+
+                    {ritualActionButtons.length > 0 && (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {ritualActionButtons.map((action) => {
+                          const meta = ACTION_META[action];
+                          const isFeedbackAction = actionFeedback?.action === action;
+                          const isWorking = busyKey === action;
+                          const cardClass = action === 'evolve'
+                            ? 'from-fuchsia-50 via-white to-pink-50 border-fuchsia-100'
+                            : 'from-amber-50 via-white to-orange-50 border-amber-100';
+
+                          return (
+                            <motion.button
+                              key={action}
+                              type="button"
+                              onClick={() => handlePetAction(action)}
+                              data-testid={`pet-action-${action}`}
+                              disabled={selectedCollection.length === 0 || Boolean(busyKey)}
+                              whileHover={busyKey ? undefined : { y: -3, scale: 1.01 }}
+                              whileTap={busyKey ? undefined : { scale: 0.985 }}
+                              className={`pet-care-action-card relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-4 py-4 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${cardClass} ${
+                                isFeedbackAction ? 'pet-care-action-card-active' : ''
+                              }`}
+                            >
+                              <div className="relative flex items-start justify-between gap-3">
+                                <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/92 text-2xl shadow-sm">
+                                  {meta.icon}
+                                </span>
+                                <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+                                  仪式
+                                </span>
+                              </div>
+                              <div className="relative mt-4 text-sm font-black text-slate-800">
+                                {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
+                              </div>
+                              <p className="relative mt-1 text-xs leading-5 text-slate-500">{meta.description}</p>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="relative mt-5">
                     <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-4 shadow-sm">
                       <div className="text-sm font-black text-slate-700">点击宠物卡片查看完整成长档案</div>
-                      <p className="mt-2 text-xs leading-6 text-slate-500">{selectedJourney.next_target}</p>
+                      <p className="mt-2 text-xs leading-6 text-slate-500">{selectedConditionCopy}</p>
                     </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-2">
@@ -2158,9 +2353,3 @@ export default function PetCenter() {
     </>
   );
 }
-
-
-
-
-
-
