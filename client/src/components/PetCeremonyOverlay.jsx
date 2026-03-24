@@ -38,6 +38,45 @@ const CEREMONY_COPY = {
   }
 };
 
+const CEREMONY_RARITY_META = {
+  common: {
+    label: '常见伙伴',
+    stars: 1,
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+    aura: 'rgba(52,211,153,0.18)',
+    surface: 'rgba(236,253,245,0.94)',
+    panel: 'linear-gradient(135deg, rgba(236,253,245,0.98) 0%, rgba(255,255,255,0.96) 100%)'
+  },
+  rare: {
+    label: '稀有伙伴',
+    stars: 2,
+    badgeClass: 'bg-sky-100 text-sky-700',
+    aura: 'rgba(56,189,248,0.2)',
+    surface: 'rgba(224,242,254,0.96)',
+    panel: 'linear-gradient(135deg, rgba(224,242,254,0.98) 0%, rgba(255,255,255,0.96) 100%)'
+  },
+  epic: {
+    label: '史诗伙伴',
+    stars: 3,
+    badgeClass: 'bg-fuchsia-100 text-fuchsia-700',
+    aura: 'rgba(217,70,239,0.22)',
+    surface: 'rgba(250,232,255,0.96)',
+    panel: 'linear-gradient(135deg, rgba(250,232,255,0.98) 0%, rgba(255,255,255,0.96) 100%)'
+  },
+  legendary: {
+    label: '传说伙伴',
+    stars: 4,
+    badgeClass: 'bg-amber-100 text-amber-700',
+    aura: 'rgba(245,158,11,0.24)',
+    surface: 'rgba(254,249,195,0.96)',
+    panel: 'linear-gradient(135deg, rgba(255,247,212,0.99) 0%, rgba(255,255,255,0.97) 100%)'
+  }
+};
+
+function getCeremonyRarityMeta(pet) {
+  return CEREMONY_RARITY_META[pet?.rarity] || CEREMONY_RARITY_META.common;
+}
+
 function launchCeremonyConfetti(action) {
   if (typeof window === 'undefined') return;
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
@@ -168,14 +207,22 @@ function CeremonyStageCard({
   chipClassName,
   chipLabel,
   accent = '#38bdf8',
+  rarityMeta = CEREMONY_RARITY_META.common,
+  variant = 'after',
   delay = 0
 }) {
+  const isAfter = variant === 'after';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="rounded-[32px] border border-white/70 bg-white/84 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+      className={`rounded-[32px] border p-5 ${
+        isAfter
+          ? 'border-white/80 bg-white/90 shadow-[0_24px_56px_rgba(15,23,42,0.12)]'
+          : 'border-white/70 bg-white/84 shadow-[0_16px_40px_rgba(15,23,42,0.08)]'
+      }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -185,63 +232,89 @@ function CeremonyStageCard({
         <span className={`rounded-full px-3 py-1 text-[11px] font-black ${chipClassName}`}>{chipLabel}</span>
       </div>
 
-      <div className="mt-5 rounded-[30px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(244,248,255,0.92)_100%)] p-4 shadow-inner">
-        <div className="relative overflow-hidden rounded-[28px] border border-white/80 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98)_0%,rgba(245,249,255,0.96)_34%,rgba(228,238,252,0.92)_100%)] px-4 py-5">
+      <div
+        className="mt-5 rounded-[30px] border border-white/75 p-4 shadow-inner"
+        style={{
+          background: isAfter
+            ? `linear-gradient(180deg, rgba(255,255,255,0.94) 0%, ${rarityMeta.surface} 100%)`
+            : 'linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(244,248,255,0.92) 100%)'
+        }}
+      >
+        <div
+          className="relative overflow-hidden rounded-[28px] border border-white/80 px-4 py-5"
+          style={{
+            background: isAfter
+              ? `radial-gradient(circle at top, rgba(255,255,255,0.99) 0%, ${rarityMeta.surface} 34%, rgba(228,238,252,0.94) 100%)`
+              : 'radial-gradient(circle at top, rgba(255,255,255,0.98) 0%, rgba(245,249,255,0.96) 34%, rgba(228,238,252,0.92) 100%)'
+          }}
+        >
           <div
-            className="pointer-events-none absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-black shadow-sm"
-            style={{ color: accent }}
+            className="pointer-events-none absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-black text-slate-500 shadow-sm"
             aria-hidden="true"
           >
-            成长舞台
+            {isAfter ? '闪耀舞台' : '成长舞台'}
+          </div>
+          <div
+            className={`pointer-events-none absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-black shadow-sm ${rarityMeta.badgeClass}`}
+            aria-hidden="true"
+          >
+            {rarityMeta.label}
           </div>
           <div
             className="pointer-events-none absolute inset-x-10 top-4 h-16 rounded-full blur-3xl"
-            style={{ backgroundColor: `${accent}14` }}
+            style={{ backgroundColor: isAfter ? rarityMeta.aura : `${accent}14` }}
             aria-hidden="true"
           />
           <motion.div
-            animate={{ opacity: [0.2, 0.42, 0.24], scale: [0.94, 1.08, 0.98] }}
+            animate={{ opacity: isAfter ? [0.28, 0.5, 0.32] : [0.2, 0.42, 0.24], scale: [0.94, 1.08, 0.98] }}
             transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', delay }}
             className="pointer-events-none absolute inset-x-10 bottom-10 h-28 rounded-full blur-3xl"
-            style={{ backgroundColor: `${accent}28` }}
+            style={{ backgroundColor: isAfter ? rarityMeta.aura : `${accent}28` }}
             aria-hidden="true"
           />
           <OrbitHalo
             className="left-1/2 top-[48%] h-[168px] w-[168px] -translate-x-1/2 -translate-y-1/2"
             delay={delay}
             duration={9.4}
-            borderColor={`${accent}52`}
+            borderColor={isAfter ? accent : `${accent}52`}
           />
           <OrbitHalo
             className="left-1/2 top-[48%] h-[204px] w-[204px] -translate-x-1/2 -translate-y-1/2"
             delay={delay + 0.12}
             duration={11.6}
-            borderColor="rgba(255,255,255,0.48)"
+            borderColor={isAfter ? 'rgba(255,255,255,0.58)' : 'rgba(255,255,255,0.48)'}
           />
           <div
             className="pointer-events-none absolute left-1/2 top-6 h-20 w-28 -translate-x-1/2 rounded-full bg-white/88 blur-3xl"
             aria-hidden="true"
           />
-          <div className="pet-hero-frame relative z-10 mx-auto flex h-[212px] w-full max-w-[228px] items-center justify-center rounded-[30px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] shadow-[0_22px_42px_rgba(148,163,184,0.22)]">
+          <div className="pointer-events-none absolute left-1/2 top-14 -translate-x-1/2 text-xs font-black tracking-[0.28em] text-amber-400" aria-hidden="true">
+            {'★'.repeat(rarityMeta.stars)}
+          </div>
+          <div
+            className={`pet-hero-frame relative z-10 mx-auto flex h-[212px] w-full max-w-[228px] items-center justify-center rounded-[30px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] ${
+              isAfter ? 'border-white/90 shadow-[0_28px_56px_rgba(148,163,184,0.28)]' : 'border-white/85 shadow-[0_22px_42px_rgba(148,163,184,0.22)]'
+            }`}
+          >
             <PetArtwork
               pet={pet}
               journey={journey}
               previewLevel={previewLevel}
               previewSlotState={previewSlotState}
               previewVisualState={previewVisualState}
-              className="flex h-[170px] w-[170px] items-center justify-center"
-              imageClassName="h-[150px] w-[150px] object-contain drop-shadow-[0_18px_30px_rgba(15,23,42,0.18)]"
+              className={`flex items-center justify-center ${isAfter ? 'h-[178px] w-[178px]' : 'h-[170px] w-[170px]'}`}
+              imageClassName={`${isAfter ? 'h-[156px] w-[156px]' : 'h-[150px] w-[150px]'} object-contain drop-shadow-[0_18px_30px_rgba(15,23,42,0.18)]`}
               fallbackClassName="text-6xl"
             />
           </div>
           <div
             className="relative z-10 mx-auto mt-4 h-4 w-40 rounded-full"
-            style={{ background: `linear-gradient(90deg, ${accent}18 0%, ${accent}72 50%, ${accent}18 100%)` }}
+            style={{ background: `linear-gradient(90deg, ${isAfter ? rarityMeta.aura : `${accent}18`} 0%, ${accent}72 50%, ${isAfter ? rarityMeta.aura : `${accent}18`} 100%)` }}
             aria-hidden="true"
           />
           <div
             className="relative z-10 mx-auto mt-1 h-6 w-28 rounded-full blur-2xl"
-            style={{ backgroundColor: `${accent}24` }}
+            style={{ backgroundColor: isAfter ? rarityMeta.aura : `${accent}24` }}
             aria-hidden="true"
           />
         </div>
@@ -412,6 +485,8 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
   const afterSlotState = nextJourney.slot_state || 'hatched';
   const afterLevel = Math.max(1, nextJourney.stage_level || 1);
   const milestoneAccent = nextJourney.accent || ceremony.pet?.accent || '#F59E0B';
+  const rarityMeta = getCeremonyRarityMeta(ceremony.pet);
+  const beforeRarityMeta = ceremony.action === 'claim' ? CEREMONY_RARITY_META.common : rarityMeta;
   const companionName = ceremony.pet?.name || nextJourney.name || '课堂伙伴';
   const stageName = nextJourney.stage_name
     || (ceremony.action === 'claim' ? '专属宠物蛋' : ceremony.action === 'hatch' ? '初生形态' : '进化形态');
@@ -504,16 +579,36 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                   <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${getPetPowerTone(nextJourney.power_score || 0).bg} ${getPetPowerTone(nextJourney.power_score || 0).text}`}>
                     培养力 {nextJourney.power_score || 0}
                   </span>
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${rarityMeta.badgeClass}`}>
+                    {rarityMeta.label}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-amber-500 shadow-sm">
+                    {'★'.repeat(rarityMeta.stars)}
+                  </span>
                   <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
                     收藏数 {ceremony.collectionCount || 1}
                   </span>
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-white/70 bg-white/88 px-4 py-4 text-right shadow-sm">
+              <div
+                className="rounded-[28px] border border-white/70 px-4 py-4 text-right shadow-sm"
+                style={{
+                  background: rarityMeta.panel,
+                  boxShadow: `0 18px 36px ${rarityMeta.aura}`
+                }}
+              >
                 <div className="text-[11px] font-black tracking-[0.24em] text-slate-400">本次解锁</div>
                 <div className="mt-2 text-xl font-black text-slate-800">{stageName}</div>
                 <div className="mt-1 text-sm font-semibold text-slate-500">{companionName}</div>
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${rarityMeta.badgeClass}`}>
+                    {rarityMeta.label}
+                  </span>
+                  <span className="rounded-full bg-white/92 px-3 py-1 text-[11px] font-black text-amber-500 shadow-sm">
+                    {'★'.repeat(rarityMeta.stars)}
+                  </span>
+                </div>
                 <div className="mt-3 inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black text-white">
                   {ceremony.action === 'evolve'
                     ? '全班高光时刻'
@@ -536,6 +631,8 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                 chipClassName="bg-slate-100 text-slate-600"
                 chipLabel={transitionCopy.beforeChipLabel}
                 accent={milestoneAccent}
+                rarityMeta={beforeRarityMeta}
+                variant="before"
                 delay={0.08}
               />
 
@@ -569,6 +666,8 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                 chipClassName={ceremony.action === 'claim' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700'}
                 chipLabel={transitionCopy.afterChipLabel}
                 accent={milestoneAccent}
+                rarityMeta={rarityMeta}
+                variant="after"
                 delay={0.16}
               />
             </div>
@@ -602,7 +701,10 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-4 rounded-[28px] bg-[radial-gradient(circle_at_top,#ffffff_0%,#fff7ef_48%,#eef8ff_100%)] px-4 py-4 shadow-inner">
+                  <div
+                    className="flex items-center gap-4 rounded-[28px] px-4 py-4 shadow-inner"
+                    style={{ background: rarityMeta.panel }}
+                  >
                     <div className="pet-hero-frame flex h-20 w-20 items-center justify-center rounded-[24px] bg-white/92">
                       <PetArtwork
                         pet={ceremony.pet}
@@ -616,7 +718,12 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                       />
                     </div>
                     <div>
-                      <div className="text-sm font-black text-slate-800">{ceremony.pet.name}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-sm font-black text-slate-800">{ceremony.pet.name}</div>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${rarityMeta.badgeClass}`}>
+                          {rarityMeta.label}
+                        </span>
+                      </div>
                       <div className="mt-1 text-xs font-semibold text-slate-500">
                         孵化后会从这里正式开始成长
                       </div>

@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import PetArtwork from './PetArtwork';
@@ -587,9 +587,18 @@ function getRitualPlanner({ journey, unlockStatus, canClaimAnotherPet, collectio
   };
 }
 
-function RitualPlannerCard({ plan, journey, unlockStatus, collectionLength, collectionCapacity }) {
+function RitualPlannerCard({
+  plan,
+  journey,
+  unlockStatus,
+  collectionLength,
+  collectionCapacity,
+  primaryActionLabel = '',
+  onPrimaryAction = null
+}) {
   const accent = journey.accent || '#38bdf8';
   const theme = journey.theme || '#FFF7ED';
+  const hasPrimaryAction = Boolean(primaryActionLabel && onPrimaryAction);
 
   return (
     <div className={`mt-5 rounded-[32px] border border-white/70 bg-gradient-to-br px-5 py-5 shadow-sm ${plan.panelClass}`}>
@@ -601,6 +610,25 @@ function RitualPlannerCard({ plan, journey, unlockStatus, collectionLength, coll
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${plan.badgeClass}`}>{plan.badge}</span>
       </div>
+
+      {hasPrimaryAction && (
+        <button
+          type="button"
+          onClick={onPrimaryAction}
+          data-testid="pet-center-plan-action"
+          className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/92 px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+          style={{ boxShadow: `0 14px 28px ${withAlpha(accent, '16')}` }}
+        >
+          <span>{primaryActionLabel}</span>
+          <span
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm text-white shadow-sm"
+            style={{ backgroundColor: accent }}
+            aria-hidden="true"
+          >
+            →
+          </span>
+        </button>
+      )}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
@@ -1046,6 +1074,7 @@ export default function PetCenter() {
   const [ceremony, setCeremony] = useState(null);
   const [actionFeedback, setActionFeedback] = useState(null);
   const [catalogReady, setCatalogReady] = useState(false);
+  const catalogSectionRef = useRef(null);
   const deferredActiveFilter = useDeferredValue(activeFilter);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
 
@@ -1412,6 +1441,14 @@ export default function PetCenter() {
   const feedbackStatChips = (actionFeedback?.metrics || [])
     .filter((item) => !['satiety', 'mood', 'cleanliness'].includes(item.key))
     .slice(0, 3);
+  const ritualPlannerActionLabel = !selectedJourney.claimed
+    ? '去图鉴挑选第一只宠物'
+    : canClaimAnotherPet && selectedCollection.length < selectedPetCapacity
+      ? '去图鉴挑选下一只宠物'
+      : '';
+  const scrollToCatalogSection = () => {
+    catalogSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const handleCeremonyContinue = () => {
     if (ceremony?.profileTarget) {
       setProfileTarget(ceremony.profileTarget);
@@ -1627,50 +1664,15 @@ export default function PetCenter() {
                         </div>
                       </div>
 
-                      <div className="mt-4 rounded-[28px] border border-white/70 bg-white/82 px-4 py-4 shadow-sm">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-bold tracking-[0.18em] text-slate-400">宠物位解锁</div>
-                            <div className="mt-2 text-lg font-black text-slate-800">{unlockStatus.title}</div>
-                            <p className="mt-2 text-sm leading-6 text-slate-500">{unlockStatus.detail}</p>
-                          </div>
-                          <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${
-                            unlockStatus.unlockedAll
-                              ? 'bg-slate-900 text-white'
-                              : unlockStatus.progress >= 100
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-violet-100 text-violet-700'
-                          }`}>
-                            {unlockStatus.chip}
-                          </span>
-                        </div>
-
-                        <div className="mt-4 h-3 rounded-full bg-slate-100">
-                          <div
-                            className="h-3 rounded-full transition-all"
-                            style={{
-                              width: `${unlockStatus.progress}%`,
-                              background: unlockStatus.progress >= 100
-                                ? 'linear-gradient(90deg, #34d399 0%, #22c55e 100%)'
-                                : 'linear-gradient(90deg, #a855f7 0%, #38bdf8 100%)'
-                            }}
-                          />
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-black text-slate-500">
-                          <span className="rounded-full bg-slate-100 px-3 py-1">
-                            进化完成 {unlockStatus.requirementCurrent}/{unlockStatus.requirementTotal}
-                          </span>
-                          {unlockStatus.nextSlotNumber && (
-                            <span className="rounded-full bg-white px-3 py-1 shadow-sm">
-                              目标宠物位 #{unlockStatus.nextSlotNumber}
-                            </span>
-                          )}
-                          <span className="rounded-full bg-white px-3 py-1 shadow-sm">
-                            进度 {unlockStatus.progress}%
-                          </span>
-                        </div>
-                      </div>
+                      <RitualPlannerCard
+                        plan={ritualPlanner}
+                        journey={selectedJourney}
+                        unlockStatus={unlockStatus}
+                        collectionLength={selectedCollection.length}
+                        collectionCapacity={selectedPetCapacity}
+                        primaryActionLabel={ritualPlannerActionLabel}
+                        onPrimaryAction={ritualPlannerActionLabel ? scrollToCatalogSection : null}
+                      />
 
                       <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                         {Array.from({ length: 3 }, (_, index) => {
@@ -2192,7 +2194,10 @@ export default function PetCenter() {
             )}
           </section>
 
-          <section className="card-game border-pink-200 bg-gradient-to-br from-white via-orange-50/60 to-pink-50/70">
+          <section
+            ref={catalogSectionRef}
+            className="card-game border-pink-200 bg-gradient-to-br from-white via-orange-50/60 to-pink-50/70"
+          >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="text-xs font-bold tracking-[0.22em] text-pink-500">宠物图鉴</div>
