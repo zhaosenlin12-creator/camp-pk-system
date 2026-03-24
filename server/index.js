@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const helmet = require('helmet');
@@ -22,6 +23,7 @@ app.set('trust proxy', 1);
 // 从加密文件加载敏感配置（绑定机器指纹，防止配置文件被盗用）
 const secureConfig = security.loadSecureConfig();
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || secureConfig.DEEPSEEK_API_KEY;
+const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 // 启动时显示安全状态
 console.log('🔐 安全模块已加载');
@@ -296,6 +298,129 @@ const normalizeScore = (score) => {
   if (Number.isNaN(n)) return 0;
   return Math.round(n * 10) / 10;
 };
+
+const getAdminPinCandidate = () => {
+  const envPin = typeof process.env.ADMIN_PIN === 'string' ? process.env.ADMIN_PIN.trim() : '';
+  const configPin = typeof secureConfig.ADMIN_PIN === 'string' ? secureConfig.ADMIN_PIN.trim() : '';
+  return envPin || configPin || '';
+};
+
+const getAdminSessionSecret = () => crypto
+  .createHash('sha256')
+  .update(
+    process.env.ADMIN_SESSION_SECRET
+      || `${security.getMachineFingerprint()}|${secureConfig.ADMIN_PIN_HASH || getAdminPinCandidate() || 'missing-admin-pin'}`
+  )
+  .digest('hex');
+
+const encodeBase64Url = (value) => Buffer.from(value)
+  .toString('base64')
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/g, '');
+
+const decodeBase64Url = (value) => {
+  const normalized = String(value || '')
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const padding = (4 - (normalized.length % 4 || 4)) % 4;
+  return Buffer.from(`${normalized}${'='.repeat(padding)}`, 'base64').toString('utf8');
+};
+
+const createAdminSessionToken = () => {
+  const payload = {
+    role: 'admin',
+    issued_at: Date.now(),
+    expires_at: Date.now() + ADMIN_SESSION_TTL_MS
+  };
+  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac('sha256', getAdminSessionSecret())
+    .update(encodedPayload)
+    .digest('hex');
+  return `${encodedPayload}.${signature}`;
+};
+
+const verifyAdminSessionToken = (token) => {
+  if (!token || typeof token !== 'string') return null;
+  const [encodedPayload, signature] = token.split('.');
+  if (!encodedPayload || !signature) return null;
+
+  const expectedSignature = crypto
+    .createHmac('sha256', getAdminSessionSecret())
+    .update(encodedPayload)
+    .digest('hex');
+
+  const actualBuffer = Buffer.from(signature, 'hex');
+  const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+  if (
+    actualBuffer.length === 0
+    || actualBuffer.length !== expectedBuffer.length
+    || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)
+  ) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(encodedPayload));
+    if (payload.role !== 'admin') return null;
+    if (!Number.isFinite(payload.expires_at) || payload.expires_at <= Date.now()) return null;
+    return payload;
+  } catch (error) {
+    return null;
+  }
+};
+
+const extractAdminToken = (req) => {
+  const authHeader = req.headers.authorization || '';
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+};
+
+const PUBLIC_API_ROUTE_RULES = [
+  { method: 'GET', pattern: /^\/api\/classes$/ },
+  { method: 'GET', pattern: /^\/api\/classes\/\d+\/teams$/ },
+  { method: 'GET', pattern: /^\/api\/classes\/\d+\/students$/ },
+  { method: 'GET', pattern: /^\/api\/classes\/\d+\/leaderboard\/students$/ },
+  { method: 'GET', pattern: /^\/api\/classes\/\d+\/leaderboard\/teams$/ },
+  { method: 'GET', pattern: /^\/api\/classes\/\d+\/active-session$/ },
+  { method: 'GET', pattern: /^\/api\/classes\/\d+\/rating-leaderboard$/ },
+  { method: 'GET', pattern: /^\/api\/pets$/ },
+  { method: 'GET', pattern: /^\/api\/rewards$/ },
+  { method: 'GET', pattern: /^\/api\/punishments$/ },
+  { method: 'POST', pattern: /^\/api\/rating-sessions\/\d+\/vote$/ },
+  { method: 'GET', pattern: /^\/api\/rating-sessions\/\d+\/check-voted$/ },
+  { method: 'POST', pattern: /^\/api\/admin\/verify$/ },
+  { method: 'GET', pattern: /^\/api\/reports\/[a-z0-9]+$/ },
+  { method: 'GET', pattern: /^\/api\/certificates\/[a-z0-9]+$/ },
+  { method: 'GET', pattern: /^\/api\/version$/ }
+];
+
+const isPublicApiRequest = (req) => {
+  if (req.method === 'OPTIONS') {
+    return true;
+  }
+  const routeKey = `${req.baseUrl || ''}${req.path || ''}`;
+  return PUBLIC_API_ROUTE_RULES.some(
+    (rule) => rule.method === req.method && rule.pattern.test(routeKey)
+  );
+};
+
+const requireAdmin = (req, res, next) => {
+  if (isPublicApiRequest(req)) {
+    return next();
+  }
+
+  const session = verifyAdminSessionToken(extractAdminToken(req));
+  if (!session) {
+    return res.status(401).json({ error: '管理员登录已失效，请重新验证' });
+  }
+
+  req.adminSession = session;
+  return next();
+};
+
+app.use('/api', requireAdmin);
 
 const PET_CATALOG = [
   { id: 1, name: '东北虎', species: 'Cloud Pet', emoji: '🐯', rarity: 'epic', theme: '#FFF2D6', accent: '#F59E0B', quote: '勇气值拉满的小队长。' },
@@ -2596,6 +2721,7 @@ app.delete('/api/classes/:classId/lottery-logs', (req, res) => {
 // 验证管理员密码（使用安全哈希比较）
 app.post('/api/admin/verify', adminLimiter, (req, res) => {
   const pin = sanitizeString(req.body.pin, 20);
+  const plainPin = getAdminPinCandidate();
   
   // 使用哈希验证（防止时序攻击）
   let isValid = false;
@@ -2603,14 +2729,14 @@ app.post('/api/admin/verify', adminLimiter, (req, res) => {
   if (secureConfig.ADMIN_PIN_HASH) {
     // 使用哈希验证
     isValid = security.verifyPassword(pin, secureConfig.ADMIN_PIN_HASH);
-  } else {
+  } else if (plainPin) {
     // 兼容旧配置：直接比较后升级为哈希
-    const plainPin = process.env.ADMIN_PIN || secureConfig.ADMIN_PIN || '980116';
     isValid = pin === plainPin;
     
     // 首次验证成功后，升级为哈希存储
     if (isValid && !secureConfig.ADMIN_PIN_HASH) {
       secureConfig.ADMIN_PIN_HASH = security.hashPassword(plainPin);
+      secureConfig.ADMIN_PIN = null;
       security.saveSecureConfig(secureConfig);
       console.log('✅ 管理员密码已升级为安全哈希存储');
     }
@@ -2619,11 +2745,27 @@ app.post('/api/admin/verify', adminLimiter, (req, res) => {
   // 添加随机延迟（50-150ms），进一步防止时序攻击
   const delay = 50 + Math.random() * 100;
   setTimeout(() => {
-    res.json({ success: isValid });
+    if (!isValid) {
+      return res.json({ success: false });
+    }
+
+    const token = createAdminSessionToken();
+    return res.json({
+      success: true,
+      token,
+      expires_at: Date.now() + ADMIN_SESSION_TTL_MS
+    });
   }, delay);
 });
 
 // 修改管理员密码
+app.get('/api/admin/session', (req, res) => {
+  res.json({
+    success: true,
+    expires_at: req.adminSession?.expires_at || null
+  });
+});
+
 app.post('/api/admin/change-password', adminLimiter, (req, res) => {
   const { currentPin, newPin } = req.body;
   const current = sanitizeString(currentPin, 20);
@@ -2642,7 +2784,7 @@ app.post('/api/admin/change-password', adminLimiter, (req, res) => {
   if (secureConfig.ADMIN_PIN_HASH) {
     isValid = security.verifyPassword(current, secureConfig.ADMIN_PIN_HASH);
   } else {
-    isValid = current === (secureConfig.ADMIN_PIN || '980116');
+    isValid = current === getAdminPinCandidate();
   }
   
   if (!isValid) {
@@ -2681,6 +2823,10 @@ app.post('/api/ai/generate-comment', aiLimiter, async (req, res) => {
   
   if (!studentInfo || !studentInfo.name) {
     return res.status(400).json({ error: '缺少学员信息' });
+  }
+
+  if (!DEEPSEEK_API_KEY) {
+    return res.status(503).json({ error: 'AI 寄语服务未配置，请先设置 DEEPSEEK_API_KEY' });
   }
 
   try {

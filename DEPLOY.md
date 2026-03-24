@@ -136,7 +136,7 @@ certbot renew --dry-run
 |--------|------|--------|
 | PORT | 服务端口 | 3001 |
 | NODE_ENV | 环境模式 | development |
-| ADMIN_PIN | 管理员密码 | 980116 |
+| ADMIN_PIN | 管理员密码 | 生产环境必须显式配置，不再提供默认密码 |
 | ALLOWED_ORIGIN | 允许的跨域来源 | * |
 
 示例：
@@ -167,7 +167,7 @@ cp /var/www/camp-pk-system/database/data.json /var/backups/camp-pk/data_$DATE.js
 部署完成后：
 
 - **展示页面**：`https://show.codebn.cn/`（学生/家长查看）
-- **管理后台**：`https://show.codebn.cn/admin`（老师管理，密码：980116）
+- **管理后台**：`https://show.codebn.cn/admin`（老师管理，请使用部署时设置的 `ADMIN_PIN` 登录）
 
 ---
 

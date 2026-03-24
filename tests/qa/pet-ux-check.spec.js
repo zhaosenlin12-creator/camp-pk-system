@@ -4,8 +4,9 @@ const fs = require('node:fs');
 
 const baseUrl = process.env.QA_BASE_URL || 'http://localhost:3001';
 const classId = 8;
-const adminPin = '980116';
+const adminPin = process.env.QA_ADMIN_PIN || process.env.ADMIN_PIN || '';
 const outputDir = path.join(process.cwd(), '.tmp', 'qa', 'screenshots');
+let adminHeadersPromise = null;
 
 async function ensureDir() {
   fs.mkdirSync(outputDir, { recursive: true });
@@ -23,9 +24,35 @@ async function parseJson(response) {
   return response.json();
 }
 
+async function getAdminHeaders(request) {
+  if (!adminPin) {
+    throw new Error('QA_ADMIN_PIN or ADMIN_PIN is required for authenticated QA');
+  }
+
+  if (!adminHeadersPromise) {
+    adminHeadersPromise = (async () => {
+      const result = await parseJson(
+        await request.post(`${baseUrl}/api/admin/verify`, {
+          data: { pin: adminPin }
+        })
+      );
+
+      if (!result.success || !result.token) {
+        throw new Error('Failed to acquire admin token for QA');
+      }
+
+      return { Authorization: `Bearer ${result.token}` };
+    })();
+  }
+
+  return adminHeadersPromise;
+}
+
 async function createStudent(request, name) {
+  const headers = await getAdminHeaders(request);
   return parseJson(
     await request.post(`${baseUrl}/api/students`, {
+      headers,
       data: {
         name,
         class_id: classId,
@@ -36,39 +63,55 @@ async function createStudent(request, name) {
 }
 
 async function updateScore(request, studentId, delta) {
+  const headers = await getAdminHeaders(request);
   return parseJson(
     await request.patch(`${baseUrl}/api/students/${studentId}/score`, {
+      headers,
       data: { delta, reason: 'QA ritual verification' }
     })
   );
 }
 
 async function claimPet(request, studentId, petId) {
+  const headers = await getAdminHeaders(request);
   return parseJson(
     await request.post(`${baseUrl}/api/students/${studentId}/claim-pet`, {
+      headers,
       data: { pet_id: petId, overwrite: true }
     })
   );
 }
 
 async function activatePetSlot(request, studentId, slotId) {
+  const headers = await getAdminHeaders(request);
   return parseJson(
-    await request.post(`${baseUrl}/api/students/${studentId}/pet-slots/${slotId}/activate`)
+    await request.post(`${baseUrl}/api/students/${studentId}/pet-slots/${slotId}/activate`, {
+      headers
+    })
   );
 }
 
 async function runAction(request, studentId, action) {
-  return parseJson(await request.post(`${baseUrl}/api/students/${studentId}/pet/${action}`));
+  const headers = await getAdminHeaders(request);
+  return parseJson(await request.post(`${baseUrl}/api/students/${studentId}/pet/${action}`, {
+    headers
+  }));
 }
 
 async function runActionExpectError(request, studentId, action, status = 400) {
-  const response = await request.post(`${baseUrl}/api/students/${studentId}/pet/${action}`);
+  const headers = await getAdminHeaders(request);
+  const response = await request.post(`${baseUrl}/api/students/${studentId}/pet/${action}`, {
+    headers
+  });
   expect(response.status()).toBe(status);
   return response.json();
 }
 
 async function deleteStudent(request, studentId) {
-  await request.delete(`${baseUrl}/api/students/${studentId}`);
+  const headers = await getAdminHeaders(request);
+  await request.delete(`${baseUrl}/api/students/${studentId}`, {
+    headers
+  });
 }
 
 async function selectClass(page) {
@@ -91,6 +134,12 @@ async function openPetCenter(page) {
 }
 
 test.setTimeout(120000);
+
+test.beforeAll(() => {
+  if (!adminPin) {
+    throw new Error('QA_ADMIN_PIN or ADMIN_PIN must be set before running pet QA');
+  }
+});
 
 test('capture pet UX screenshots and verify ritual flows', async ({ page, request }) => {
   await ensureDir();

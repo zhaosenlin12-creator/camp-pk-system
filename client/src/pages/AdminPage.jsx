@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStore } from '../store/useStore';
+import { useStore, ADMIN_AUTH_EXPIRED_EVENT } from '../store/useStore';
 import ClassSelector from '../components/ClassSelector';
 import TeamManager from '../components/TeamManager';
 import StudentManager from '../components/StudentManager';
@@ -29,7 +29,7 @@ function PinVerify({ onSuccess }) {
     const success = await verifyAdmin(pin);
     if (success) {
       soundManager.playVictory();
-      onSuccess();
+      onSuccess?.();
     } else {
       setError(true);
       soundManager.playScoreDown();
@@ -77,8 +77,21 @@ function PinVerify({ onSuccess }) {
 }
 
 export default function AdminPage() {
-  const { isAdmin, currentClass, rewards, punishments, teams, students, fetchTeams, fetchStudents, addLotteryLog } = useStore();
+  const {
+    isAdmin,
+    currentClass,
+    rewards,
+    punishments,
+    teams,
+    students,
+    fetchTeams,
+    fetchStudents,
+    addLotteryLog,
+    restoreAdminSession,
+    logoutAdmin
+  } = useStore();
   const [verified, setVerified] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [activeTab, setActiveTab] = useState('students');
   const [showRewardWheel, setShowRewardWheel] = useState(false);
   const [showPunishmentWheel, setShowPunishmentWheel] = useState(false);
@@ -90,8 +103,34 @@ export default function AdminPage() {
   const [selectedStudentForLottery, setSelectedStudentForLottery] = useState(null);
 
   useEffect(() => {
+    let mounted = true;
+
+    restoreAdminSession().finally(() => {
+      if (mounted) {
+        setAuthReady(true);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [restoreAdminSession]);
+
+  useEffect(() => {
     if (isAdmin) setVerified(true);
-  }, [isAdmin]);
+    if (!isAdmin && authReady) setVerified(false);
+  }, [isAdmin, authReady]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      logoutAdmin();
+      setVerified(false);
+      setAuthReady(true);
+    };
+
+    window.addEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, [logoutAdmin]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -101,7 +140,7 @@ export default function AdminPage() {
       }
     }, 6000);
     return () => clearInterval(interval);
-  }, [currentClass]);
+  }, [currentClass, fetchTeams, fetchStudents]);
 
   const toggleSound = () => {
     const enabled = soundManager.toggle();
@@ -111,6 +150,21 @@ export default function AdminPage() {
   const handlePunishmentResult = (punishment) => {
     // 不自动跳转，等用户点击
   };
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card-game max-w-sm w-full text-center"
+        >
+          <div className="text-5xl mb-4">馃敡</div>
+          <p className="text-lg font-bold text-gray-700">姝ｅ湪楠岃瘉鑰佸笀韬唤...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (!verified) {
     return <PinVerify onSuccess={() => setVerified(true)} />;

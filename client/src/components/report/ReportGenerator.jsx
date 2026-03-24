@@ -1,14 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
-import { useStore } from '../../store/useStore';
+import { useStore, getAdminAuthHeaders } from '../../store/useStore';
 import { getRank } from '../../utils/ranks';
 import { STUDENT_TRAITS } from '../../utils/certificates';
 import { formatScore } from '../../utils/score';
 import StudentReport from './StudentReport';
 
 export default function ReportGenerator() {
-  const { students, teams, currentClass } = useStore();
+  const {
+    students,
+    teams,
+    currentClass,
+    fetchStudentScoreLogs: loadStudentScoreLogs
+  } = useStore();
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -37,17 +42,14 @@ export default function ReportGenerator() {
   // 获取学员积分记录
   useEffect(() => {
     if (selectedStudent && currentClass) {
-      fetchStudentScoreLogs(selectedStudent.id);
+      syncStudentScoreLogs(selectedStudent.id);
     }
   }, [selectedStudent, currentClass]);
 
-  const fetchStudentScoreLogs = async (studentId) => {
+  const syncStudentScoreLogs = async (studentId) => {
     try {
-      const res = await fetch(`/api/students/${studentId}/score-logs`);
-      if (res.ok) {
-        const logs = await res.json();
-        setScoreLogs(logs);
-      }
+      const logs = await loadStudentScoreLogs(studentId);
+      setScoreLogs(logs || []);
     } catch (err) {
       console.error('获取积分记录失败:', err);
       setScoreLogs([]);
@@ -147,7 +149,7 @@ export default function ReportGenerator() {
 
       const res = await fetch('/api/ai/generate-comment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           studentInfo,
           customPrompt: buildAIPrompt() || '请根据学员的表现生成一段温馨、鼓励的老师寄语，约100-150字。'
@@ -180,7 +182,7 @@ export default function ReportGenerator() {
     try {
       const res = await fetch('/api/reports', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           student_id: selectedStudent.id,
           class_id: currentClass.id,

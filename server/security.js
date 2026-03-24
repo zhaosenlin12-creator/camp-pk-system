@@ -20,6 +20,7 @@ const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 const SALT_LENGTH = 32;
 const KEY_LENGTH = 32;
+const SUPABASE_PET_ASSET_ORIGIN = 'https://brvjqiusgeqeyfadfwga.supabase.co';
 
 // 机器指纹作为加密密钥的一部分（绑定到特定机器）
 function getMachineFingerprint() {
@@ -125,10 +126,21 @@ function verifyPassword(password, storedHash) {
 const CONFIG_FILE = path.join(__dirname, '../.secrets.enc');
 const MASTER_KEY = getMachineFingerprint(); // 使用机器指纹作为主密钥
 
+function normalizeSecretValue(value, maxLength = 200) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, maxLength);
+}
+
+function generateAdminPin() {
+  return String(crypto.randomInt(100000, 1000000));
+}
+
 // 默认配置（首次运行时使用）
 const DEFAULT_CONFIG = {
-  DEEPSEEK_API_KEY: 'sk-02dc16eaef1b449dad08fe13041e19af',
-  ADMIN_PIN: '980116',
+  DEEPSEEK_API_KEY: null,
+  ADMIN_PIN: null,
   // 哈希后的密码会在首次保存时生成
   ADMIN_PIN_HASH: null,
 };
@@ -149,9 +161,19 @@ function loadSecureConfig() {
   
   // 首次运行，创建加密配置
   console.log('🔐 首次运行，正在初始化安全配置...');
-  const config = { ...DEFAULT_CONFIG };
-  config.ADMIN_PIN_HASH = hashPassword(config.ADMIN_PIN);
+  const envAdminPin = normalizeSecretValue(process.env.ADMIN_PIN, 20);
+  const generatedAdminPin = generateAdminPin();
+  const initialAdminPin = envAdminPin || generatedAdminPin;
+  const config = {
+    ...DEFAULT_CONFIG,
+    DEEPSEEK_API_KEY: normalizeSecretValue(process.env.DEEPSEEK_API_KEY),
+    ADMIN_PIN: null,
+    ADMIN_PIN_HASH: hashPassword(initialAdminPin)
+  };
   saveSecureConfig(config);
+  if (!envAdminPin) {
+    console.warn(`🔑 未提供 ADMIN_PIN，已自动生成首次管理员密码：${initialAdminPin}`);
+  }
   console.log('✅ 安全配置已初始化');
   return config;
 }
@@ -226,7 +248,7 @@ function getHelmetConfig() {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // React需要
         styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind需要
-        imgSrc: ["'self'", "data:", "blob:"],
+        imgSrc: ["'self'", "data:", "blob:", SUPABASE_PET_ASSET_ORIGIN],
         fontSrc: ["'self'"],
         connectSrc: ["'self'", "https://api.deepseek.com"], // AI API
         frameSrc: ["'none'"],

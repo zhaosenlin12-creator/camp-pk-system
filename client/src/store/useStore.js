@@ -1,24 +1,62 @@
 import { create } from 'zustand';
 
 const API_BASE = '/api';
+const ADMIN_TOKEN_KEY = 'camp-pk-admin-token';
+export const ADMIN_AUTH_EXPIRED_EVENT = 'camp-pk-admin-auth-expired';
+
+const getStoredAdminToken = () => {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+};
+
+const persistAdminToken = (token) => {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  } else {
+    window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+  }
+};
+
+const clearStoredAdminToken = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+  window.dispatchEvent(new CustomEvent(ADMIN_AUTH_EXPIRED_EVENT));
+};
+
+export const getAdminAuthHeaders = () => {
+  const token = getStoredAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 // 统一的请求处理函数
-const request = async (url, options = {}) => {
+const request = async (url, options = {}, requestOptions = {}) => {
   try {
     const isFormData = options.body instanceof FormData;
+    const token = requestOptions.skipAuth ? '' : getStoredAdminToken();
     const res = await fetch(url, {
       ...options,
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers
       }
     });
     
     if (!res.ok) {
+      if (res.status === 401 && (token || requestOptions.expectAdmin)) {
+        clearStoredAdminToken();
+      }
       const error = await res.json().catch(() => ({ error: '请求失败' }));
-      throw new Error(error.error || `HTTP ${res.status}`);
+      const requestError = new Error(error.error || `HTTP ${res.status}`);
+      requestError.status = res.status;
+      throw requestError;
     }
     
+    if (res.status === 204) {
+      return null;
+    }
+
     return await res.json();
   } catch (err) {
     console.error('API请求错误:', err);
@@ -43,7 +81,36 @@ export const useStore = create((set, get) => ({
   clearError: () => set({ error: null }),
 
   // 设置管理员状态
-  setAdmin: (isAdmin) => set({ isAdmin }),
+  setAdmin: (isAdmin) => {
+    if (!isAdmin) {
+      persistAdminToken('');
+    }
+    set({ isAdmin });
+  },
+
+  restoreAdminSession: async () => {
+    const token = getStoredAdminToken();
+    if (!token) {
+      set({ isAdmin: false });
+      return false;
+    }
+
+    try {
+      const session = await request(`${API_BASE}/admin/session`, {}, { expectAdmin: true });
+      const isAdmin = Boolean(session?.success);
+      set({ isAdmin, error: null });
+      return isAdmin;
+    } catch (err) {
+      clearStoredAdminToken();
+      set({ isAdmin: false });
+      return false;
+    }
+  },
+
+  logoutAdmin: () => {
+    clearStoredAdminToken();
+    set({ isAdmin: false });
+  },
 
   // 获取所有班级
   fetchClasses: async () => {
@@ -341,10 +408,19 @@ export const useStore = create((set, get) => ({
   // 验证管理员
   verifyAdmin: async (pin) => {
     try {
-      const { success } = await request(`${API_BASE}/admin/verify`, {
-        method: 'POST',
-        body: JSON.stringify({ pin })
-      });
+      const { success, token } = await request(
+        `${API_BASE}/admin/verify`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ pin })
+        },
+        { skipAuth: true }
+      );
+      if (success && token) {
+        persistAdminToken(token);
+      } else {
+        persistAdminToken('');
+      }
       set({ isAdmin: success, error: null });
       return success;
     } catch (err) {
