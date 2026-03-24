@@ -160,6 +160,61 @@ class SoundManager {
     );
   }
 
+  playPetFeed() {
+    this.playSequence(
+      [
+        [392, 0.08, 'triangle', 0.08],
+        [523, 0.08, 'triangle', 0.1],
+        [659, 0.12, 'sine', 0.12],
+        [784, 0.14, 'sine', 0.1]
+      ],
+      'sine',
+      0.1,
+      62
+    );
+
+    setTimeout(() => {
+      this.playChord([392, 523, 659], 0.2, 'triangle', 0.04);
+    }, 140);
+  }
+
+  playPetPlay() {
+    this.playSequence(
+      [
+        [523, 0.06, 'triangle', 0.08],
+        [784, 0.06, 'triangle', 0.08],
+        [659, 0.08, 'sine', 0.1],
+        [988, 0.12, 'sine', 0.12],
+        [1175, 0.14, 'triangle', 0.1]
+      ],
+      'sine',
+      0.1,
+      58
+    );
+
+    setTimeout(() => {
+      this.playChord([659, 784, 988], 0.18, 'triangle', 0.04);
+    }, 180);
+  }
+
+  playPetClean() {
+    this.playSequence(
+      [
+        [784, 0.05, 'triangle', 0.08],
+        [988, 0.05, 'triangle', 0.08],
+        [1319, 0.08, 'sine', 0.1],
+        [1568, 0.12, 'sine', 0.1]
+      ],
+      'sine',
+      0.08,
+      54
+    );
+
+    setTimeout(() => {
+      this.playChord([988, 1319, 1760], 0.22, 'triangle', 0.04);
+    }, 160);
+  }
+
   playPetClaim() {
     this.playSequence(
       [

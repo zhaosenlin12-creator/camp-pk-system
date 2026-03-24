@@ -1,5 +1,5 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import PetArtwork from './PetArtwork';
 import PetCeremonyOverlay from './PetCeremonyOverlay';
@@ -17,6 +17,7 @@ import {
   getStudentPetUnlockStatus,
   getStudentPetJourney
 } from '../utils/petJourney';
+import { soundManager } from '../utils/sounds';
 
 const RARITY_META = {
   common: {
@@ -69,25 +70,129 @@ const ROSTER_FILTERS = [
 const ACTION_META = {
   feed: {
     icon: '🍼',
-    description: '提升饱腹与稳定性'
+    description: '让宠物吃得饱饱的，状态更安心',
+    accent: '#f59e0b',
+    theme: '#FFF7ED',
+    badgeClass: 'bg-amber-100 text-amber-700',
+    badge: '饱腹提升',
+    eggSuccessTitle: '温养完成',
+    petSuccessTitle: '喂养完成',
+    flavor: '小肚子暖起来了，宠物会更有安全感。',
+    primaryMetric: 'satiety',
+    secondaryMetric: 'mood'
   },
   play: {
     icon: '🎈',
-    description: '提升心情与课堂陪伴感'
+    description: '陪它玩一会儿，心情会明显变好',
+    accent: '#ec4899',
+    theme: '#FDF2F8',
+    badgeClass: 'bg-pink-100 text-pink-700',
+    badge: '心情拉满',
+    eggSuccessTitle: '陪伴完成',
+    petSuccessTitle: '互动完成',
+    flavor: '它现在更开心了，也更愿意陪着孩子一起上课。',
+    primaryMetric: 'mood',
+    secondaryMetric: 'cleanliness'
   },
   clean: {
     icon: '🫧',
-    description: '保持清洁并拉高照料评分'
+    description: '整理清洁状态，让照料感更完整',
+    accent: '#14b8a6',
+    theme: '#ECFEFF',
+    badgeClass: 'bg-teal-100 text-teal-700',
+    badge: '焕新护理',
+    eggSuccessTitle: '护理完成',
+    petSuccessTitle: '清洁完成',
+    flavor: '状态变得干净清爽，照料评分也会更稳定。',
+    primaryMetric: 'cleanliness',
+    secondaryMetric: 'mood'
   },
   hatch: {
     icon: '🥚',
-    description: '达成条件后举行孵化仪式'
+    description: '达成条件后举行孵化仪式',
+    accent: '#f59e0b',
+    theme: '#FFF7ED',
+    badgeClass: 'bg-amber-100 text-amber-700',
+    badge: '公开仪式'
   },
   evolve: {
     icon: '✨',
-    description: '晋升为更高阶的守护形态'
+    description: '晋升为更高阶的守护形态',
+    accent: '#d946ef',
+    theme: '#FDF4FF',
+    badgeClass: 'bg-fuchsia-100 text-fuchsia-700',
+    badge: '高光时刻'
   }
 };
+
+const JOURNEY_METRIC_LABELS = {
+  satiety: '饱腹',
+  mood: '心情',
+  cleanliness: '清洁',
+  care_score: '照料分',
+  power_score: '培养力',
+  progress: '进度'
+};
+
+function getJourneyMetricDelta(previousJourney, nextJourney, key) {
+  const previousValue = Number(previousJourney?.[key] || 0);
+  const nextValue = Number(nextJourney?.[key] || 0);
+  const delta = nextValue - previousValue;
+
+  if (!delta) return null;
+
+  return {
+    key,
+    label: JOURNEY_METRIC_LABELS[key] || key,
+    value: nextValue,
+    delta
+  };
+}
+
+function playPetActionSound(action) {
+  if (action === 'feed') {
+    soundManager.playPetFeed();
+    return;
+  }
+
+  if (action === 'play') {
+    soundManager.playPetPlay();
+    return;
+  }
+
+  if (action === 'clean') {
+    soundManager.playPetClean();
+  }
+}
+
+function buildPetActionFeedback({ action, previousJourney, nextJourney, studentName, pet }) {
+  const meta = ACTION_META[action];
+  if (!meta || action === 'hatch' || action === 'evolve') return null;
+
+  const metricKeys = [meta.primaryMetric, meta.secondaryMetric, 'care_score', 'power_score', 'progress'];
+  const metrics = metricKeys
+    .map((key) => getJourneyMetricDelta(previousJourney, nextJourney, key))
+    .filter(Boolean)
+    .slice(0, 4);
+
+  return {
+    action,
+    icon: meta.icon,
+    accent: meta.accent,
+    theme: meta.theme,
+    badgeClass: meta.badgeClass,
+    badge: meta.badge,
+    title: nextJourney.visual_state === 'egg' ? meta.eggSuccessTitle : meta.petSuccessTitle,
+    flavor: meta.flavor,
+    metrics,
+    studentName,
+    petName: nextJourney.name || pet?.name || '课堂伙伴',
+    stageName: nextJourney.stage_name,
+    note: nextJourney.care_tip || nextJourney.next_target,
+    journey: nextJourney,
+    pet
+  };
+}
 
 const CLASSROOM_PLAYBOOK = [
   {
@@ -221,6 +326,86 @@ function buildSoftPanelStyle(theme, accent, angle = 145) {
     background: `linear-gradient(${angle}deg, rgba(255,255,255,0.98) 0%, ${theme} 62%, ${withAlpha(accent, '20')} 100%)`,
     boxShadow: `0 22px 54px ${withAlpha(accent, '18')}`
   };
+}
+
+function PetActionFeedbackPanel({ feedback }) {
+  if (!feedback) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+      data-testid="pet-action-feedback"
+      className="pet-care-feedback-panel relative overflow-hidden rounded-[30px] border border-white/80 px-5 py-5 text-slate-700 shadow-[0_20px_46px_rgba(35,49,79,0.14)]"
+      style={buildSoftPanelStyle(feedback.theme, feedback.accent, 132)}
+    >
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full blur-3xl"
+        style={{ backgroundColor: withAlpha(feedback.accent, '28') }}
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -left-6 bottom-3 h-20 w-20 rounded-full blur-3xl"
+        style={{ backgroundColor: withAlpha(feedback.accent, '18') }}
+        aria-hidden="true"
+      />
+
+      <div className="relative flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-white/92 text-3xl shadow-sm"
+            style={{ boxShadow: `0 12px 28px ${withAlpha(feedback.accent, '20')}` }}
+          >
+            {feedback.icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${feedback.badgeClass}`}>
+                {feedback.badge}
+              </span>
+              <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
+                {feedback.stageName}
+              </span>
+            </div>
+            <div className="mt-3 text-xl font-black text-slate-800">
+              {feedback.studentName} · {feedback.title}
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{feedback.flavor}</p>
+          </div>
+        </div>
+
+        {feedback.pet && (
+          <div className="pet-hero-frame flex h-20 w-20 shrink-0 items-center justify-center rounded-[24px] bg-white/92">
+            <PetArtwork
+              pet={feedback.pet}
+              journey={feedback.journey}
+              className="flex h-14 w-14 items-center justify-center"
+              imageClassName="h-12 w-12 object-contain"
+              fallbackClassName="text-3xl"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="relative mt-4 flex flex-wrap gap-2">
+        {feedback.metrics.map((item) => (
+          <div
+            key={item.key}
+            className="pet-care-feedback-chip rounded-full bg-white/92 px-3 py-2 text-xs font-black text-slate-700 shadow-sm"
+          >
+            {item.label} {item.delta > 0 ? `+${item.delta}` : item.delta}
+            <span className="ml-1 text-slate-400">当前 {item.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative mt-4 text-xs font-bold leading-6 text-slate-500">
+        {feedback.petName} 的状态已经刷新，继续照顾会更快接近下一次孵化或进化仪式。
+      </div>
+    </motion.div>
+  );
 }
 
 function CareMeter({ label, value, color }) {
@@ -730,6 +915,7 @@ export default function PetCenter() {
   const [busyKey, setBusyKey] = useState('');
   const [profileTarget, setProfileTarget] = useState(null);
   const [ceremony, setCeremony] = useState(null);
+  const [actionFeedback, setActionFeedback] = useState(null);
   const [catalogReady, setCatalogReady] = useState(false);
   const deferredActiveFilter = useDeferredValue(activeFilter);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
@@ -756,6 +942,20 @@ export default function PetCenter() {
 
     return () => cancelAnimationFrame(frameId);
   }, [currentClass?.id]);
+
+  useEffect(() => {
+    setActionFeedback(null);
+  }, [selectedStudentId]);
+
+  useEffect(() => {
+    if (!actionFeedback) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setActionFeedback(null);
+    }, 3200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [actionFeedback]);
 
   const studentEntries = useMemo(
     () => students.map((student) => ({ student, journey: getStudentPetJourney(student) })),
@@ -971,10 +1171,24 @@ export default function PetCenter() {
     if (!selectedCollection.length) return;
 
     const previousJourney = { ...selectedJourney };
+    setActionFeedback(null);
     setBusyKey(action);
     try {
       const updatedStudent = await runStudentPetAction(selectedStudent.id, action);
       const nextJourney = getStudentPetJourney(updatedStudent);
+
+      if (action === 'feed' || action === 'play' || action === 'clean') {
+        playPetActionSound(action);
+        setActionFeedback(
+          buildPetActionFeedback({
+            action,
+            previousJourney,
+            nextJourney,
+            studentName: selectedStudent.name,
+            pet: updatedStudent.pet
+          })
+        );
+      }
 
       if (action === 'hatch' && previousJourney.visual_state === 'egg' && nextJourney.visual_state === 'pet') {
         setCeremony({
@@ -1420,11 +1634,19 @@ export default function PetCenter() {
                     </div>
                   </div>
 
+                  <AnimatePresence>
+                    {actionFeedback && (
+                      <PetActionFeedbackPanel feedback={actionFeedback} />
+                    )}
+                  </AnimatePresence>
+
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {actionButtons.map((action) => {
                       const meta = ACTION_META[action];
                       const disabled = selectedCollection.length === 0 || Boolean(busyKey);
                       const isRitualAction = action === 'hatch' || action === 'evolve';
+                      const isFeedbackAction = actionFeedback?.action === action;
+                      const isWorking = busyKey === action;
                       const cardClass = action === 'evolve'
                         ? 'from-fuchsia-50 via-white to-pink-50 border-fuchsia-100'
                         : action === 'hatch'
@@ -1432,27 +1654,78 @@ export default function PetCenter() {
                           : 'from-white via-cyan-50/60 to-white border-cyan-100';
 
                       return (
-                        <button
+                        <motion.button
                           key={action}
                           type="button"
                           onClick={() => handlePetAction(action)}
                           data-testid={`pet-action-${action}`}
                           disabled={disabled}
-                          className={`rounded-[24px] border bg-gradient-to-br px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 ${cardClass}`}
+                          whileHover={disabled ? undefined : { y: -3, scale: 1.01 }}
+                          whileTap={disabled ? undefined : { scale: 0.985 }}
+                          className={`pet-care-action-card relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-4 py-4 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${cardClass} ${
+                            isFeedbackAction ? 'pet-care-action-card-active' : ''
+                          }`}
+                          style={{
+                            boxShadow: isFeedbackAction
+                              ? `0 18px 40px ${withAlpha(meta.accent || '#38bdf8', '30')}`
+                              : undefined
+                          }}
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-2xl">{meta.icon}</span>
-                            {isRitualAction && (
-                              <span className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-slate-500">
-                                仪式
+                          <span
+                            className="pointer-events-none absolute inset-0 opacity-95"
+                            style={{
+                              background: `linear-gradient(160deg, rgba(255,255,255,0.97) 0%, ${meta.theme || '#ffffff'} 76%, ${withAlpha(meta.accent || '#38bdf8', '10')} 100%)`
+                            }}
+                            aria-hidden="true"
+                          />
+                          <span
+                            className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl"
+                            style={{ backgroundColor: withAlpha(meta.accent || '#38bdf8', isFeedbackAction ? '34' : '20') }}
+                            aria-hidden="true"
+                          />
+                          <span
+                            className="pointer-events-none absolute -left-4 bottom-0 h-16 w-16 rounded-full blur-2xl"
+                            style={{ backgroundColor: withAlpha(meta.accent || '#38bdf8', '16') }}
+                            aria-hidden="true"
+                          />
+                          {(isWorking || isFeedbackAction) && (
+                            <motion.span
+                              className="pointer-events-none absolute inset-0 opacity-60"
+                              initial={{ opacity: 0.2 }}
+                              animate={{ opacity: [0.18, 0.5, 0.2] }}
+                              transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                              style={{
+                                background: `radial-gradient(circle at top, ${withAlpha(meta.accent || '#38bdf8', '22')} 0%, rgba(255,255,255,0) 72%)`
+                              }}
+                              aria-hidden="true"
+                            />
+                          )}
+
+                          <div className="relative">
+                            <div className="flex items-center justify-between gap-3">
+                              <span
+                                className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/92 text-2xl shadow-sm"
+                                style={{ boxShadow: `0 10px 24px ${withAlpha(meta.accent || '#38bdf8', '18')}` }}
+                              >
+                                {meta.icon}
                               </span>
+                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${
+                                isRitualAction ? 'bg-white/92 text-slate-500' : meta.badgeClass
+                              }`}>
+                                {isRitualAction ? '仪式' : meta.badge}
+                              </span>
+                            </div>
+                            <div className="mt-4 text-sm font-black text-slate-800">
+                              {isWorking ? '处理中...' : getPetActionLabel(selectedJourney, action)}
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">{meta.description}</p>
+                            {!isRitualAction && (
+                              <div className="mt-3 text-[11px] font-bold text-slate-500">
+                                {isFeedbackAction ? '刚刚完成一次照护仪式' : meta.flavor}
+                              </div>
                             )}
                           </div>
-                          <div className="mt-4 text-sm font-black text-slate-800">
-                            {busyKey === action ? '处理中...' : getPetActionLabel(selectedJourney, action)}
-                          </div>
-                          <p className="mt-1 text-xs leading-5 text-slate-500">{meta.description}</p>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -1885,10 +2158,6 @@ export default function PetCenter() {
     </>
   );
 }
-
-
-
-
 
 
 

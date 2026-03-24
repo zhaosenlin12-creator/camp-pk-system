@@ -183,6 +183,10 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await expect(page.getByTestId('pet-profile-modal')).toBeVisible();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(600);
+    await page.getByTestId('pet-action-feed').click();
+    await expect(page.getByTestId('pet-action-feedback')).toBeVisible();
+    await saveShot(page, 'admin-feed-feedback.png', false);
+    await page.waitForTimeout(500);
 
     await studentSelect.selectOption(String(hatchStudent.id));
     await page.waitForTimeout(900);
