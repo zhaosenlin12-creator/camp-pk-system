@@ -27,19 +27,19 @@ function HeaderStatPill({ label, value, toneClassName = 'bg-white/88 text-slate-
 
 function getCollectionSpotlightCopy(journey, meta, unlockStatus) {
   if (!journey.claimed) {
-    return 'Claim the first pet to turn this growth passport into a real collection story.';
+    return '先领取第一只宠物，这里就会变成学生自己的完整成长档案。';
   }
 
   if (journey.can_evolve) {
-    return 'This is the perfect moment for a public evolution ritual so the student feels the growth payoff.';
+    return '已经满足进化条件，很适合做一场全班都能看到的高光进化仪式。';
   }
 
   if (journey.can_hatch) {
-    return 'Hatch conditions are ready. This works best as a whole-class reward moment.';
+    return '孵化条件已经就绪，这个时刻最适合做成全班奖励。';
   }
 
   if (unlockStatus.progress >= 100 && unlockStatus.nextSlotNumber) {
-    return `Slot ${unlockStatus.nextSlotNumber} is ready. The student can now claim another favorite pet.`;
+    return `第 ${unlockStatus.nextSlotNumber} 个收藏位已解锁，可以继续领取新的喜欢宠物。`;
   }
 
   return meta?.vibe || journey.stage_description;
@@ -67,19 +67,19 @@ function CollectionShowcaseCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Hero Spotlight</div>
+          <div className="text-[11px] font-black tracking-[0.2em] text-slate-400">主角档案</div>
           <div className="mt-2 text-xl font-black text-slate-800">{journey.name}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
-              Slot #{currentSlotIndex}
+              第 {currentSlotIndex} 收藏位
             </span>
             <span className="rounded-full bg-cyan-100 px-3 py-1 text-[11px] font-black text-cyan-700 shadow-sm">
-              Active Training
+              当前培养中
             </span>
           </div>
         </div>
         <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${powerTone.bg} ${powerTone.text}`}>
-          Power {journey.power_score}
+          培养力 {journey.power_score}
         </span>
       </div>
 
@@ -107,16 +107,16 @@ function CollectionShowcaseCard({
           </div>
           <p className="mt-3 text-sm leading-6 text-slate-600">{spotlightCopy}</p>
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <HeaderStatPill label="Collection" value={`${collectionCount}/${collectionCapacity}`} />
-            <HeaderStatPill label="Growth" value={journey.growth_value} />
-            <HeaderStatPill label="Care" value={journey.care_score} toneClassName={`${powerTone.bg} ${powerTone.text}`} />
+            <HeaderStatPill label="收藏" value={`${collectionCount}/${collectionCapacity}`} />
+            <HeaderStatPill label="成长" value={journey.growth_value} />
+            <HeaderStatPill label="照料" value={journey.care_score} toneClassName={`${powerTone.bg} ${powerTone.text}`} />
           </div>
         </div>
       </div>
 
       <div className="mt-5">
-        <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-          <span>Collection Arc</span>
+        <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-black tracking-[0.16em] text-slate-400">
+          <span>新宠物位进度</span>
           <span>{unlockStatus.progress}%</span>
         </div>
         <div className="h-2.5 rounded-full bg-white/90">
@@ -364,7 +364,7 @@ export default function PetProfileModal({
             <div className="rounded-[32px] border border-white/70 bg-white/82 px-5 py-5 shadow-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black text-white">
-                  Growth Passport
+                  成长档案
                 </span>
                 <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
                   {journey.status_label}
@@ -378,15 +378,15 @@ export default function PetProfileModal({
               <p className="mt-3 text-sm leading-7 text-slate-600">{stageFocusCopy}</p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                <HeaderStatPill label="Current Lv" value={`Lv.${Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}`} />
-                <HeaderStatPill label="Power" value={journey.power_score} toneClassName={`${powerTone.bg} ${powerTone.text}`} />
-                <HeaderStatPill label="Growth" value={journey.growth_value} />
-                <HeaderStatPill label="Care" value={journey.care_score} />
+                <HeaderStatPill label="当前等级" value={`Lv.${Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}`} />
+                <HeaderStatPill label="培养力" value={journey.power_score} toneClassName={`${powerTone.bg} ${powerTone.text}`} />
+                <HeaderStatPill label="成长" value={journey.growth_value} />
+                <HeaderStatPill label="照料" value={journey.care_score} />
               </div>
 
               <div className="mt-5 rounded-[26px] bg-slate-50/90 px-4 py-4 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Next Ritual</div>
+                  <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">下一步目标</div>
                   <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
                     {unlockStatus.chip}
                   </span>
@@ -484,7 +484,7 @@ export default function PetProfileModal({
               <div className="mt-4 rounded-[24px] bg-slate-50/90 px-4 py-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Next Unlock</div>
+                    <div className="text-xs font-bold tracking-[0.18em] text-slate-400">下一个收藏位</div>
                     <div className="mt-2 text-base font-black text-slate-800">{unlockStatus.title}</div>
                     <div className="mt-2 text-xs leading-6 text-slate-500">{unlockStatus.detail}</div>
                   </div>
@@ -529,13 +529,13 @@ export default function PetProfileModal({
                   background: `linear-gradient(145deg, rgba(255,255,255,0.96) 0%, ${journey.theme || meta?.theme || '#FFF7ED'} 100%)`
                 }}
               >
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Collection Note</div>
+                <div className="text-[11px] font-black tracking-[0.18em] text-slate-500">收藏提醒</div>
                 <div className="mt-2 text-lg font-black" style={{ color: accent }}>
                   {unlockStatus.unlockedAll
-                    ? 'Collection is full. The next focus is switching active training smoothly.'
+                    ? '收藏位已满，接下来重点是灵活切换当前培养宠物。'
                     : unlockStatus.progress >= 100
-                      ? `Slot ${unlockStatus.nextSlotNumber || collectionSlots.length + 1} is ready to unlock`
-                      : 'Keep evolving to unlock the next long-term companion slot'}
+                      ? `第 ${unlockStatus.nextSlotNumber || collectionSlots.length + 1} 个收藏位已经解锁`
+                      : '继续完成进化，就能解锁新的长期培养位'}
                 </div>
                 <p className="mt-3 text-sm leading-6 text-slate-600">{journey.next_target}</p>
               </div>
@@ -600,12 +600,12 @@ export default function PetProfileModal({
 
                 <div className="space-y-4">
                   <div className="rounded-[30px] border border-white/70 bg-white/82 px-5 py-5 shadow-sm">
-                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Stage Focus</div>
+                    <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">阶段重点</div>
                     <p className="mt-3 text-base font-black leading-7 text-slate-800">{headline}</p>
                     <p className="mt-3 text-sm leading-7 text-slate-600">{stageFocusCopy}</p>
                     <div className="mt-4">
-                      <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                        <span>Stage Progress</span>
+                      <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-black tracking-[0.16em] text-slate-400">
+                        <span>阶段进度</span>
                         <span>{journey.progress}%</span>
                       </div>
                       <div className="h-2.5 rounded-full bg-slate-100">

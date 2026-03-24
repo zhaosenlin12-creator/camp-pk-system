@@ -201,7 +201,7 @@ function getCeremonyMetricCards(ceremony, previousJourney, nextJourney) {
       {
         label: '收藏位',
         value: `#${ceremony.slotIndex || nextJourney.slot_index || 1}`,
-        delta: 'NEW'
+        delta: '新获得'
       },
       {
         label: '已收藏',
@@ -211,7 +211,7 @@ function getCeremonyMetricCards(ceremony, previousJourney, nextJourney) {
       {
         label: '当前积分',
         value: ceremony.studentScore || 0,
-        delta: 'READY'
+        delta: '已就绪'
       },
       {
         label: '孵化进度',
@@ -413,19 +413,19 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
-                    Score {ceremony.studentScore || 0}
+                    积分 {ceremony.studentScore || 0}
                   </span>
                   <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${getPetPowerTone(nextJourney.power_score || 0).bg} ${getPetPowerTone(nextJourney.power_score || 0).text}`}>
-                    Power {nextJourney.power_score || 0}
+                    培养力 {nextJourney.power_score || 0}
                   </span>
                   <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
-                    Collection {ceremony.collectionCount || 1}
+                    收藏数 {ceremony.collectionCount || 1}
                   </span>
                 </div>
               </div>
 
               <div className="rounded-[28px] border border-white/70 bg-white/88 px-4 py-4 text-right shadow-sm">
-                <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Now Unlocked</div>
+                <div className="text-[11px] font-black tracking-[0.24em] text-slate-400">本次解锁</div>
                 <div className="mt-2 text-xl font-black text-slate-800">{stageName}</div>
                 <div className="mt-1 text-sm font-semibold text-slate-500">{companionName}</div>
                 <div className="mt-3 inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black text-white">
@@ -507,7 +507,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
               >
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Future Reveal</div>
+                    <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">后续形态预览</div>
                     <div className="mt-2 text-lg font-black text-slate-800">孵化后的目标形象</div>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                       领取阶段先把宠物加入收藏架，但学生现在就能提前看到自己之后会养成的主角伙伴。
@@ -555,7 +555,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
               </div>
 
               <div className="rounded-[32px] border border-white/70 bg-white/88 px-5 py-5 text-slate-700 shadow-[0_18px_40px_rgba(59,130,246,0.12)]">
-                <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Class Memory</div>
+                <div className="text-[11px] font-black tracking-[0.24em] text-slate-500">班级时刻</div>
                 <div className="mt-3 text-lg font-black">{ceremony.studentName}</div>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{getCeremonyMemoryCopy(ceremony.action)}</p>
                 <button
@@ -575,7 +575,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
               transition={{ delay: 0.46 }}
               className="mt-5 text-center text-xs font-black uppercase tracking-[0.22em] text-slate-400"
             >
-              点击空白处或按 Esc 关闭
+              点击空白处即可关闭
             </motion.div>
           </div>
 

@@ -278,11 +278,11 @@ function buildPetMilestones(slot, journey) {
 function getRitualPlanner({ journey, unlockStatus, canClaimAnotherPet, collectionLength, collectionCapacity }) {
   if (!journey.claimed) {
     return {
-      kicker: 'FIRST CLAIM',
-      title: 'Claim the first pet',
-      detail: 'Start with ownership. Let the student choose a favorite companion before talking about growth.',
-      speech: 'Pick one pet you really like. From now on, your classroom effort will raise this partner.',
-      badge: 'Claim First',
+      kicker: '首次领取',
+      title: '先选定第一只宠物',
+      detail: '先让学生拥有一只真正喜欢的伙伴，再开始讲成长和培养，会更有代入感。',
+      speech: '先挑一只最喜欢的宠物，从现在开始，课堂努力都会养大它。',
+      badge: '先领取',
       panelClass: 'from-slate-50 via-white to-cyan-50',
       badgeClass: 'bg-slate-900 text-white'
     };
@@ -290,11 +290,11 @@ function getRitualPlanner({ journey, unlockStatus, canClaimAnotherPet, collectio
 
   if (journey.can_evolve) {
     return {
-      kicker: 'EVOLUTION',
-      title: 'Run a public evolution ritual',
-      detail: 'Conditions are already met. This is the best moment to turn progress into a visible classroom climax.',
-      speech: 'This is not a random level-up. You really raised it into a higher form.',
-      badge: 'Ready Now',
+      kicker: '进化时刻',
+      title: '安排公开进化仪式',
+      detail: '条件已经满足，这是把努力变成班级高光时刻的最佳节点。',
+      speech: '这不是随便升级，而是你真的把它养成了更高阶的形态。',
+      badge: '可进化',
       panelClass: 'from-fuchsia-50 via-white to-pink-50',
       badgeClass: 'bg-fuchsia-100 text-fuchsia-700'
     };
@@ -302,11 +302,11 @@ function getRitualPlanner({ journey, unlockStatus, canClaimAnotherPet, collectio
 
   if (journey.can_hatch) {
     return {
-      kicker: 'HATCH MOMENT',
-      title: 'Make the hatch a whole-class reward',
-      detail: 'The pet is ready to hatch. Use this moment to make classroom points feel real and exciting.',
-      speech: 'Your points and care actions were enough. Let everyone watch your pet officially arrive.',
-      badge: 'Hatch Ready',
+      kicker: '孵化时刻',
+      title: '把孵化做成全班奖励',
+      detail: '宠物已经准备好破壳，这一刻最适合把课堂积分变成可感知的惊喜。',
+      speech: '你的积分和照料已经足够，让大家一起见证宠物正式诞生。',
+      badge: '可孵化',
       panelClass: 'from-amber-50 via-white to-orange-50',
       badgeClass: 'bg-amber-100 text-amber-700'
     };
@@ -314,11 +314,11 @@ function getRitualPlanner({ journey, unlockStatus, canClaimAnotherPet, collectio
 
   if (canClaimAnotherPet && collectionLength < collectionCapacity) {
     return {
-      kicker: 'NEW SLOT',
-      title: 'Open the next favorite pet',
-      detail: 'A new collection slot is already unlocked. Keep the trained pet and let the student start a second companion.',
-      speech: 'You kept your old partner and earned a new slot. Now choose the next pet you want to raise.',
-      badge: 'New Slot',
+      kicker: '新收藏位',
+      title: '开启下一只喜欢的宠物',
+      detail: '新的收藏位已经解锁，旧伙伴会保留，可以开始培养第二只宠物了。',
+      speech: '你保留了之前的伙伴，也赢得了新的收藏位，现在可以再选一只喜欢的宠物。',
+      badge: '新位置',
       panelClass: 'from-violet-50 via-white to-cyan-50',
       badgeClass: 'bg-violet-100 text-violet-700'
     };
@@ -326,10 +326,10 @@ function getRitualPlanner({ journey, unlockStatus, canClaimAnotherPet, collectio
 
   if (journey.visual_state === 'egg') {
     return {
-      kicker: 'NURTURE',
-      title: 'Keep feeding the egg state',
-      detail: 'The next milestone is hatching. A few more care actions and growth points will turn anticipation into payoff.',
-      speech: 'Keep caring for it a little longer. The hatch moment is getting closer.',
+      kicker: '继续培养',
+      title: '继续照顾宠物蛋',
+      detail: '下一步就是孵化，再多一点照料和课堂成长，就会把期待感变成惊喜。',
+      speech: '再照顾它一段时间，离破壳已经很近了。',
       badge: `${journey.progress}%`,
       panelClass: 'from-cyan-50 via-white to-sky-50',
       badgeClass: 'bg-cyan-100 text-cyan-700'
@@ -337,12 +337,12 @@ function getRitualPlanner({ journey, unlockStatus, canClaimAnotherPet, collectio
   }
 
   return {
-    kicker: 'NEXT PUSH',
-    title: 'Keep building toward the next form',
+    kicker: '继续冲刺',
+    title: '朝下一形态继续前进',
     detail: unlockStatus.progress >= 100
-      ? 'This pet is stable enough. You can either keep polishing it or start preparing the next collection unlock.'
-      : 'The current goal is steady growth, care quality, and a cleaner runway to the next ceremony.',
-    speech: 'One more stretch of steady effort and this pet will feel visibly stronger.',
+      ? '这只宠物已经很稳定，可以继续打磨，也可以开始准备新的收藏位。'
+      : '当前重点是稳定成长、提高照料质量，并为下一次仪式提前蓄力。',
+    speech: '再坚持一段稳定努力，这只宠物就会明显更强。',
     badge: `${journey.progress}%`,
     panelClass: 'from-emerald-50 via-white to-cyan-50',
     badgeClass: 'bg-emerald-100 text-emerald-700'
@@ -366,7 +366,7 @@ function RitualPlannerCard({ plan, journey, unlockStatus, collectionLength, coll
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
-          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Teacher Script</div>
+          <div className="text-[11px] font-black tracking-[0.16em] text-slate-400">教师提示</div>
           <p className="mt-3 text-sm font-black leading-6 text-slate-800">{plan.speech}</p>
           <p className="mt-3 text-xs leading-6 text-slate-500">{journey.next_target}</p>
         </div>
@@ -375,24 +375,24 @@ function RitualPlannerCard({ plan, journey, unlockStatus, collectionLength, coll
           className="rounded-[24px] border border-white/80 px-4 py-4 text-slate-700"
           style={buildSoftPanelStyle(theme, accent, 155)}
         >
-          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Progress Snapshot</div>
+          <div className="text-[11px] font-black tracking-[0.16em] text-slate-500">进度概览</div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 shadow-sm">
-              <div className="text-[11px] font-black text-slate-500">Collection</div>
+              <div className="text-[11px] font-black text-slate-500">收藏</div>
               <div className="mt-1 text-lg font-black" style={{ color: accent }}>
                 {collectionLength}/{collectionCapacity}
               </div>
             </div>
             <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 shadow-sm">
-              <div className="text-[11px] font-black text-slate-500">Unlock</div>
+              <div className="text-[11px] font-black text-slate-500">解锁</div>
               <div className="mt-1 text-lg font-black text-violet-600">{unlockStatus.progress}%</div>
             </div>
             <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 shadow-sm">
-              <div className="text-[11px] font-black text-slate-500">Growth</div>
+              <div className="text-[11px] font-black text-slate-500">成长</div>
               <div className="mt-1 text-lg font-black text-slate-800">{journey.growth_value}</div>
             </div>
             <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 shadow-sm">
-              <div className="text-[11px] font-black text-slate-500">Care</div>
+              <div className="text-[11px] font-black text-slate-500">照料</div>
               <div className="mt-1 text-lg font-black text-emerald-600">{journey.care_score}</div>
             </div>
           </div>
@@ -535,15 +535,15 @@ function StudentPetShelfCard({ slot, busy, onActivate, onPreview }) {
           Lv.{Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}
         </span>
         <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm">
-          Progress {journey.progress}%
+          进度 {journey.progress}%
         </span>
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${slot.is_active ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-600'}`}>
-          {slot.is_active ? 'Active' : 'Collected'}
+          {slot.is_active ? '培养中' : '已收藏'}
         </span>
       </div>
 
       <div className="mt-4 rounded-2xl bg-white/85 px-3 py-3 text-[11px] font-bold leading-5 text-slate-500 shadow-sm">
-        {journey.next_target}
+        {slot.is_active ? '当前培养中的宠物，点击档案查看完整成长记录。' : '已收藏的宠物可以随时切换回来继续培养。'}
       </div>
 
       <div className="mt-4 flex gap-2">
@@ -580,11 +580,11 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
   const canClaimNewPet = canStudentClaimMorePets(selectedStudent);
   const buttonDisabled = !selectedStudent || busy || (!ownedSlot && !canClaimNewPet);
   const claimHint = !selectedStudent
-    ? '先选择学员，再发放宠物。'
+    ? '先选择学生，再发放宠物。'
     : ownedSlot
-      ? (isCurrentPet ? '这只宠物正在当前培养位中。' : '这只宠物已在收藏架中，可直接切换为当前培养。')
+      ? (isCurrentPet ? '这只宠物正在当前培养中。' : '这只宠物已经在收藏架里，可直接切换培养。')
       : canClaimNewPet
-        ? `会作为第 ${selectedCollection.length + 1} 只宠物加入收藏架，当前容量 ${selectedCollection.length}/${selectedCapacity}。`
+        ? `领取后会进入第 ${selectedCollection.length + 1} 个收藏位，当前容量 ${selectedCollection.length}/${selectedCapacity}。`
         : getNextPetSlotHint(selectedStudent);
 
   let buttonClassName = `btn-game ${rarityMeta.buttonClass} flex-1 text-sm`;
@@ -649,21 +649,9 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
             {ownerCount > 0 ? '已投入班级' : '等待首位主人'}
           </div>
         </div>
-        <p className="mt-3 min-h-[72px] text-sm leading-6 text-slate-600">{pet.quote}</p>
-        <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/78 px-3 py-2 text-[11px] font-black text-slate-500 shadow-sm">
-          <span>成长五阶段预览</span>
-          <span style={{ color: pet.accent }}>点击看完整形态</span>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-500">
-        <div className="rounded-2xl bg-white/85 px-3 py-3 shadow-sm">
-          人气热度
-          <div className="mt-1 text-base font-black text-slate-700">{ownerCount}</div>
-        </div>
-        <div className="rounded-2xl bg-white/85 px-3 py-3 shadow-sm">
-          稀有标签
-          <div className="mt-1 text-base font-black text-slate-700">{rarityMeta.label}</div>
+        <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/80 px-3 py-3 text-[11px] font-black text-slate-500 shadow-sm">
+          <span>点击查看完整形态与成长档案</span>
+          <span style={{ color: pet.accent }}>适合先预览再领取</span>
         </div>
       </div>
 
@@ -1124,7 +1112,7 @@ export default function PetCenter() {
             <div className="rounded-[32px] bg-white/88 p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">Spotlight</div>
+                  <div className="text-xs font-bold tracking-[0.24em] text-slate-400">本节聚焦</div>
                   <div className="mt-2 text-xl font-black text-slate-800">本节课聚光灯</div>
                 </div>
                 <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-500 shadow-sm">
@@ -1188,7 +1176,7 @@ export default function PetCenter() {
           <section className="card-game border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-500">Control</div>
+                <div className="text-xs font-bold tracking-[0.22em] text-cyan-500">培养操作台</div>
                 <h3 className="mt-2 text-2xl font-black text-slate-800">培养控制台</h3>
                 <p className="mt-2 text-sm text-slate-500">
                   班级「{currentClass?.name || '未选择'}」当前聚焦学生：
@@ -1204,7 +1192,7 @@ export default function PetCenter() {
                     </span>
                     {selectedStudentRank && (
                       <span className="rounded-full bg-violet-100 px-3 py-2 text-xs font-black text-violet-700 shadow-sm">
-                        排名 TOP {selectedStudentRank}
+                        排名第 {selectedStudentRank} 名
                       </span>
                     )}
                     <span
@@ -1272,7 +1260,7 @@ export default function PetCenter() {
                     <div className="mt-5 rounded-[32px] bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-5 shadow-sm">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                          <div className="text-xs font-bold uppercase tracking-[0.18em] text-violet-500">Collection</div>
+                          <div className="text-xs font-bold tracking-[0.18em] text-violet-500">收藏架</div>
                           <div className="mt-2 text-xl font-black text-slate-800">宠物收藏架</div>
                           <p className="mt-2 text-sm leading-6 text-slate-500">{nextPetSlotHint}</p>
                         </div>
@@ -1293,7 +1281,7 @@ export default function PetCenter() {
                       <div className="mt-4 rounded-[28px] border border-white/70 bg-white/82 px-4 py-4 shadow-sm">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Unlock Progress</div>
+                            <div className="text-xs font-bold tracking-[0.18em] text-slate-400">宠物位解锁</div>
                             <div className="mt-2 text-lg font-black text-slate-800">{unlockStatus.title}</div>
                             <p className="mt-2 text-sm leading-6 text-slate-500">{unlockStatus.detail}</p>
                           </div>
@@ -1390,20 +1378,20 @@ export default function PetCenter() {
                       </div>
                     </div>
 
-                    <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
                       <div className="rounded-3xl border border-slate-100 bg-slate-50/80 px-4 py-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-xs font-bold text-slate-400">成长阶段</div>
+                            <div className="text-xs font-bold text-slate-400">当前阶段</div>
                             <div className="mt-1 text-xl font-black text-slate-800">
-                              Lv.{selectedJourney.stage_level} · {selectedJourney.stage_name}
+                              Lv.{Math.max(selectedJourney.stage_level || 0, selectedJourney.claimed ? 1 : 0)} · {selectedJourney.stage_name}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-xs font-bold text-slate-400">目标进度</div>
-                            <div className="mt-1 text-2xl font-black text-cyan-600">{selectedJourney.progress}%</div>
-                          </div>
+                          <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-black text-cyan-700">
+                            进度 {selectedJourney.progress}%
+                          </span>
                         </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-500">{selectedJourney.next_target}</p>
                         <div className="mt-4 h-3 rounded-full bg-white">
                           <div
                             className="h-3 rounded-full transition-all"
@@ -1413,71 +1401,22 @@ export default function PetCenter() {
                             }}
                           />
                         </div>
-                        <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-500">
-                          <div className="rounded-2xl bg-white px-3 py-3">
-                            课堂成长
-                            <div className="mt-1 text-xl font-black text-slate-700">{selectedJourney.growth_from_score}</div>
-                          </div>
-                          <div className="rounded-2xl bg-white px-3 py-3">
-                            照料成长
-                            <div className="mt-1 text-xl font-black text-slate-700">{selectedJourney.growth_from_care}</div>
-                          </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handlePreviewSelectedStudent}
+                        data-testid="pet-center-profile-summary-cta"
+                        className="rounded-3xl border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-sky-50 px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                      >
+                        <div className="text-sm font-black text-slate-800">查看完整成长档案</div>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                          具体形态、成长轨迹、里程碑和收藏位解锁都集中在档案里，主页只保留课堂操作必需信息。
+                        </p>
+                        <div className="mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700 shadow-sm">
+                          打开详细档案
                         </div>
-                      </div>
-
-                      <div className="rounded-3xl border border-slate-100 bg-slate-50/80 px-4 py-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-xs font-bold text-slate-400">照料评分</div>
-                            <div className="mt-1 text-xl font-black text-slate-800">{selectedJourney.care_score}</div>
-                          </div>
-                          <div className="text-xs font-semibold text-slate-500">
-                            喂养 {selectedJourney.feed_count} 次 · 互动 {selectedJourney.play_count} 次 · 清洁 {selectedJourney.clean_count} 次
-                          </div>
-                        </div>
-                        <div className="mt-4 space-y-3">
-                          {careItems.map((item) => (
-                            <CareMeter key={item.key} label={item.label} value={item.value} color={item.color} />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 rounded-3xl border border-slate-100 bg-slate-50/80 px-4 py-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-sm font-black text-slate-700">成长里程碑</div>
-                        <div className="text-xs font-bold text-slate-500">把领取、孵化、进化做成有记录的成长事件</div>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        {selectedMilestones.map((item) => (
-                          <div key={item.key} className="rounded-2xl bg-white px-4 py-4 shadow-sm">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="text-sm font-black text-slate-800">{item.label}</div>
-                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
-                                item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                              }`}>
-                                {item.done ? '已完成' : '未完成'}
-                              </span>
-                            </div>
-                            <div className="mt-3 text-lg font-black text-slate-700">{item.stamp}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <RitualPlannerCard
-                      plan={ritualPlanner}
-                      journey={selectedJourney}
-                      unlockStatus={unlockStatus}
-                      collectionLength={selectedCollection.length}
-                      collectionCapacity={selectedPetCapacity}
-                    />
-
-                    <div className="mt-5 hidden rounded-3xl bg-slate-50 px-4 py-4">
-                      <div className="text-sm font-black text-slate-700">下一步计划</div>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">{selectedJourney.next_target}</p>
-                      <p className="mt-2 text-xs leading-5 text-slate-500">{selectedJourney.care_tip}</p>
+                      </button>
                     </div>
                   </div>
 
@@ -1536,8 +1475,8 @@ export default function PetCenter() {
 
                   <div className="relative flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: selectedSpotlightAccent }}>
-                        Spotlight
+                      <div className="text-xs font-black tracking-[0.22em]" style={{ color: selectedSpotlightAccent }}>
+                        宠物主角
                       </div>
                       <div className="mt-2 text-2xl font-black text-slate-800">{selectedJourney.name}</div>
                     </div>
@@ -1589,27 +1528,23 @@ export default function PetCenter() {
 
                   <div className="relative mt-5">
                     <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-700">
-                        {selectedStudent.pet?.quote || selectedJourney.stage_description}
-                      </div>
-                      <p className="mt-2 text-xs leading-6 text-slate-500">
-                        {selectedStudent.pet?.vibe || selectedJourney.next_target}
-                      </p>
+                      <div className="text-sm font-black text-slate-700">点击宠物卡片查看完整成长档案</div>
+                      <p className="mt-2 text-xs leading-6 text-slate-500">{selectedJourney.next_target}</p>
                     </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 text-center shadow-sm">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Score</div>
+                        <div className="text-[11px] font-bold tracking-[0.14em] text-slate-500">积分</div>
                         <div className="mt-1 text-lg font-black text-slate-800">{selectedStudent.score || 0}</div>
                       </div>
                       <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 text-center shadow-sm">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Growth</div>
+                        <div className="text-[11px] font-bold tracking-[0.14em] text-slate-500">成长</div>
                         <div className="mt-1 text-lg font-black" style={{ color: selectedSpotlightAccent }}>
                           {selectedJourney.growth_value}
                         </div>
                       </div>
                       <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 text-center shadow-sm">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Care</div>
+                        <div className="text-[11px] font-bold tracking-[0.14em] text-slate-500">照料</div>
                         <div className="mt-1 text-lg font-black text-emerald-600">{selectedJourney.care_score}</div>
                       </div>
                     </div>
@@ -1625,7 +1560,7 @@ export default function PetCenter() {
                       border: '1px solid ' + withAlpha(selectedSpotlightAccent, "30")
                     }}
                   >
-                    Open Growth Passport
+                    查看成长档案
                   </button>
                 </div>
               </div>
@@ -1639,10 +1574,10 @@ export default function PetCenter() {
           <section className="card-game border-pink-200 bg-gradient-to-br from-white via-orange-50/60 to-pink-50/70">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-pink-500">Catalog</div>
-                <h3 className="mt-2 text-2xl font-black text-slate-800">宠物图鉴与发放台</h3>
+                <div className="text-xs font-bold tracking-[0.22em] text-pink-500">宠物图鉴</div>
+                <h3 className="mt-2 text-2xl font-black text-slate-800">宠物图鉴与发放</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  支持按稀有度筛选、关键词搜索和发放排序。图鉴现在是完整工作区的一部分，不再被侧边栏压缩。
+                  先选学生，再点击卡片查看形态与成长档案，确认后即可领取或切换培养。
                 </p>
               </div>
               <div className="rounded-[24px] bg-white/85 px-4 py-4 text-sm text-slate-500 shadow-sm">
@@ -1679,7 +1614,7 @@ export default function PetCenter() {
 
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <div className="rounded-2xl border border-pink-100 bg-white px-4 py-3 shadow-sm">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Search</div>
+                  <div className="text-[11px] font-bold tracking-[0.18em] text-slate-400">搜索宠物</div>
                   <input
                     value={catalogQuery}
                     onChange={(event) => setCatalogQuery(event.target.value)}
@@ -1712,7 +1647,7 @@ export default function PetCenter() {
               {!catalogReady ? (
                 <>
                   <div className="mb-4 flex items-center justify-between rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-500 shadow-sm">
-                    <span>宠物图鉴正在铺开中，先保证控制台和学生状态即时可用。</span>
+                    <span>宠物图鉴加载中，请稍等。</span>
                     <span className="rounded-full bg-pink-50 px-3 py-1 text-xs font-black text-pink-500">
                       载入图鉴...
                     </span>
@@ -1745,51 +1680,13 @@ export default function PetCenter() {
             </div>
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-2">
-            <section className="card-game border-emerald-200 bg-gradient-to-br from-emerald-50 via-lime-50 to-yellow-50">
-              <h3 className="text-xl font-black text-slate-800">乐启享养成规则</h3>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                  <div className="text-sm font-black text-slate-700">1. 领取宠物</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">学生未领取时统一显示为宠物蛋，先选中学生，再发放宠物。</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                  <div className="text-sm font-black text-slate-700">2. 达到孵化条件</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">累计 20 分课堂成长值，并完成 2 次照料后，就可以进入孵化。</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                  <div className="text-sm font-black text-slate-700">3. 维护照料评分</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">喂养、互动、清洁会提升照料评分，直接影响进化资格和培养力。</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                  <div className="text-sm font-black text-slate-700">4. 公开仪式化</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">满足条件后集中孵化或进化，形成班级节奏感和学生期待感。</p>
-                </div>
-              </div>
-            </section>
-
-            <section className="card-game border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-              <h3 className="text-xl font-black text-slate-800">课堂执行建议</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                这套宠物系统不是单独运营的页面，而是直接嵌进乐启享线下编程课的日常节奏里。
-              </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {CLASSROOM_PLAYBOOK.map((item) => (
-                  <div key={item.title} className="rounded-2xl bg-white/85 px-4 py-4 shadow-sm">
-                    <div className="text-sm font-black text-slate-700">{item.title}</div>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{item.description}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-6 self-start">
           <section className="card-game border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-amber-500">Queue</div>
+                <div className="text-xs font-bold tracking-[0.22em] text-amber-500">待办队列</div>
                 <h3 className="mt-2 text-xl font-black text-slate-800">仪式与待办队列</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   这里优先展示待领取、可孵化、可进化的学生，方便老师快速完成课堂节奏推进。
@@ -1852,14 +1749,14 @@ export default function PetCenter() {
           <section className="card-game border-violet-200 bg-gradient-to-br from-violet-50 via-white to-cyan-50">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-violet-500">Ranking</div>
+                <div className="text-xs font-bold tracking-[0.22em] text-violet-500">班级培养榜</div>
                 <h3 className="mt-2 text-xl font-black text-slate-800">班级培养力榜</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   榜单强调激励而不是拉开差距，分数主要来自成长值、照料状态和阶段奖励。
                 </p>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-600 shadow-sm">
-                TOP {powerLeaderboard.length}
+                前 {powerLeaderboard.length} 名
               </span>
             </div>
 
@@ -1916,7 +1813,7 @@ export default function PetCenter() {
           <section className="card-game border-slate-200 bg-gradient-to-br from-white to-slate-50">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Roster</div>
+                <div className="text-xs font-bold tracking-[0.22em] text-slate-400">学员列表</div>
                 <h3 className="mt-2 text-xl font-black text-slate-800">学生宠物列表</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">快速切换培养对象，查看谁还在蛋态、谁准备孵化。</p>
               </div>
@@ -1988,9 +1885,6 @@ export default function PetCenter() {
     </>
   );
 }
-
-
-
 
 
 

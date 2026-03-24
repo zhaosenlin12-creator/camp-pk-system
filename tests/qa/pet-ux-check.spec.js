@@ -203,8 +203,8 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await studentSelect.selectOption(String(multiStudent.id));
     await page.waitForTimeout(900);
     await expect(page.getByTestId('pet-center-collection-summary')).toContainText('2/2');
-    await expect(page.getByText(/Teacher Script/)).toBeVisible();
-    await page.getByText(/Teacher Script/).scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('pet-center-profile-summary-cta')).toBeVisible();
+    await page.getByTestId('pet-center-profile-summary-cta').scrollIntoViewIfNeeded();
     await page.waitForTimeout(300);
     await saveShot(page, 'admin-multi-pet-collection.png', false);
     await saveShot(page, 'admin-selected-student-ritual.png', false);
