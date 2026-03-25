@@ -3,6 +3,7 @@ import { create } from 'zustand';
 const API_BASE = '/api';
 const ADMIN_TOKEN_KEY = 'camp-pk-admin-token';
 export const ADMIN_AUTH_EXPIRED_EVENT = 'camp-pk-admin-auth-expired';
+export const CURRENT_CLASS_STORAGE_KEY = 'camp-pk-current-class-id';
 
 const getStoredAdminToken = () => {
   if (typeof window === 'undefined') return '';
@@ -24,6 +25,29 @@ const clearStoredAdminToken = () => {
   window.dispatchEvent(new CustomEvent(ADMIN_AUTH_EXPIRED_EVENT));
 };
 
+const readStoredCurrentClassId = () => {
+  if (typeof window === 'undefined') return null;
+  const rawValue = window.localStorage.getItem(CURRENT_CLASS_STORAGE_KEY);
+  if (!rawValue) return null;
+
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const persistCurrentClassId = (classId) => {
+  if (typeof window === 'undefined') return;
+
+  if (classId) {
+    window.localStorage.setItem(CURRENT_CLASS_STORAGE_KEY, String(classId));
+  } else {
+    window.localStorage.removeItem(CURRENT_CLASS_STORAGE_KEY);
+  }
+};
+
+const findClassById = (classes, classId) => (
+  (classes || []).find((item) => Number(item?.id) === Number(classId)) || null
+);
+
 export const getAdminAuthHeaders = () => {
   const token = getStoredAdminToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -33,9 +57,12 @@ export const getAdminAuthHeaders = () => {
 const request = async (url, options = {}, requestOptions = {}) => {
   try {
     const isFormData = options.body instanceof FormData;
+    const method = String(options.method || 'GET').toUpperCase();
     const token = requestOptions.skipAuth ? '' : getStoredAdminToken();
     const res = await fetch(url, {
       ...options,
+      method,
+      cache: requestOptions.cache || 'no-store',
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -116,8 +143,24 @@ export const useStore = create((set, get) => ({
   fetchClasses: async () => {
     try {
       const classes = await request(`${API_BASE}/classes`);
-      set({ classes: classes || [], error: null });
-      return classes;
+      const nextClasses = classes || [];
+      const selectedId = get().currentClass?.id || readStoredCurrentClassId();
+      const matchedClass = selectedId ? findClassById(nextClasses, selectedId) : null;
+
+      set((state) => ({
+        classes: nextClasses,
+        currentClass: matchedClass || (selectedId ? null : state.currentClass),
+        error: null
+      }));
+
+      if (selectedId && matchedClass) {
+        await get().setCurrentClass(matchedClass, { persistSelection: false });
+      } else if (selectedId && !matchedClass) {
+        persistCurrentClassId(null);
+        set({ currentClass: null, teams: [], students: [] });
+      }
+
+      return nextClasses;
     } catch (err) {
       set({ error: '获取班级列表失败' });
       return [];
@@ -133,6 +176,7 @@ export const useStore = create((set, get) => ({
         body: JSON.stringify({ name })
       });
       set(state => ({ classes: [newClass, ...state.classes], error: null }));
+      await get().setCurrentClass(newClass);
       return newClass;
     } catch (err) {
       set({ error: '创建班级失败' });
@@ -144,11 +188,22 @@ export const useStore = create((set, get) => ({
   deleteClass: async (id) => {
     try {
       await request(`${API_BASE}/classes/${id}`, { method: 'DELETE' });
-      set(state => ({
-        classes: state.classes.filter(c => c.id !== id),
-        currentClass: state.currentClass?.id === id ? null : state.currentClass,
-        error: null
-      }));
+      set(state => {
+        const nextClasses = state.classes.filter(c => c.id !== id);
+        const nextCurrentClass = state.currentClass?.id === id ? null : state.currentClass;
+
+        if (!nextCurrentClass) {
+          persistCurrentClassId(null);
+        }
+
+        return {
+          classes: nextClasses,
+          currentClass: nextCurrentClass,
+          teams: nextCurrentClass ? state.teams : [],
+          students: nextCurrentClass ? state.students : [],
+          error: null
+        };
+      });
       return true;
     } catch (err) {
       set({ error: '删除班级失败' });
@@ -157,7 +212,13 @@ export const useStore = create((set, get) => ({
   },
 
   // 设置当前班级
-  setCurrentClass: async (classItem) => {
+  setCurrentClass: async (classItem, options = {}) => {
+    const { persistSelection = true } = options;
+
+    if (persistSelection) {
+      persistCurrentClassId(classItem?.id || null);
+    }
+
     set({ currentClass: classItem, loading: true, error: null });
     if (classItem) {
       try {
@@ -172,6 +233,34 @@ export const useStore = create((set, get) => ({
       set({ teams: [], students: [] });
     }
     set({ loading: false });
+  },
+
+  syncCurrentClassFromStorage: async () => {
+    const storedClassId = readStoredCurrentClassId();
+    const currentClass = get().currentClass;
+
+    if (!storedClassId) {
+      if (currentClass) {
+        await get().setCurrentClass(null, { persistSelection: false });
+      }
+      return null;
+    }
+
+    if (currentClass && Number(currentClass.id) === Number(storedClassId)) {
+      return currentClass;
+    }
+
+    const classes = get().classes.length ? get().classes : await get().fetchClasses();
+    const matchedClass = findClassById(classes, storedClassId);
+
+    if (!matchedClass) {
+      persistCurrentClassId(null);
+      await get().setCurrentClass(null, { persistSelection: false });
+      return null;
+    }
+
+    await get().setCurrentClass(matchedClass, { persistSelection: false });
+    return matchedClass;
   },
 
   // 获取战队
