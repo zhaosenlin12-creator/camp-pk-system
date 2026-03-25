@@ -1044,7 +1044,7 @@ function CatalogSkeletonCard() {
 }
 
 export default function PetCenter() {
-  const { currentClass, students, pets, claimStudentPet, activateStudentPetSlot, runStudentPetAction } = useStore();
+  const { currentClass, students, pets, fetchPets, claimStudentPet, activateStudentPetSlot, runStudentPetAction } = useStore();
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [catalogSort, setCatalogSort] = useState('rarity');
@@ -1058,6 +1058,12 @@ export default function PetCenter() {
   const catalogSectionRef = useRef(null);
   const deferredActiveFilter = useDeferredValue(activeFilter);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
+
+  useEffect(() => {
+    if (!pets.length) {
+      fetchPets();
+    }
+  }, [fetchPets, pets.length]);
 
   useEffect(() => {
     if (!students.length) {
@@ -1445,7 +1451,7 @@ export default function PetCenter() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-orange-500 shadow-sm">
                 <span className="text-lg">🐾</span>
-                乐启享宠物工作台
+                乐享宠物工作台
               </div>
               <h3 className="mt-4 text-3xl font-black text-slate-800">把班级宠物做成一条完整的成长叙事线</h3>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">

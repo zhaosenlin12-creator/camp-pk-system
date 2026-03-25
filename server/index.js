@@ -16,6 +16,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// API 数据需要始终拿最新结果，避免浏览器把宠物目录等接口缓存成旧值。
+app.set('etag', false);
+
 // 信任一层反向代理（nginx），避免 trust proxy=true 过于宽松导致限流告警
 app.set('trust proxy', 1);
 
@@ -173,6 +176,173 @@ function saveDbSync() {
   }
 }
 
+function uniqueStrings(values = []) {
+  return [...new Set(values.filter((value) => typeof value === 'string' && value.trim()))];
+}
+
+function getReportPhotoUrls(report) {
+  return uniqueStrings(Array.isArray(report?.photos) ? report.photos : []);
+}
+
+function removeUnusedReportPhotos(photoUrls = []) {
+  const removableCandidates = uniqueStrings(photoUrls);
+  if (!removableCandidates.length) {
+    return 0;
+  }
+
+  const stillReferenced = new Set(
+    db.reports.flatMap((report) => getReportPhotoUrls(report))
+  );
+
+  const removableUrls = removableCandidates.filter((url) => !stillReferenced.has(url));
+  if (!removableUrls.length) {
+    return 0;
+  }
+
+  const removableUrlSet = new Set(removableUrls);
+  const removablePhotos = db.photos.filter((photo) => removableUrlSet.has(photo.url));
+  const removableFilenames = new Set(
+    removableUrls.map((url) => path.basename(url || '')).filter(Boolean)
+  );
+
+  db.photos = db.photos.filter((photo) => !removableUrlSet.has(photo.url));
+
+  removablePhotos.forEach((photo) => {
+    removableFilenames.add(photo.filename || path.basename(photo.url || ''));
+  });
+
+  removableFilenames.forEach((filename) => {
+    const filePath = path.join(uploadsDir, filename);
+    if (!filename || !fs.existsSync(filePath)) {
+      return;
+    }
+
+    try {
+      fs.unlinkSync(filePath);
+    } catch (error) {
+      console.warn(`Failed to remove uploaded photo ${filename}:`, error.message);
+    }
+  });
+
+  return removableFilenames.size;
+}
+
+function deleteReportsByMatcher(matcher) {
+  const reportsToDelete = db.reports.filter(matcher);
+  if (!reportsToDelete.length) {
+    return { deletedReports: 0, deletedPhotos: 0 };
+  }
+
+  db.reports = db.reports.filter((report) => !matcher(report));
+
+  const deletedPhotos = removeUnusedReportPhotos(
+    reportsToDelete.flatMap((report) => getReportPhotoUrls(report))
+  );
+
+  return {
+    deletedReports: reportsToDelete.length,
+    deletedPhotos
+  };
+}
+
+function deleteRatingSessionsByMatcher(matcher) {
+  const sessionIds = db.ratingSessions
+    .filter(matcher)
+    .map((session) => session.id);
+
+  if (!sessionIds.length) {
+    return { deletedSessions: 0, deletedVotes: 0 };
+  }
+
+  const sessionIdSet = new Set(sessionIds);
+  const deletedVotes = db.ratingVotes.filter((vote) => sessionIdSet.has(vote.session_id)).length;
+
+  db.ratingVotes = db.ratingVotes.filter((vote) => !sessionIdSet.has(vote.session_id));
+  db.ratingSessions = db.ratingSessions.filter((session) => !sessionIdSet.has(session.id));
+
+  return {
+    deletedSessions: sessionIds.length,
+    deletedVotes
+  };
+}
+
+function deleteStudentArtifacts(studentId) {
+  const ratingCleanup = deleteRatingSessionsByMatcher((session) => session.student_id === studentId);
+  const deletedScoreLogs = db.scoreLogs.filter((log) => log.student_id === studentId).length;
+  db.scoreLogs = db.scoreLogs.filter((log) => log.student_id !== studentId);
+
+  const reportCleanup = deleteReportsByMatcher((report) => report.student_id === studentId);
+
+  const deletedCertificates = db.certificates.filter((certificate) => certificate.student_id === studentId).length;
+  db.certificates = db.certificates.filter((certificate) => certificate.student_id !== studentId);
+
+  return {
+    deletedScoreLogs,
+    deletedCertificates,
+    ...ratingCleanup,
+    ...reportCleanup
+  };
+}
+
+function deleteClassArtifacts(classId) {
+  const studentIds = new Set(
+    db.students
+      .filter((student) => student.class_id === classId)
+      .map((student) => student.id)
+  );
+  const teamIds = new Set(
+    db.teams
+      .filter((team) => team.class_id === classId)
+      .map((team) => team.id)
+  );
+
+  const ratingCleanup = deleteRatingSessionsByMatcher(
+    (session) => session.class_id === classId || studentIds.has(session.student_id)
+  );
+
+  const deletedScoreLogs = db.scoreLogs.filter(
+    (log) => studentIds.has(log.student_id) || teamIds.has(log.team_id)
+  ).length;
+  db.scoreLogs = db.scoreLogs.filter(
+    (log) => !studentIds.has(log.student_id) && !teamIds.has(log.team_id)
+  );
+
+  const reportCleanup = deleteReportsByMatcher(
+    (report) => report.class_id === classId || studentIds.has(report.student_id)
+  );
+
+  const deletedCertificates = db.certificates.filter(
+    (certificate) => certificate.class_id === classId || studentIds.has(certificate.student_id)
+  ).length;
+  db.certificates = db.certificates.filter(
+    (certificate) => certificate.class_id !== classId && !studentIds.has(certificate.student_id)
+  );
+
+  const deletedLotteryLogs = db.lotteryLogs.filter(
+    (log) => log.class_id === classId || teamIds.has(log.team_id)
+  ).length;
+  db.lotteryLogs = db.lotteryLogs.filter(
+    (log) => log.class_id !== classId && !teamIds.has(log.team_id)
+  );
+
+  const deletedStudents = db.students.filter((student) => student.class_id === classId).length;
+  const deletedTeams = db.teams.filter((team) => team.class_id === classId).length;
+
+  db.students = db.students.filter((student) => student.class_id !== classId);
+  db.teams = db.teams.filter((team) => team.class_id !== classId);
+  db.classes = db.classes.filter((item) => item.id !== classId);
+
+  return {
+    deletedStudents,
+    deletedTeams,
+    deletedScoreLogs,
+    deletedCertificates,
+    deletedLotteryLogs,
+    ...ratingCleanup,
+    ...reportCleanup
+  };
+}
+
 // 初始化默认数据
 function initDefaultData() {
   db.rewards = [
@@ -271,13 +441,43 @@ app.use(cors(security.getCorsConfig(isProduction)));
 
 app.use(express.json({ limit: '1mb' })); // 限制请求体大小
 app.use('/api', apiLimiter); // API请求限制
+app.use('/api', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+    'Surrogate-Control': 'no-store'
+  });
+  next();
+});
+
+const clientDistPath = path.join(__dirname, '../client/dist');
+const clientIndexPath = path.join(clientDistPath, 'index.html');
+
+const noStoreHtmlHeaders = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+  'Surrogate-Control': 'no-store'
+};
+
+const sendSpaShell = (res) => {
+  res.set(noStoreHtmlHeaders);
+  res.sendFile(clientIndexPath);
+};
 
 // 静态文件缓存
 const staticOptions = {
   maxAge: isProduction ? '1d' : 0,
-  etag: true
+  etag: true,
+  index: false,
+  setHeaders: (res, filePath) => {
+    if (path.extname(filePath).toLowerCase() === '.html') {
+      res.set(noStoreHtmlHeaders);
+    }
+  }
 };
-app.use(express.static(path.join(__dirname, '../client/dist'), staticOptions));
+app.use(express.static(clientDistPath, staticOptions));
 app.use('/videos', express.static(path.join(__dirname, '../public/videos'), { maxAge: '7d' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'), { maxAge: '7d' }));
 
@@ -1664,16 +1864,9 @@ app.delete('/api/classes/:id', (req, res) => {
   if (!id) return res.status(400).json({ error: '无效的班级ID' });
   
   // 清理评分数据
-  const sessionIds = db.ratingSessions.filter(s => s.class_id === id).map(s => s.id);
-  db.ratingVotes = db.ratingVotes.filter(v => !sessionIds.includes(v.session_id));
-  db.ratingSessions = db.ratingSessions.filter(s => s.class_id !== id);
-  
-  db.students = db.students.filter(s => s.class_id !== id);
-  db.teams = db.teams.filter(t => t.class_id !== id);
-  db.lotteryLogs = db.lotteryLogs.filter(l => l.class_id !== id);
-  db.classes = db.classes.filter(c => c.id !== id);
+  const cleanup = deleteClassArtifacts(id);
   saveDb();
-  res.json({ success: true });
+  res.json({ success: true, cleanup });
 });
 
 // ============ 战队管理 API ============
@@ -1742,12 +1935,13 @@ app.delete('/api/teams/:id', (req, res) => {
   const id = validateId(req.params.id);
   if (!id) return res.status(400).json({ error: '无效的战队ID' });
   
-  db.students.forEach(s => {
-    if (s.team_id === id) s.team_id = null;
+  const reassignedStudents = db.students.filter((student) => student.team_id === id).length;
+  db.students.forEach((student) => {
+    if (student.team_id === id) student.team_id = null;
   });
   db.teams = db.teams.filter(t => t.id !== id);
   saveDb();
-  res.json({ success: true });
+  res.json({ success: true, reassigned_students: reassignedStudents });
 });
 
 // ============ 学员管理 API ============
@@ -2226,9 +2420,10 @@ app.delete('/api/students/:id', (req, res) => {
     return res.status(400).json({ error: '该学员正在接受评分，请先结束评分后再删除' });
   }
   
+  const cleanup = deleteStudentArtifacts(id);
   db.students = db.students.filter(s => s.id !== id);
   saveDb();
-  res.json({ success: true });
+  res.json({ success: true, cleanup });
 });
 
 // ============ 排行榜 API ============
@@ -3136,9 +3331,8 @@ app.get('/api/reports/:shortId', (req, res) => {
 
 // 版本检查接口（用于调试）
 app.get('/api/version', (req, res) => {
-  const indexPath = path.join(__dirname, '../client/dist/index.html');
   try {
-    const html = fs.readFileSync(indexPath, 'utf-8');
+    const html = fs.readFileSync(clientIndexPath, 'utf-8');
     const jsMatch = html.match(/index-([^.]+)\.js/);
     const cssMatch = html.match(/index-([^.]+)\.css/);
     res.json({
@@ -3153,7 +3347,7 @@ app.get('/api/version', (req, res) => {
 
 // SPA路由处理
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  sendSpaShell(res);
 });
 
 // ============ 全局错误处理 ============
@@ -3203,7 +3397,7 @@ function getLocalIP() {
 app.listen(PORT, '0.0.0.0', () => {
   const localIP = getLocalIP();
   console.log('');
-  console.log('🎮 创赛营积分PK系统已启动！');
+  console.log('🐾 乐享宠物已启动！');
   console.log(`📍 环境: ${isProduction ? '生产' : '开发'}`);
   console.log('');
   console.log(`📺 大屏展示: http://${localIP}:${PORT}`);

@@ -9,9 +9,12 @@ client/dist.zip
 # Local QA and temp artifacts
 .gstack/
 .tmp/
+.deploy/
 temp-assets/
 test-results/
 logs/
+.tmp-*.png
+.tmp-*.log
 
 # Sensitive config
 .secrets.enc

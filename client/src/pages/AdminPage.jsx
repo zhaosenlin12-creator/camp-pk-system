@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, ADMIN_AUTH_EXPIRED_EVENT } from '../store/useStore';
+import BrandMark from '../components/BrandMark';
 import ClassSelector from '../components/ClassSelector';
 import TeamManager from '../components/TeamManager';
 import StudentManager from '../components/StudentManager';
@@ -44,8 +45,16 @@ function PinVerify({ onSuccess }) {
         animate={{ scale: 1, opacity: 1 }}
         className="card-game max-w-sm w-full text-center"
       >
-        <div className="text-6xl mb-4">🔐</div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">老师专属入口</h2>
+        <div className="mb-6 flex justify-center">
+          <BrandMark
+            className="justify-center text-left"
+            imageClassName="h-16 w-16"
+            title="乐享宠物"
+            subtitle="老师专属入口"
+            titleClassName="text-3xl font-black text-slate-800"
+            subtitleClassName="mt-1 text-sm text-slate-500"
+          />
+        </div>
         
         <form onSubmit={handleSubmit}>
           <motion.input
@@ -179,13 +188,20 @@ export default function AdminPage() {
       {/* 头部 */}
       <header className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <motion.h1
+          <motion.div
             initial={{ x: -50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            className="text-3xl font-black text-white drop-shadow-lg"
+            className="min-w-0"
           >
-            🔧 管理中心
-          </motion.h1>
+            <BrandMark
+              title="乐享宠物 · 管理台"
+              subtitle={currentClass ? `${currentClass.name} 正在管理中` : '老师专属入口'}
+              imageClassName="h-12 w-12"
+              imageWrapperClassName="bg-white/92"
+              titleClassName="text-2xl font-black text-white md:text-3xl"
+              subtitleClassName="mt-1 text-sm text-white/80"
+            />
+          </motion.div>
           
           <div className="flex items-center gap-3">
             <button

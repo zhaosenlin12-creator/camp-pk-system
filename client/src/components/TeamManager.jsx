@@ -4,51 +4,72 @@ import { useStore } from '../store/useStore';
 import { soundManager } from '../utils/sounds';
 import { TEAM_COLORS } from '../utils/ranks';
 import { formatScore } from '../utils/score';
+import DangerConfirmModal from './DangerConfirmModal';
 
 export default function TeamManager() {
   const { currentClass, teams, createTeam, deleteTeam, students, updateStudent } = useStore();
   const [showCreate, setShowCreate] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState(TEAM_COLORS[0].value);
+  const [pendingDeleteTeam, setPendingDeleteTeam] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleCreate = async () => {
     if (!newTeamName.trim() || !currentClass) return;
+
     await createTeam(newTeamName.trim(), currentClass.id, newTeamColor);
     soundManager.playScoreUp();
     setNewTeamName('');
     setShowCreate(false);
   };
 
-  const handleDelete = async (teamId) => {
-    if (confirm('确定要删除这个战队吗？成员将变为无队伍状态。')) {
-      await deleteTeam(teamId);
+  const handleDeleteRequest = (team) => {
+    soundManager.playClick();
+    setDeleteError('');
+    setPendingDeleteTeam(team);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDeleteTeam) return;
+
+    setDeleteBusy(true);
+    const success = await deleteTeam(pendingDeleteTeam.id);
+    setDeleteBusy(false);
+
+    if (success) {
+      setPendingDeleteTeam(null);
+      setDeleteError('');
+      return;
     }
+
+    setDeleteError('删除战队未完成，请稍后重试。');
   };
 
   const handleMoveStudent = async (studentId, newTeamId) => {
-    const student = students.find(s => s.id === studentId);
-    if (student) {
-      await updateStudent(studentId, {
-        name: student.name,
-        team_id: newTeamId,
-        avatar: student.avatar,
-      });
-      soundManager.playClick();
-    }
+    const student = students.find((item) => item.id === studentId);
+    if (!student) return;
+
+    await updateStudent(studentId, {
+      name: student.name,
+      team_id: newTeamId,
+      avatar: student.avatar
+    });
+    soundManager.playClick();
   };
 
-  const unassignedStudents = students.filter(s => !s.team_id);
+  const unassignedStudents = students.filter((student) => !student.team_id);
 
   return (
     <div className="space-y-6">
       <div className="card-game">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-800">⚔️ 战队管理</h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-gray-800">🛡️ 战队管理</h3>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowCreate(!showCreate)}
-            className="btn-game btn-success text-sm py-2"
+            className="btn-game btn-success py-2 text-sm"
           >
             {showCreate ? '取消' : '➕ 新建战队'}
           </motion.button>
@@ -58,31 +79,31 @@ export default function TeamManager() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="mb-4 p-4 bg-gray-50 rounded-xl"
+            className="mb-4 rounded-xl bg-gray-50 p-4"
           >
-            <div className="flex gap-3 mb-3">
+            <div className="mb-3 flex gap-3">
               <input
                 type="text"
                 value={newTeamName}
-                onChange={(e) => setNewTeamName(e.target.value)}
+                onChange={(event) => setNewTeamName(event.target.value)}
                 placeholder="战队名称"
-                className="flex-1 px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 outline-none"
+                className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-2 outline-none focus:border-orange-400"
               />
               <button
                 onClick={handleCreate}
                 disabled={!newTeamName.trim()}
-                className="px-6 py-2 rounded-xl font-bold text-white bg-orange-500 disabled:opacity-50"
+                className="rounded-xl bg-orange-500 px-6 py-2 font-bold text-white disabled:opacity-50"
               >
                 创建
               </button>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-2">
               {TEAM_COLORS.map((color) => (
                 <button
                   key={color.value}
                   onClick={() => setNewTeamColor(color.value)}
-                  className={`w-10 h-10 rounded-full transition-all ${
-                    newTeamColor === color.value ? 'ring-4 ring-offset-2 ring-gray-400 scale-110' : ''
+                  className={`h-10 w-10 rounded-full transition-all ${
+                    newTeamColor === color.value ? 'scale-110 ring-4 ring-gray-400 ring-offset-2' : ''
                   }`}
                   style={{ backgroundColor: color.value }}
                   title={color.name}
@@ -92,29 +113,30 @@ export default function TeamManager() {
           </motion.div>
         )}
 
-        {/* 战队列表 */}
         <div className="space-y-4">
           {teams.map((team) => {
-            const teamMembers = students.filter(s => s.team_id === team.id);
+            const teamMembers = students.filter((student) => student.team_id === team.id);
+
             return (
               <div
                 key={team.id}
-                className="p-4 rounded-xl border-2"
+                className="rounded-xl border-2 p-4"
                 style={{ borderColor: team.color, backgroundColor: `${team.color}10` }}
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: team.color }} />
-                    <span className="font-bold text-lg">{team.name}</span>
+                    <div className="h-4 w-4 rounded-full" style={{ backgroundColor: team.color }} />
+                    <span className="text-lg font-bold">{team.name}</span>
                     <span className="text-sm text-gray-500">({teamMembers.length}人)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xl" style={{ color: team.color }}>
+                    <span className="text-xl font-bold" style={{ color: team.color }}>
                       {formatScore(team.score)}分
                     </span>
                     <button
-                      onClick={() => handleDelete(team.id)}
-                      className="text-red-500 hover:text-red-700 text-sm"
+                      onClick={() => handleDeleteRequest(team)}
+                      data-testid={`team-delete-${team.id}`}
+                      className="rounded-full bg-white/90 px-3 py-1 text-sm font-bold text-red-500 shadow-sm transition hover:bg-red-50 hover:text-red-600"
                     >
                       删除
                     </button>
@@ -125,7 +147,7 @@ export default function TeamManager() {
                   {teamMembers.map((member) => (
                     <div
                       key={member.id}
-                      className="flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm shadow-sm"
+                      className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm shadow-sm"
                     >
                       <span>{member.avatar}</span>
                       <span>{member.name}</span>
@@ -138,20 +160,22 @@ export default function TeamManager() {
                       </button>
                     </div>
                   ))}
-                  
+
                   {unassignedStudents.length > 0 && (
                     <select
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          handleMoveStudent(parseInt(e.target.value), team.id);
-                          e.target.value = '';
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          handleMoveStudent(parseInt(event.target.value, 10), team.id);
+                          event.target.value = '';
                         }
                       }}
-                      className="px-3 py-1 rounded-full text-sm bg-white border border-dashed border-gray-300 cursor-pointer"
+                      className="cursor-pointer rounded-full border border-dashed border-gray-300 bg-white px-3 py-1 text-sm"
                     >
                       <option value="">+ 添加成员</option>
-                      {unassignedStudents.map((s) => (
-                        <option key={s.id} value={s.id}>{s.avatar} {s.name}</option>
+                      {unassignedStudents.map((student) => (
+                        <option key={student.id} value={student.id}>
+                          {student.avatar} {student.name}
+                        </option>
                       ))}
                     </select>
                   )}
@@ -161,31 +185,34 @@ export default function TeamManager() {
           })}
 
           {teams.length === 0 && (
-            <p className="text-center text-gray-400 py-8">还没有战队，点击上方按钮创建</p>
+            <p className="py-8 text-center text-gray-400">还没有战队，点击上方按钮创建</p>
           )}
         </div>
 
-        {/* 未分配学员 */}
         {unassignedStudents.length > 0 && (
-          <div className="mt-4 p-4 bg-gray-100 rounded-xl">
-            <h4 className="font-bold text-gray-600 mb-2">未分配战队的学员</h4>
+          <div className="mt-4 rounded-xl bg-gray-100 p-4">
+            <h4 className="mb-2 font-bold text-gray-600">未分配战队的学员</h4>
             <div className="flex flex-wrap gap-2">
               {unassignedStudents.map((student) => (
                 <div
                   key={student.id}
-                  className="flex items-center gap-2 px-3 py-2 bg-white rounded-full shadow-sm"
+                  className="flex items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm"
                 >
                   <span>{student.avatar}</span>
                   <span>{student.name}</span>
                   <select
-                    onChange={(e) => {
-                      if (e.target.value) handleMoveStudent(student.id, parseInt(e.target.value));
+                    onChange={(event) => {
+                      if (event.target.value) {
+                        handleMoveStudent(student.id, parseInt(event.target.value, 10));
+                      }
                     }}
-                    className="text-sm bg-transparent border-none cursor-pointer text-orange-500"
+                    className="cursor-pointer border-none bg-transparent text-sm text-orange-500"
                   >
                     <option value="">分配到...</option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -194,6 +221,29 @@ export default function TeamManager() {
           </div>
         )}
       </div>
+
+      <DangerConfirmModal
+        open={Boolean(pendingDeleteTeam)}
+        title="删除战队？"
+        description="删除战队后，这个队伍会从当前班级中移除，现有成员会自动变成“未分配战队”状态。"
+        subjectLabel={pendingDeleteTeam ? pendingDeleteTeam.name : ''}
+        impacts={[
+          '战队入口、战队排行和队伍标识会立即消失。',
+          '战队成员不会被删除，但会全部恢复为未分配状态。',
+          '这是不可撤回的操作，请确认不是误点。'
+        ]}
+        errorMessage={deleteError}
+        busy={deleteBusy}
+        confirmLabel="确认删除战队"
+        cancelLabel="先保留"
+        testId="danger-confirm-team"
+        onCancel={() => {
+          if (deleteBusy) return;
+          setPendingDeleteTeam(null);
+          setDeleteError('');
+        }}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

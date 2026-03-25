@@ -1,7 +1,7 @@
 {
   "name": "camp-pk-system",
   "version": "1.0.0",
-  "description": "创赛营积分PK系统",
+  "description": "乐享宠物",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server/index.js",

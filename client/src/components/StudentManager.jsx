@@ -1,65 +1,87 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import { soundManager } from '../utils/sounds';
 import { AVATARS, getRank } from '../utils/ranks';
 import { formatScore } from '../utils/score';
 import ScoreModifier from './ScoreModifier';
 import PetArtwork from './PetArtwork';
+import DangerConfirmModal from './DangerConfirmModal';
 import { getStudentPetJourney } from '../utils/petJourney';
 
 export default function StudentManager() {
   const { currentClass, students, teams, createStudent, deleteStudent, updateStudent } = useStore();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newAvatar, setNewAvatar] = useState('🎮');
+  const [newAvatar, setNewAvatar] = useState('🎃');
   const [newTeamId, setNewTeamId] = useState('');
   const [editingStudent, setEditingStudent] = useState(null);
   const [scoreModifyStudent, setScoreModifyStudent] = useState(null);
+  const [pendingDeleteStudent, setPendingDeleteStudent] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleCreate = async () => {
     if (!newName.trim() || !currentClass) return;
-    await createStudent(newName.trim(), currentClass.id, newTeamId ? parseInt(newTeamId) : null, newAvatar);
+
+    await createStudent(newName.trim(), currentClass.id, newTeamId ? parseInt(newTeamId, 10) : null, newAvatar);
     soundManager.playScoreUp();
     setNewName('');
-    setNewAvatar('🎮');
+    setNewAvatar('🎃');
     setNewTeamId('');
     setShowCreate(false);
   };
 
-  const handleDelete = async (id) => {
-    if (confirm('确定要删除这个学员吗？')) {
-      await deleteStudent(id);
+  const handleDeleteRequest = (student) => {
+    soundManager.playClick();
+    setDeleteError('');
+    setPendingDeleteStudent(student);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDeleteStudent) return;
+
+    setDeleteBusy(true);
+    const success = await deleteStudent(pendingDeleteStudent.id);
+    setDeleteBusy(false);
+
+    if (success) {
+      setPendingDeleteStudent(null);
+      setDeleteError('');
+      return;
     }
+
+    setDeleteError('删除未完成。如果该学员正在评分，请先结束评分后再试。');
   };
 
   const handleUpdate = async () => {
     if (!editingStudent) return;
+
     await updateStudent(editingStudent.id, {
       name: editingStudent.name,
       team_id: editingStudent.team_id,
-      avatar: editingStudent.avatar,
+      avatar: editingStudent.avatar
     });
     soundManager.playClick();
     setEditingStudent(null);
   };
 
-  const groupedStudents = teams.map(team => ({
+  const groupedStudents = teams.map((team) => ({
     team,
-    students: students.filter(s => s.team_id === team.id),
+    students: students.filter((student) => student.team_id === team.id)
   }));
-  const unassigned = students.filter(s => !s.team_id);
+  const unassignedStudents = students.filter((student) => !student.team_id);
 
   return (
     <div className="space-y-6">
       <div className="card-game">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-bold text-gray-800">👥 学员管理</h3>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowCreate(!showCreate)}
-            className="btn-game btn-primary text-sm py-2"
+            className="btn-game btn-primary py-2 text-sm"
           >
             {showCreate ? '取消' : '➕ 添加学员'}
           </motion.button>
@@ -71,42 +93,44 @@ export default function StudentManager() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mb-4 p-4 bg-gray-50 rounded-xl"
+              className="mb-4 rounded-xl bg-gray-50 p-4"
             >
-              <div className="flex gap-3 mb-3">
+              <div className="mb-3 flex gap-3">
                 <input
                   type="text"
                   value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  onChange={(event) => setNewName(event.target.value)}
                   placeholder="学员姓名"
-                  className="flex-1 px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-pink-400 outline-none"
+                  className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-2 outline-none focus:border-pink-400"
                 />
                 <select
                   value={newTeamId}
-                  onChange={(e) => setNewTeamId(e.target.value)}
-                  className="px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-pink-400 outline-none"
+                  onChange={(event) => setNewTeamId(event.target.value)}
+                  className="rounded-xl border-2 border-gray-200 px-4 py-2 outline-none focus:border-pink-400"
                 >
                   <option value="">选择战队（可选）</option>
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
                   ))}
                 </select>
                 <button
                   onClick={handleCreate}
                   disabled={!newName.trim()}
-                  className="px-6 py-2 rounded-xl font-bold text-white bg-pink-500 disabled:opacity-50"
+                  className="rounded-xl bg-pink-500 px-6 py-2 font-bold text-white disabled:opacity-50"
                 >
                   添加
                 </button>
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 {AVATARS.map((avatar) => (
                   <button
                     key={avatar}
                     onClick={() => setNewAvatar(avatar)}
-                    className={`w-10 h-10 rounded-lg text-2xl transition-all ${
-                      newAvatar === avatar ? 'bg-pink-500 scale-110 shadow-lg' : 'bg-white hover:bg-gray-100'
+                    className={`h-10 w-10 rounded-lg text-2xl transition-all ${
+                      newAvatar === avatar ? 'scale-110 bg-pink-500 shadow-lg' : 'bg-white hover:bg-gray-100'
                     }`}
                   >
                     {avatar}
@@ -117,44 +141,43 @@ export default function StudentManager() {
           )}
         </AnimatePresence>
 
-        {/* 学员列表 */}
         <div className="space-y-4">
-          {groupedStudents.map(({ team, students: teamStudents }) => (
-            teamStudents.length > 0 && (
+          {groupedStudents.map(({ team, students: teamStudents }) =>
+            teamStudents.length > 0 ? (
               <div key={team.id}>
-                <div className="flex items-center gap-2 mb-2 px-2" style={{ color: team.color }}>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: team.color }} />
+                <div className="mb-2 flex items-center gap-2 px-2" style={{ color: team.color }}>
+                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
                   <span className="font-bold">{team.name}</span>
                   <span className="text-sm text-gray-500">({teamStudents.length}人)</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                   {teamStudents.map((student) => (
                     <StudentItem
                       key={student.id}
                       student={student}
                       onEdit={() => setEditingStudent({ ...student })}
-                      onDelete={() => handleDelete(student.id)}
+                      onDelete={() => handleDeleteRequest(student)}
                       onModifyScore={() => setScoreModifyStudent(student)}
                     />
                   ))}
                 </div>
               </div>
-            )
-          ))}
+            ) : null
+          )}
 
-          {unassigned.length > 0 && (
+          {unassignedStudents.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-2 px-2 text-gray-500">
+              <div className="mb-2 flex items-center gap-2 px-2 text-gray-500">
                 <span className="font-bold">未分配战队</span>
-                <span className="text-sm">({unassigned.length}人)</span>
+                <span className="text-sm">({unassignedStudents.length}人)</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {unassigned.map((student) => (
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {unassignedStudents.map((student) => (
                   <StudentItem
                     key={student.id}
                     student={student}
                     onEdit={() => setEditingStudent({ ...student })}
-                    onDelete={() => handleDelete(student.id)}
+                    onDelete={() => handleDeleteRequest(student)}
                     onModifyScore={() => setScoreModifyStudent(student)}
                   />
                 ))}
@@ -163,46 +186,52 @@ export default function StudentManager() {
           )}
 
           {students.length === 0 && (
-            <p className="text-center text-gray-400 py-8">还没有学员，点击上方按钮添加</p>
+            <p className="py-8 text-center text-gray-400">还没有学员，点击上方按钮添加</p>
           )}
         </div>
       </div>
 
-      {/* 编辑弹窗 */}
       <AnimatePresence>
         {editingStudent && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
             onClick={() => setEditingStudent(null)}
           >
             <motion.div
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.9 }}
-              className="bg-white rounded-2xl p-6 max-w-md w-full"
-              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl bg-white p-6"
+              onClick={(event) => event.stopPropagation()}
             >
-              <h3 className="text-xl font-bold mb-4">编辑学员</h3>
-              
+              <h3 className="mb-4 text-xl font-bold">编辑学员</h3>
+
               <div className="space-y-4">
                 <input
                   type="text"
                   value={editingStudent.name}
-                  onChange={(e) => setEditingStudent({ ...editingStudent, name: e.target.value })}
-                  className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-pink-400 outline-none"
+                  onChange={(event) => setEditingStudent({ ...editingStudent, name: event.target.value })}
+                  className="w-full rounded-xl border-2 border-gray-200 px-4 py-2 outline-none focus:border-pink-400"
                 />
-                
+
                 <select
                   value={editingStudent.team_id || ''}
-                  onChange={(e) => setEditingStudent({ ...editingStudent, team_id: e.target.value ? parseInt(e.target.value) : null })}
-                  className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-pink-400 outline-none"
+                  onChange={(event) =>
+                    setEditingStudent({
+                      ...editingStudent,
+                      team_id: event.target.value ? parseInt(event.target.value, 10) : null
+                    })
+                  }
+                  className="w-full rounded-xl border-2 border-gray-200 px-4 py-2 outline-none focus:border-pink-400"
                 >
                   <option value="">无战队</option>
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
                   ))}
                 </select>
 
@@ -211,8 +240,8 @@ export default function StudentManager() {
                     <button
                       key={avatar}
                       onClick={() => setEditingStudent({ ...editingStudent, avatar })}
-                      className={`w-10 h-10 rounded-lg text-2xl transition-all ${
-                        editingStudent.avatar === avatar ? 'bg-pink-500 scale-110' : 'bg-gray-100'
+                      className={`h-10 w-10 rounded-lg text-2xl transition-all ${
+                        editingStudent.avatar === avatar ? 'scale-110 bg-pink-500' : 'bg-gray-100'
                       }`}
                     >
                       {avatar}
@@ -221,16 +250,16 @@ export default function StudentManager() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="mt-6 flex gap-3">
                 <button
                   onClick={() => setEditingStudent(null)}
-                  className="flex-1 py-2 rounded-xl font-bold text-gray-600 bg-gray-100"
+                  className="flex-1 rounded-xl bg-gray-100 py-2 font-bold text-gray-600"
                 >
                   取消
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="flex-1 py-2 rounded-xl font-bold text-white bg-pink-500"
+                  className="flex-1 rounded-xl bg-pink-500 py-2 font-bold text-white"
                 >
                   保存
                 </button>
@@ -240,12 +269,34 @@ export default function StudentManager() {
         )}
       </AnimatePresence>
 
-      {/* 积分修改弹窗 */}
       <AnimatePresence>
         {scoreModifyStudent && (
           <ScoreModifier student={scoreModifyStudent} onClose={() => setScoreModifyStudent(null)} />
         )}
       </AnimatePresence>
+
+      <DangerConfirmModal
+        open={Boolean(pendingDeleteStudent)}
+        title="删除学员档案？"
+        description="这个学员会从当前班级中移除，系统会同步清理他的宠物成长、积分记录、评分会话、结营报告与奖状数据。"
+        subjectLabel={pendingDeleteStudent ? `${pendingDeleteStudent.avatar} ${pendingDeleteStudent.name}` : ''}
+        impacts={[
+          '学员会立即从管理页和展示页中消失。',
+          '该学员对应的宠物、积分日志、评分会话、结营报告和奖状会一起删除。',
+          '这是不可撤回的操作，请确认不是误点。'
+        ]}
+        errorMessage={deleteError}
+        busy={deleteBusy}
+        confirmLabel="确认删除学员"
+        cancelLabel="先保留"
+        testId="danger-confirm-student"
+        onCancel={() => {
+          if (deleteBusy) return;
+          setPendingDeleteStudent(null);
+          setDeleteError('');
+        }}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
@@ -257,11 +308,11 @@ function StudentItem({ student, onEdit, onDelete, onModifyScore }) {
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
-      className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100"
+      className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
     >
       <span className="text-3xl">{student.avatar}</span>
-      <div className="flex-1 min-w-0">
-        <div className="font-bold text-gray-800 truncate">{student.name}</div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-bold text-gray-800">{student.name}</div>
         <div className="flex items-center gap-1 text-sm">
           <span>{rank.icon}</span>
           <span style={{ color: rank.color }}>{rank.name}</span>
@@ -289,21 +340,24 @@ function StudentItem({ student, onEdit, onDelete, onModifyScore }) {
       <div className="flex gap-1">
         <button
           onClick={onModifyScore}
-          className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 font-bold"
+          data-testid={`student-score-${student.id}`}
+          className="rounded-lg bg-green-100 p-2 font-bold text-green-600 hover:bg-green-200"
           title="修改积分"
         >
-          ±
+          卤
         </button>
         <button
           onClick={onEdit}
-          className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200"
+          data-testid={`student-edit-${student.id}`}
+          className="rounded-lg bg-blue-100 p-2 text-blue-600 hover:bg-blue-200"
           title="编辑"
         >
-          ✏️
+          ✍️
         </button>
         <button
           onClick={onDelete}
-          className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+          data-testid={`student-delete-${student.id}`}
+          className="rounded-lg bg-red-100 p-2 text-red-600 hover:bg-red-200"
           title="删除"
         >
           🗑️

@@ -1,0 +1,6 @@
+Pet preview source and derived crops:
+- Kenney "Animal Pack Redux" preview artwork
+- License: CC0 1.0 Universal
+- Source page: https://www.construct.net/en/game-assets/construct-free-bundled-assets/animal-pack-redux-4996
+
+This project uses cropped derivative avatars made from the public CC0 preview sheet.

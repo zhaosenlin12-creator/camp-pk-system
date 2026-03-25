@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
+import BrandMark from '../components/BrandMark';
 import ClassSelector from '../components/ClassSelector';
 import TeamCard from '../components/TeamCard';
 import StudentCard from '../components/StudentCard';
@@ -146,13 +147,16 @@ export default function DisplayPage() {
     <div className="min-h-screen p-6">
       <header className="mb-8 text-center">
         <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="inline-block">
-          <h1
-            className="mb-2 text-5xl font-black text-white drop-shadow-lg"
-            style={{ textShadow: '3px 3px 0 #FF6B6B, 6px 6px 0 rgba(0,0,0,0.1)' }}
-          >
-            乐启享班级大作战
-          </h1>
-          <p className="text-lg text-white/80">团队 PK、个人成长、宠物养成和展示评分都在同一个大屏里。</p>
+          <BrandMark
+            className="justify-center text-left"
+            imageClassName="h-20 w-20 md:h-24 md:w-24"
+            imageWrapperClassName="bg-white/92 ring-4 ring-white/30"
+            title="乐享宠物"
+            titleClassName="text-4xl font-black text-white md:text-5xl"
+            titleStyle={{ textShadow: '3px 3px 0 #FF6B6B, 6px 6px 0 rgba(0,0,0,0.1)' }}
+            subtitle="团队 PK、个人成长、宠物养成和展示评分都在同一个大屏里。"
+            subtitleClassName="mt-2 max-w-xl text-base text-white/85 md:text-lg"
+          />
         </motion.div>
 
         <div className="mt-6 flex justify-center">

@@ -1,223 +1,191 @@
-# 🚀 创赛营积分PK系统 - 部署指南
+# 乐享宠物部署指南
 
-## 域名配置
+本文档以当前生产环境为准，避免继续使用旧的 `show.codebn.cn`、旧端口 `3001` 和手动覆盖静态文件的旧流程。
 
-- **展示页面**：`https://show.codebn.cn/`
-- **管理后台**：`https://show.codebn.cn/admin`
+## 生产环境基线
 
-## 服务器要求
+- 域名：`camp.codebn.cn`
+- 项目目录：`/www/wwwroot/camp-pk-system`
+- 运行用户：`game`
+- PM2 进程名：`camp-pk-system`
+- 服务端口：`3004`
+- Nginx / 宝塔反代目标：`127.0.0.1:3004`
 
-- Node.js 18+ 
-- 内存：512MB+
-- 磁盘：1GB+
+## 一次性准备
 
----
-
-## 一、服务器部署步骤
-
-### 1. 上传项目文件
+### 1. 安装运行环境
 
 ```bash
-# 上传整个 camp-pk-system 目录到服务器
-scp -r camp-pk-system user@your-server:/var/www/
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+yum install -y nodejs git
+npm install -g pm2
 ```
 
-### 2. 安装依赖
+### 2. 用 `game` 用户部署项目
 
 ```bash
-cd /var/www/camp-pk-system
-npm install --production
-```
-
-### 3. 构建前端（如果需要）
-
-```bash
+su - game
+cd /www/wwwroot
+git clone https://github.com/zhaosenlin12-creator/camp-pk-system.git
+cd camp-pk-system
+npm install
 cd client
 npm install
-npm run build
 cd ..
+npm run build
 ```
 
-### 4. 使用 PM2 启动（推荐）
+### 3. 准备持久化数据
+
+如果是第一次部署，直接初始化：
 
 ```bash
-# 安装 PM2
-npm install -g pm2
+cd /www/wwwroot/camp-pk-system
+npm run init-db
+```
 
-# 启动服务
+如果是从旧目录迁移，至少保留这 3 类文件：
+
+- `database/data.json`
+- `uploads/photos/`
+- `.secrets.enc`
+
+## PM2 启动
+
+项目已内置 `ecosystem.config.js`，生产端口固定为 `3004`。
+
+```bash
+su - game
+cd /www/wwwroot/camp-pk-system
 pm2 start ecosystem.config.js --env production
-
-# 设置开机自启
-pm2 startup
 pm2 save
 ```
 
-### 5. 直接启动（测试用）
+确认状态：
 
 ```bash
-NODE_ENV=production node server/index.js
+pm2 list
+pm2 logs camp-pk-system --lines 100
 ```
 
----
+## 宝塔 / Nginx 反向代理
 
-## 二、Nginx 反向代理配置
+### 推荐配置
 
-创建 `/etc/nginx/sites-available/show.codebn.cn`：
+在站点 `camp.codebn.cn` 的反向代理配置中，使用下面的完整配置。重点是：
+
+- 精确首页 `location = /` 单独禁止代理缓存
+- 常规路由 `location ^~ /` 统一代理到 `3004`
+- 不要启用宝塔的 “Set Nginx Cache” 功能
 
 ```nginx
-server {
-    listen 80;
-    server_name show.codebn.cn;
-    return 301 https://$server_name$request_uri;
+location = / {
+    proxy_pass http://127.0.0.1:3004;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_http_version 1.1;
+
+    proxy_no_cache 1;
+    proxy_cache_bypass 1;
+    expires -1;
+    add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate" always;
 }
 
-server {
-    listen 443 ssl http2;
-    server_name show.codebn.cn;
+location ^~ / {
+    proxy_pass http://127.0.0.1:3004;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_http_version 1.1;
 
-    # SSL证书配置
-    ssl_certificate /etc/letsencrypt/live/show.codebn.cn/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/show.codebn.cn/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
+    add_header X-Cache $upstream_cache_status;
 
-    location / {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
+    set $static_file_cache 0;
+    if ($uri ~* "\\.(gif|png|jpg|css|js|woff|woff2)$") {
+        set $static_file_cache 1;
+        expires 1m;
     }
-
-    # 视频文件缓存
-    location /videos/ {
-        proxy_pass http://127.0.0.1:3001/videos/;
-        proxy_cache_valid 200 7d;
-        add_header Cache-Control "public, max-age=604800";
+    if ($static_file_cache = 0) {
+        add_header Cache-Control no-cache always;
     }
 }
 ```
 
-启用配置：
-```bash
-ln -s /etc/nginx/sites-available/show.codebn.cn /etc/nginx/sites-enabled/
-nginx -t
-systemctl reload nginx
-```
+### 清理宝塔代理缓存
 
----
-
-## 三、HTTPS 配置
-
-使用 Let's Encrypt 免费证书：
+如果首页还是旧版，先清理缓存目录再 reload：
 
 ```bash
-# 安装 certbot
-apt install certbot python3-certbot-nginx
-
-# 获取证书
-certbot --nginx -d show.codebn.cn
-
-# 自动续期测试
-certbot renew --dry-run
+rm -rf /www/server/nginx/proxy_cache_dir/*
+nginx -t && systemctl reload nginx
 ```
 
----
+## 验证命令
 
-## 四、环境变量配置
-
-可以通过环境变量自定义配置：
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| PORT | 服务端口 | 3001 |
-| NODE_ENV | 环境模式 | development |
-| ADMIN_PIN | 管理员密码 | 生产环境必须显式配置，不再提供默认密码 |
-| ALLOWED_ORIGIN | 允许的跨域来源 | * |
-
-示例：
-```bash
-ADMIN_PIN=your_secure_password PORT=3001 pm2 start ecosystem.config.js --env production
-```
-
----
-
-## 五、数据备份
-
-数据存储在 `database/data.json`，建议定期备份：
+### 1. 验证本机 Node 服务
 
 ```bash
-# 创建备份脚本 /var/www/camp-pk-system/backup.sh
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-cp /var/www/camp-pk-system/database/data.json /var/backups/camp-pk/data_$DATE.json
-
-# 添加到 crontab（每天凌晨2点备份）
-0 2 * * * /var/www/camp-pk-system/backup.sh
+curl -s http://127.0.0.1:3004/ | grep -E 'title|assets/index-'
+curl -s http://127.0.0.1:3004/admin | grep -E 'title|assets/index-'
+curl -I -s http://127.0.0.1:3004/ | grep -i cache-control
 ```
 
----
+### 2. 验证公网域名
 
-## 六、访问地址
-
-部署完成后：
-
-- **展示页面**：`https://show.codebn.cn/`（学生/家长查看）
-- **管理后台**：`https://show.codebn.cn/admin`（老师管理，请使用部署时设置的 `ADMIN_PIN` 登录）
-
----
-
-## 七、在教学系统中添加入口
-
-在你的教学系统中添加跳转链接：
-
-```html
-<a href="https://show.codebn.cn" target="_blank" class="btn">
-  🏆 查看创赛营积分PK
-</a>
+```bash
+curl -s https://camp.codebn.cn/ | grep -E 'title|assets/index-'
+curl -s https://camp.codebn.cn/admin | grep -E 'title|assets/index-'
+curl -s https://camp.codebn.cn/api/version
+curl -I -s https://camp.codebn.cn/ | grep -iE 'cache-control|content-length|etag'
 ```
 
-或使用 iframe 嵌入（需要同源或配置CORS）：
+验收通过标准：
 
-```html
-<iframe 
-  src="https://show.codebn.cn" 
-  width="100%" 
-  height="600" 
-  frameborder="0"
-  allow="autoplay"
-></iframe>
+- `/` 和 `/admin` 都返回 `乐享宠物`
+- `/` 和 `/admin` 都引用同一组资源文件
+- `/api/version` 返回同一组 JS/CSS 文件名
+
+## 首次切换为 Git 更新模式
+
+如果服务器现在还是“解压覆盖”的目录，推荐改成 Git 管理，后续直接 `git pull`：
+
+```bash
+su - game
+cd /www/wwwroot
+mv camp-pk-system camp-pk-system.backup-$(date +%Y%m%d-%H%M%S)
+git clone https://github.com/zhaosenlin12-creator/camp-pk-system.git
+cd camp-pk-system
+mkdir -p database uploads/photos
 ```
 
----
+然后把旧目录里的这几个文件复制回来：
 
-## 八、常见问题
+- `database/data.json`
+- `uploads/photos/`
+- `.secrets.enc`
 
-### Q: 视频无法播放？
-A: 检查 `public/videos/` 目录下的视频文件是否存在，格式是否为 MP4。
+再执行：
 
-### Q: 忘记管理员密码？
-A: 修改环境变量 `ADMIN_PIN` 或直接修改 `server/index.js` 中的默认密码。
+```bash
+npm install
+cd client
+npm install
+cd ..
+npm run build
+pm2 restart camp-pk-system --update-env
+pm2 save
+```
 
-### Q: 数据丢失？
-A: 从备份恢复 `database/data.json` 文件。
+## 运维注意事项
 
----
-
-## 九、安全检查清单
-
-- [x] 输入验证和过滤
-- [x] API 请求频率限制
-- [x] 管理员登录防暴力破解
-- [x] 安全响应头 (Helmet)
-- [x] 请求体大小限制
-- [ ] HTTPS（部署时配置）
-- [ ] 定期数据备份（部署时配置）
-
----
-
-*最后更新：2026年1月*
+- 管理员密码不要写进仓库，使用 `.secrets.enc` 或 `ADMIN_PIN` 环境变量
+- 构建后由 Node 服务统一托管 `client/dist`
+- `database/data.json`、`uploads/photos/`、`.secrets.enc` 都属于生产数据，更新代码时不要覆盖
+- 如果首页与 `/admin` 版本不一致，优先排查反代缓存，不要先怀疑前端包

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import PetArtwork from './PetArtwork';
 import { getPetCareItems, getPetPowerTone, getStudentPetJourney, getStudentPetUnlockStatus } from '../utils/petJourney';
@@ -248,6 +248,12 @@ export default function PetProfileModal({
   const [previewMode, setPreviewMode] = useState('current');
   const powerTone = getPetPowerTone(journey.power_score);
   const accent = journey.accent || meta?.accent || '#F59E0B';
+  const hasPlayedOpenToneRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -256,18 +262,30 @@ export default function PetProfileModal({
   }, [journey.stage_level, open]);
 
   useEffect(() => {
-    if (!open) return undefined;
-    soundManager.playPetProfileOpen();
+    if (!open) {
+      hasPlayedOpenToneRef.current = false;
+      return undefined;
+    }
 
+    if (!hasPlayedOpenToneRef.current) {
+      soundManager.playPetProfileOpen();
+      hasPlayedOpenToneRef.current = true;
+    }
+
+    return undefined;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current?.();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, open]);
+  }, [open]);
 
   if (!open) return null;
 
