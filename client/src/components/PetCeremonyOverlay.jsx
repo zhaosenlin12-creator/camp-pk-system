@@ -196,6 +196,40 @@ function MilestoneCard({ label, value, delta, accent, delay = 0 }) {
   );
 }
 
+function CeremonyStepTrack({ steps, accent = '#38bdf8' }) {
+  return (
+    <div className="mt-6 grid gap-3 md:grid-cols-3">
+      {steps.map((step, index) => (
+        <motion.div
+          key={step.title}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 + index * 0.08 }}
+          className="rounded-[26px] border border-white/70 bg-white/84 px-4 py-4 shadow-sm"
+          style={{ boxShadow: `0 18px 36px ${accent}12` }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white shadow-sm"
+              style={{ backgroundColor: accent }}
+            >
+              {index + 1}
+            </span>
+            <span
+              className="rounded-full px-3 py-1 text-[10px] font-black shadow-sm"
+              style={{ backgroundColor: `${accent}16`, color: accent }}
+            >
+              {step.badge}
+            </span>
+          </div>
+          <div className="mt-3 text-base font-black text-slate-800">{step.title}</div>
+          <div className="mt-2 text-sm leading-6 text-slate-500">{step.description}</div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 function CeremonyStageCard({
   title,
   subtitle,
@@ -209,7 +243,9 @@ function CeremonyStageCard({
   accent = '#38bdf8',
   rarityMeta = CEREMONY_RARITY_META.common,
   variant = 'after',
-  delay = 0
+  delay = 0,
+  effectKey = null,
+  effectPhase = 'active'
 }) {
   const isAfter = variant === 'after';
 
@@ -305,6 +341,8 @@ function CeremonyStageCard({
               className={`flex items-center justify-center ${isAfter ? 'h-[178px] w-[178px]' : 'h-[170px] w-[170px]'}`}
               imageClassName={`${isAfter ? 'h-[156px] w-[156px]' : 'h-[150px] w-[150px]'} object-contain drop-shadow-[0_18px_30px_rgba(15,23,42,0.18)]`}
               fallbackClassName="text-6xl"
+              effectKey={effectKey}
+              effectPhase={effectPhase}
             />
           </div>
           <div
@@ -433,6 +471,66 @@ function getCeremonyMemoryCopy(action) {
   return '这是学生能明显感觉到“我的宠物真的升级了”的那种主角时刻。';
 }
 
+function getCeremonySteps(action) {
+  if (action === 'claim') {
+    return [
+      {
+        title: '选定伙伴',
+        badge: '选择完成',
+        description: '先确认学生真正喜欢的伙伴，让后续成长线从拥有感开始。'
+      },
+      {
+        title: '收藏位点亮',
+        badge: '正式报到',
+        description: '这只宠物会进入收藏架，后续所有课堂积分和照料都会围绕它展开。'
+      },
+      {
+        title: '进入孵化准备',
+        badge: '期待升温',
+        description: '先以宠物蛋形态陪伴，再用课堂努力把它正式孵化出来。'
+      }
+    ];
+  }
+
+  if (action === 'hatch') {
+    return [
+      {
+        title: '课堂能量汇聚',
+        badge: '成长达标',
+        description: '积分和照料次数已经满足，孵化不再是等待，而是公开兑现。'
+      },
+      {
+        title: '蛋壳震动点亮',
+        badge: '破壳瞬间',
+        description: '会先看到明显的蓄能和破壳动作，让学生感知到“它真的要出生了”。'
+      },
+      {
+        title: '新伙伴正式出生',
+        badge: '奖励落地',
+        description: '出生后的主宠会直接进入正式培养阶段，课堂反馈会更真实。'
+      }
+    ];
+  }
+
+  return [
+    {
+      title: '成长值满载',
+      badge: '条件满足',
+      description: '课堂表现、照料质量和稳定成长已经累积到进化阈值。'
+    },
+    {
+      title: '能量重构升阶',
+      badge: '形态跃迁',
+      description: '主宠会先进入充能与重构，让进化更像一次真实升阶而不是普通切图。'
+    },
+    {
+      title: '守护形态公开亮相',
+      badge: '高光公开',
+      description: '进化完成后会成为更适合展示和奖励的高阶主角形态。'
+    }
+  ];
+}
+
 export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
   useEffect(() => {
     if (!ceremony) return undefined;
@@ -449,7 +547,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
 
     const autoCloseId = window.setTimeout(() => {
       onClose();
-    }, ceremony.action === 'evolve' ? 6200 : ceremony.action === 'claim' ? 5400 : 5600);
+    }, ceremony.action === 'evolve' ? 7000 : ceremony.action === 'claim' ? 6000 : 6400);
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -492,6 +590,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
     || (ceremony.action === 'claim' ? '专属宠物蛋' : ceremony.action === 'hatch' ? '初生形态' : '进化形态');
   const metricCards = getCeremonyMetricCards(ceremony, previousJourney, nextJourney);
   const transitionCopy = getCeremonyTransitionCopy(ceremony, previousJourney, stageName);
+  const ceremonySteps = getCeremonySteps(ceremony.action);
   const beforePet = ceremony.action === 'claim' ? ceremony.previousPet || null : ceremony.pet;
   const heroIcon = ceremony.action === 'evolve' ? '✨' : ceremony.action === 'claim' ? '🎀' : '🥚';
   const showTargetPreview = ceremony.action === 'claim' && ceremony.pet;
@@ -579,6 +678,11 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                   <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${getPetPowerTone(nextJourney.power_score || 0).bg} ${getPetPowerTone(nextJourney.power_score || 0).text}`}>
                     培养力 {nextJourney.power_score || 0}
                   </span>
+                  {ceremony.pet?.seriesLabel && (
+                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
+                      {ceremony.pet.seriesLabel}
+                    </span>
+                  )}
                   <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${rarityMeta.badgeClass}`}>
                     {rarityMeta.label}
                   </span>
@@ -619,6 +723,8 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
               </div>
             </div>
 
+            <CeremonyStepTrack steps={ceremonySteps} accent={milestoneAccent} />
+
             <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_112px_minmax(0,1fr)]">
               <CeremonyStageCard
                 title={transitionCopy.beforeTitle}
@@ -634,6 +740,8 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                 rarityMeta={beforeRarityMeta}
                 variant="before"
                 delay={0.08}
+                effectKey={ceremony.action}
+                effectPhase={ceremony.action === 'claim' ? 'active' : 'charging'}
               />
 
               <div className="hidden items-center justify-center lg:flex">
@@ -669,6 +777,8 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                 rarityMeta={rarityMeta}
                 variant="after"
                 delay={0.16}
+                effectKey={ceremony.action}
+                effectPhase={ceremony.action === 'evolve' ? 'ascend' : 'burst'}
               />
             </div>
 
@@ -715,6 +825,8 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                         className="flex h-14 w-14 items-center justify-center"
                         imageClassName="h-12 w-12 object-contain"
                         fallbackClassName="text-3xl"
+                        effectKey="claim"
+                        effectPhase="burst"
                       />
                     </div>
                     <div>

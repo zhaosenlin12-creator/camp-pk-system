@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../utils/sounds';
+import { getLotteryEffectChips, getLotteryEffectSummary } from '../utils/lotteryEffects';
 
-export default function LotteryWheel({ items, type, onClose, onResult, onStartPunishment }) {
+export default function LotteryWheel({ items, type, targetType = 'student', onClose, onResult, onStartPunishment }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const [slots, setSlots] = useState([0, 0, 0]);
@@ -207,6 +208,11 @@ export default function LotteryWheel({ items, type, onClose, onResult, onStartPu
               exit={{ scale: 0, y: 50 }}
               className="mt-6"
             >
+              {(() => {
+                const effectChips = getLotteryEffectChips(result, { targetType });
+                const effectSummary = getLotteryEffectSummary(result, { targetType });
+
+                return (
               <div className={`rounded-3xl p-6 md:p-8 text-center ${
                 type === 'reward'
                   ? 'bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400'
@@ -228,6 +234,25 @@ export default function LotteryWheel({ items, type, onClose, onResult, onStartPu
                 <p className="text-lg md:text-xl text-white/90 mb-6">
                   {result.description}
                 </p>
+
+                {effectSummary && (
+                  <div className="mb-5 rounded-2xl bg-white/16 px-4 py-3 text-sm font-bold text-white/95">
+                    {effectSummary}
+                  </div>
+                )}
+
+                {effectChips.length > 0 && (
+                  <div className="mb-6 flex flex-wrap justify-center gap-2">
+                    {effectChips.map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-full bg-white/22 px-3 py-1 text-sm font-bold text-white shadow-sm"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   {type === 'punishment' && onStartPunishment && (
@@ -250,6 +275,8 @@ export default function LotteryWheel({ items, type, onClose, onResult, onStartPu
                   </motion.button>
                 </div>
               </div>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>

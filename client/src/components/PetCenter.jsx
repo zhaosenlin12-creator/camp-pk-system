@@ -47,7 +47,7 @@ const RARITY_META = {
   }
 };
 
-const FILTERS = [
+const RARITY_FILTERS = [
   { key: 'all', label: '全部' },
   { key: 'common', label: '常见' },
   { key: 'rare', label: '稀有' },
@@ -67,6 +67,16 @@ const ROSTER_FILTERS = [
   { key: 'egg', label: '蛋态培养' },
   { key: 'pet', label: '已孵化' }
 ];
+
+const SERIES_FALLBACK_META = {
+  key: 'classic',
+  label: '课堂经典伙伴系列',
+  badge: '原版主线',
+  description: '延续当前课堂主宠的柔和主角风格，适合作为班级最稳妥的日常培养主线。',
+  order: 0,
+  accent: '#38bdf8',
+  theme: '#FFF7ED'
+};
 
 const ACTION_META = {
   feed: {
@@ -124,6 +134,60 @@ const ACTION_META = {
     badgeClass: 'bg-fuchsia-100 text-fuchsia-700',
     badge: '高光时刻'
   }
+};
+
+const HERO_EFFECT_META = {
+  feed: {
+    label: '喂养联动',
+    activeLabel: '主宠正在进食',
+    successLabel: '饱腹感已同步提升',
+    description: '顶部主宠会同步抬头、轻晃和回暖，让学生能直接看到喂养反馈。',
+    accent: '#f59e0b'
+  },
+  play: {
+    label: '互动联动',
+    activeLabel: '主宠正在陪玩',
+    successLabel: '心情值已被点亮',
+    description: '按钮触发后主宠会更明显地跳动回应，课堂互动感会更强。',
+    accent: '#ec4899'
+  },
+  clean: {
+    label: '护理联动',
+    activeLabel: '主宠正在焕新',
+    successLabel: '清洁状态已刷新',
+    description: '会出现焕新波纹和闪光感，让清洁不只是数字变化。',
+    accent: '#14b8a6'
+  },
+  hatch: {
+    label: '孵化仪式',
+    activeLabel: '蛋壳正在蓄能',
+    successLabel: '破壳亮相中',
+    description: '先看到蛋壳震动，再进入公开亮相仪式，仪式感会更完整。',
+    accent: '#f59e0b'
+  },
+  evolve: {
+    label: '进化仪式',
+    activeLabel: '形态正在跃迁',
+    successLabel: '高阶形态已点亮',
+    description: '会先进入能量充能，再看到主宠明显升阶和发光。',
+    accent: '#d946ef'
+  },
+  claim: {
+    label: '新宠报到',
+    activeLabel: '新伙伴正在入场',
+    successLabel: '收藏位已点亮',
+    description: '新宠领取也会有入场感，让收藏位切换更像正式报到。',
+    accent: '#38bdf8'
+  }
+};
+
+const HERO_EFFECT_DURATIONS = {
+  claim: 3400,
+  feed: 2400,
+  play: 2500,
+  clean: 2400,
+  hatch: 4200,
+  evolve: 4800
 };
 
 const JOURNEY_METRIC_LABELS = {
@@ -231,6 +295,72 @@ const RARITY_ORDER = {
   rare: 2,
   common: 3
 };
+
+function getPetSeriesMeta(pet) {
+  return {
+    key: pet?.seriesKey || SERIES_FALLBACK_META.key,
+    label: pet?.seriesLabel || SERIES_FALLBACK_META.label,
+    badge: pet?.seriesBadge || SERIES_FALLBACK_META.badge,
+    description: pet?.seriesDescription || SERIES_FALLBACK_META.description,
+    order: Number.isFinite(Number(pet?.seriesOrder)) ? Number(pet.seriesOrder) : SERIES_FALLBACK_META.order,
+    accent: pet?.accent || SERIES_FALLBACK_META.accent,
+    theme: pet?.theme || SERIES_FALLBACK_META.theme
+  };
+}
+
+function buildCatalogSeriesFilters(pets) {
+  const seriesMap = new Map();
+
+  pets.forEach((pet) => {
+    const meta = getPetSeriesMeta(pet);
+    const existing = seriesMap.get(meta.key);
+
+    if (existing) {
+      existing.count += 1;
+      return;
+    }
+
+    seriesMap.set(meta.key, {
+      ...meta,
+      count: 1
+    });
+  });
+
+  return [
+    {
+      key: 'all',
+      label: '全部系列',
+      badge: '图鉴总览',
+      description: '先按系列挑选视觉方向，再按稀有度和搜索词做精细筛选。',
+      accent: '#ec4899',
+      theme: '#FFF7ED',
+      order: -1,
+      count: pets.length
+    },
+    ...Array.from(seriesMap.values()).sort((left, right) => {
+      const orderDiff = left.order - right.order;
+      if (orderDiff !== 0) return orderDiff;
+      return left.label.localeCompare(right.label, 'zh-CN');
+    })
+  ];
+}
+
+function getHeroActionCueMeta(cue) {
+  if (!cue?.action) return null;
+  const meta = HERO_EFFECT_META[cue.action];
+  if (!meta) return null;
+
+  const title = cue.phase === 'charging'
+    ? meta.activeLabel
+    : cue.phase === 'ascend' || cue.phase === 'burst'
+      ? meta.successLabel
+      : meta.label;
+
+  return {
+    ...meta,
+    title
+  };
+}
 
 function createCatalogPreviewJourney(pet) {
   return {
@@ -883,6 +1013,7 @@ function StudentPetShelfCard({ slot, busy, onActivate, onPreview }) {
 
 function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPreview }) {
   const rarityMeta = RARITY_META[pet.rarity] || RARITY_META.common;
+  const seriesMeta = getPetSeriesMeta(pet);
   const selectedCollection = getStudentPetCollection(selectedStudent);
   const selectedCapacity = getStudentPetCapacity(selectedStudent);
   const ownedSlot = selectedCollection.find((slot) => slot.pet_id === pet.id) || null;
@@ -906,16 +1037,6 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
     buttonClassName = 'btn-game btn-orange flex-1 text-sm';
   }
 
-  const claimButtonLabel = !selectedStudent
-    ? '选学生'
-    : isCurrentPet
-      ? '已选中'
-      : ownedSlot
-        ? '切换'
-        : canClaimNewPet
-          ? '领取'
-          : '待解锁';
-
   return (
     <motion.article
       layout
@@ -926,9 +1047,15 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
       className={`card-game bg-gradient-to-b ${rarityMeta.cardClass} p-4 ${isCurrentPet ? 'ring-2 ring-cyan-200 ring-offset-2 ring-offset-white' : ''}`}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-3 py-1 text-xs font-black ${rarityMeta.badgeClass}`}>
             {rarityMeta.label}
+          </span>
+          <span
+            className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+            style={{ backgroundColor: `${seriesMeta.accent}18`, color: seriesMeta.accent }}
+          >
+            {seriesMeta.badge}
           </span>
           {isCurrentPet && (
             <span className="rounded-full bg-cyan-100 px-3 py-1 text-[11px] font-black text-cyan-700">当前绑定</span>
@@ -965,6 +1092,17 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
           <div>
             <div className="text-2xl font-black text-slate-800">{pet.name}</div>
             <div className="mt-1 text-sm font-medium text-slate-400">{pet.species}</div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                style={{ backgroundColor: `${seriesMeta.accent}16`, color: seriesMeta.accent }}
+              >
+                {seriesMeta.label}
+              </span>
+              <span className="rounded-full bg-white/92 px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
+                {seriesMeta.badge}
+              </span>
+            </div>
           </div>
           <div className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
             {ownerCount > 0 ? '已投入班级' : '等待首位主人'}
@@ -974,6 +1112,15 @@ function PetCatalogCard({ pet, ownerCount, selectedStudent, busy, onClaim, onPre
           <span>点击查看完整形态与成长档案</span>
           <span style={{ color: pet.accent }}>适合先预览再领取</span>
         </div>
+      </div>
+
+      <div
+        className="mt-4 rounded-2xl border border-white/80 px-3 py-3 text-[11px] font-bold leading-5 text-slate-500 shadow-sm"
+        style={{ background: `linear-gradient(135deg, rgba(255,255,255,0.94) 0%, ${pet.theme || '#FFF7ED'} 100%)` }}
+      >
+        <span className="font-black" style={{ color: pet.accent }}>{seriesMeta.label}</span>
+        {' '}
+        {seriesMeta.description}
       </div>
 
       <div className="mt-4 rounded-2xl bg-white/85 px-3 py-3 text-[11px] font-bold leading-5 text-slate-500 shadow-sm">
@@ -1047,6 +1194,7 @@ export default function PetCenter() {
   const { currentClass, students, pets, fetchPets, claimStudentPet, activateStudentPetSlot, runStudentPetAction } = useStore();
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [seriesFilter, setSeriesFilter] = useState('all');
   const [catalogSort, setCatalogSort] = useState('rarity');
   const [catalogQuery, setCatalogQuery] = useState('');
   const [rosterFilter, setRosterFilter] = useState('all');
@@ -1054,9 +1202,12 @@ export default function PetCenter() {
   const [profileTarget, setProfileTarget] = useState(null);
   const [ceremony, setCeremony] = useState(null);
   const [actionFeedback, setActionFeedback] = useState(null);
+  const [heroActionCue, setHeroActionCue] = useState(null);
   const [catalogReady, setCatalogReady] = useState(false);
   const catalogSectionRef = useRef(null);
+  const heroCueTimeoutRef = useRef(null);
   const deferredActiveFilter = useDeferredValue(activeFilter);
+  const deferredSeriesFilter = useDeferredValue(seriesFilter);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
 
   useEffect(() => {
@@ -1090,7 +1241,18 @@ export default function PetCenter() {
 
   useEffect(() => {
     setActionFeedback(null);
+    if (heroCueTimeoutRef.current) {
+      window.clearTimeout(heroCueTimeoutRef.current);
+      heroCueTimeoutRef.current = null;
+    }
+    setHeroActionCue(null);
   }, [selectedStudentId]);
+
+  useEffect(() => () => {
+    if (heroCueTimeoutRef.current) {
+      window.clearTimeout(heroCueTimeoutRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!actionFeedback) return undefined;
@@ -1124,6 +1286,7 @@ export default function PetCenter() {
   const selectedSpotlightTheme = selectedJourney.theme || selectedStudent?.pet?.theme || '#FFF7ED';
   const selectedSpotlightRarity = RARITY_META[selectedStudent?.pet?.rarity] || RARITY_META.rare;
   const selectedSpotlightBadge = selectedStudent?.pet?.badge || selectedJourney.power_label;
+  const selectedSpotlightSeries = getPetSeriesMeta(selectedStudent?.pet);
   const summary = getClassPetSummary(students);
 
   const ownerCountByPet = useMemo(
@@ -1222,6 +1385,23 @@ export default function PetCenter() {
     }
   };
 
+  const triggerHeroCue = (action, phase = 'active', duration = HERO_EFFECT_DURATIONS[action] || 2400) => {
+    if (heroCueTimeoutRef.current) {
+      window.clearTimeout(heroCueTimeoutRef.current);
+    }
+
+    setHeroActionCue({
+      action,
+      phase,
+      token: `${action}-${Date.now()}`
+    });
+
+    heroCueTimeoutRef.current = window.setTimeout(() => {
+      setHeroActionCue(null);
+      heroCueTimeoutRef.current = null;
+    }, duration);
+  };
+
   const handleClaim = async (pet) => {
     if (!selectedStudent) {
       window.alert('请先选择学生');
@@ -1229,6 +1409,7 @@ export default function PetCenter() {
     }
 
     setBusyKey(`claim-${pet.id}`);
+    triggerHeroCue('claim', 'active', HERO_EFFECT_DURATIONS.claim);
     try {
       const previousCollection = getStudentPetCollection(selectedStudent);
       const previousOwnedSlot = previousCollection.find((slot) => slot.pet_id === pet.id) || null;
@@ -1241,6 +1422,7 @@ export default function PetCenter() {
       const addedNewPet = !previousOwnedSlot && nextCollection.length > previousCollection.length;
 
       if (addedNewPet && claimedSlot) {
+        triggerHeroCue('claim', 'burst', HERO_EFFECT_DURATIONS.claim);
         setCeremony({
           action: 'claim',
           studentName: updatedStudent.name || selectedStudent.name,
@@ -1263,6 +1445,7 @@ export default function PetCenter() {
         });
       }
     } catch (err) {
+      setHeroActionCue(null);
       window.alert(err.message || '领取宠物失败');
     } finally {
       setBusyKey('');
@@ -1318,12 +1501,18 @@ export default function PetCenter() {
     const previousJourney = { ...selectedJourney };
     setActionFeedback(null);
     setBusyKey(action);
+    triggerHeroCue(
+      action,
+      action === 'hatch' || action === 'evolve' ? 'charging' : 'active',
+      HERO_EFFECT_DURATIONS[action] || 2400
+    );
     try {
       const updatedStudent = await runStudentPetAction(selectedStudent.id, action);
       const nextJourney = getStudentPetJourney(updatedStudent);
 
       if (action === 'feed' || action === 'play' || action === 'clean') {
         playPetActionSound(action);
+        triggerHeroCue(action, 'burst', HERO_EFFECT_DURATIONS[action] || 2400);
         setActionFeedback(
           buildPetActionFeedback({
             action,
@@ -1336,6 +1525,7 @@ export default function PetCenter() {
       }
 
       if (action === 'hatch' && previousJourney.visual_state === 'egg' && nextJourney.visual_state === 'pet') {
+        triggerHeroCue('hatch', 'burst', HERO_EFFECT_DURATIONS.hatch);
         setCeremony({
           action: 'hatch',
           studentName: selectedStudent.name,
@@ -1347,6 +1537,7 @@ export default function PetCenter() {
       }
 
       if (action === 'evolve' && previousJourney.slot_state !== 'evolved' && nextJourney.slot_state === 'evolved') {
+        triggerHeroCue('evolve', 'ascend', HERO_EFFECT_DURATIONS.evolve);
         setCeremony({
           action: 'evolve',
           studentName: selectedStudent.name,
@@ -1357,6 +1548,7 @@ export default function PetCenter() {
         });
       }
     } catch (err) {
+      setHeroActionCue(null);
       window.alert(err.message || '宠物操作失败');
     } finally {
       setBusyKey('');
@@ -1365,12 +1557,22 @@ export default function PetCenter() {
 
   const careItems = getPetCareItems(selectedJourney);
   const tone = getPetStatusTone(selectedJourney);
-  const filterCounts = useMemo(
+  const heroCueMeta = getHeroActionCueMeta(heroActionCue);
+  const rarityFilterCounts = useMemo(
     () => pets.reduce((acc, pet) => {
       acc[pet.rarity] = (acc[pet.rarity] || 0) + 1;
       return acc;
     }, { all: pets.length }),
     [pets]
+  );
+  const seriesFilters = useMemo(() => buildCatalogSeriesFilters(pets), [pets]);
+  const activeSeriesMeta = useMemo(
+    () => seriesFilters.find((item) => item.key === deferredSeriesFilter) || seriesFilters[0] || {
+      ...SERIES_FALLBACK_META,
+      key: 'all',
+      count: pets.length
+    },
+    [deferredSeriesFilter, pets.length, seriesFilters]
   );
   const filteredPets = useMemo(() => {
     const normalizedQuery = deferredCatalogQuery.trim().toLowerCase();
@@ -1378,9 +1580,13 @@ export default function PetCenter() {
       ? [...pets]
       : pets.filter((pet) => pet.rarity === deferredActiveFilter);
 
+    if (deferredSeriesFilter !== 'all') {
+      nextPets = nextPets.filter((pet) => getPetSeriesMeta(pet).key === deferredSeriesFilter);
+    }
+
     if (normalizedQuery) {
       nextPets = nextPets.filter((pet) => {
-        const content = `${pet.name || ''} ${pet.species || ''} ${pet.quote || ''}`.toLowerCase();
+        const content = `${pet.name || ''} ${pet.species || ''} ${pet.quote || ''} ${pet.seriesLabel || ''} ${pet.seriesBadge || ''}`.toLowerCase();
         return content.includes(normalizedQuery);
       });
     }
@@ -1398,6 +1604,9 @@ export default function PetCenter() {
       const rarityDiff = (RARITY_ORDER[left.rarity] ?? 99) - (RARITY_ORDER[right.rarity] ?? 99);
       if (rarityDiff !== 0) return rarityDiff;
 
+      const seriesDiff = getPetSeriesMeta(left).order - getPetSeriesMeta(right).order;
+      if (seriesDiff !== 0) return seriesDiff;
+
       const popularityDiff = (ownerCountByPet[right.id] || 0) - (ownerCountByPet[left.id] || 0);
       if (popularityDiff !== 0) return popularityDiff;
 
@@ -1405,7 +1614,7 @@ export default function PetCenter() {
     });
 
     return nextPets;
-  }, [catalogSort, deferredActiveFilter, deferredCatalogQuery, ownerCountByPet, pets]);
+  }, [catalogSort, deferredActiveFilter, deferredCatalogQuery, deferredSeriesFilter, ownerCountByPet, pets]);
   const selectedStudentRank = useMemo(() => {
     if (!selectedStudent) return null;
     const index = powerLeaderboard.findIndex((entry) => String(entry.student.id) === String(selectedStudent.id));
@@ -1883,6 +2092,12 @@ export default function PetCenter() {
                     <div className="flex flex-wrap justify-end gap-2">
                       <span
                         className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                        style={{ backgroundColor: withAlpha(selectedSpotlightSeries.accent, '14'), color: selectedSpotlightSeries.accent }}
+                      >
+                        {selectedSpotlightSeries.label}
+                      </span>
+                      <span
+                        className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
                         style={{ backgroundColor: withAlpha(selectedSpotlightAccent, '14'), color: selectedSpotlightAccent }}
                       >
                         {selectedSpotlightBadge}
@@ -1912,17 +2127,77 @@ export default function PetCenter() {
                         <span className="rounded-full bg-white/92 px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
                           {selectedJourney.power_label}
                         </span>
+                        <span
+                          className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                          style={{ backgroundColor: withAlpha(selectedSpotlightSeries.accent, '16'), color: selectedSpotlightSeries.accent }}
+                        >
+                          {selectedSpotlightSeries.badge}
+                        </span>
                       </div>
 
-                      <div className="pet-hero-frame mx-auto mt-4 flex h-56 w-full items-center justify-center rounded-[28px] bg-white/92">
+                      <div
+                        className="pet-hero-frame mx-auto mt-4 flex h-56 w-full items-center justify-center rounded-[28px] bg-white/92"
+                        data-testid="pet-center-hero-stage"
+                        style={heroCueMeta
+                          ? {
+                              boxShadow: `0 26px 56px ${withAlpha(heroCueMeta.accent, '2a')}, inset 0 0 0 1px rgba(255,255,255,0.78)`
+                            }
+                          : undefined}
+                      >
+                        {heroCueMeta && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.22 }}
+                            data-testid="pet-hero-action-cue"
+                            className="pointer-events-none absolute left-4 top-4 z-20 max-w-[220px] rounded-[20px] border border-white/80 bg-white/90 px-3 py-2 text-left shadow-[0_18px_36px_rgba(15,23,42,0.12)]"
+                          >
+                            <div className="text-[11px] font-black tracking-[0.18em]" style={{ color: heroCueMeta.accent }}>
+                              {heroCueMeta.title}
+                            </div>
+                            <div className="mt-1 text-[11px] font-semibold leading-5 text-slate-500">
+                              {heroCueMeta.description}
+                            </div>
+                          </motion.div>
+                        )}
                         <PetArtwork
                           pet={selectedStudent.pet}
                           journey={selectedJourney}
                           className="flex h-44 w-44 items-center justify-center"
                           imageClassName={`h-36 w-36 object-contain ${selectedJourney.is_dormant ? 'grayscale opacity-80' : ''}`}
                           fallbackClassName="text-7xl"
+                          effectKey={heroActionCue?.action}
+                          effectPhase={heroActionCue?.phase}
                         />
                       </div>
+
+                      {heroCueMeta && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.24 }}
+                          className="mt-3 rounded-[22px] border border-white/80 bg-white/90 px-4 py-3 text-left shadow-sm"
+                          style={{
+                            background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${withAlpha(heroCueMeta.accent, '10')} 100%)`
+                          }}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-black text-slate-800">主宠联动进行中</div>
+                              <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                                {heroCueMeta.description}
+                              </div>
+                            </div>
+                            <span
+                              className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                              style={{ backgroundColor: withAlpha(heroCueMeta.accent, '18'), color: heroCueMeta.accent }}
+                            >
+                              {heroCueMeta.title}
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
                     </div>
 
                     <AnimatePresence>
@@ -2220,8 +2495,8 @@ export default function PetCenter() {
 
             <div className="mt-5 flex flex-col gap-4 rounded-[28px] bg-white/75 p-4 shadow-sm">
               <div className="flex flex-wrap items-center gap-3">
-                {FILTERS.map((filter) => {
-                  const count = filter.key === 'all' ? pets.length : filterCounts[filter.key] || 0;
+                {RARITY_FILTERS.map((filter) => {
+                  const count = filter.key === 'all' ? pets.length : rarityFilterCounts[filter.key] || 0;
                   const isActive = activeFilter === filter.key;
                   return (
                     <button
@@ -2242,6 +2517,71 @@ export default function PetCenter() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {seriesFilters.map((series) => {
+                  const isActive = seriesFilter === series.key;
+                  return (
+                    <button
+                      key={series.key}
+                      type="button"
+                      data-testid={`pet-catalog-series-chip-${series.key}`}
+                      onClick={() => {
+                        startTransition(() => {
+                          setSeriesFilter(series.key);
+                        });
+                      }}
+                      className="rounded-full px-4 py-2 text-sm font-black transition"
+                      style={isActive
+                        ? {
+                            backgroundColor: series.accent,
+                            color: '#ffffff',
+                            boxShadow: `0 14px 28px ${withAlpha(series.accent, '28')}`
+                          }
+                        : {
+                            backgroundColor: `${series.accent}14`,
+                            color: series.accent
+                          }}
+                    >
+                      {series.label} {series.count}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                className="rounded-[24px] border border-white/80 px-4 py-4 shadow-sm"
+                data-testid="pet-catalog-series-highlight"
+                style={{
+                  background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${activeSeriesMeta.theme || '#FFF7ED'} 100%)`,
+                  boxShadow: `0 18px 38px ${withAlpha(activeSeriesMeta.accent || '#ec4899', '16')}`
+                }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">当前系列聚焦</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <div className="text-lg font-black text-slate-800">{activeSeriesMeta.label}</div>
+                      <span
+                        className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                        style={{ backgroundColor: `${activeSeriesMeta.accent}18`, color: activeSeriesMeta.accent }}
+                      >
+                        {activeSeriesMeta.badge}
+                      </span>
+                    </div>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{activeSeriesMeta.description}</p>
+                  </div>
+                  <div className="rounded-[22px] bg-white/86 px-4 py-3 text-right shadow-sm">
+                    <div className="text-[11px] font-black tracking-[0.16em] text-slate-400">当前数量</div>
+                    <div className="mt-1 text-2xl font-black" style={{ color: activeSeriesMeta.accent }}>
+                      {activeSeriesMeta.count || 0}
+                    </div>
+                    <div className="mt-1 text-[11px] font-bold text-slate-500">
+                      {activeSeriesMeta.key === 'all' ? '完整图鉴' : '可供挑选'}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">

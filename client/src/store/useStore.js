@@ -555,6 +555,42 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  executeLotteryDraw: async ({ classId, targetType, targetId, type, itemId }) => {
+    try {
+      const result = await request(`${API_BASE}/lottery/execute`, {
+        method: 'POST',
+        body: JSON.stringify({
+          class_id: classId,
+          target_type: targetType,
+          target_id: targetId,
+          type,
+          item_id: itemId
+        })
+      });
+
+      if (classId) {
+        await Promise.all([
+          get().fetchStudents(classId),
+          get().fetchTeams(classId)
+        ]);
+      }
+
+      if (result?.log) {
+        set((state) => ({
+          lotteryLogs: [result.log, ...state.lotteryLogs],
+          error: null
+        }));
+      } else {
+        set({ error: null });
+      }
+
+      return result;
+    } catch (err) {
+      set({ error: err.message || '抽奖结算失败' });
+      throw err;
+    }
+  },
+
   clearLotteryLogs: async (classId) => {
     try {
       await request(`${API_BASE}/classes/${classId}/lottery-logs`, { method: 'DELETE' });

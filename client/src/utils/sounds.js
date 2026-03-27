@@ -50,6 +50,29 @@ class SoundManager {
     });
   }
 
+  playSweep(startFrequency, endFrequency, duration = 0.18, type = 'sine', volume = 0.08) {
+    if (!this.enabled) return;
+    this.init();
+
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+    const start = Math.max(40, Number(startFrequency) || 40);
+    const end = Math.max(40, Number(endFrequency) || 40);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(start, this.audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(end, this.audioContext.currentTime + duration);
+
+    gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + duration);
+  }
+
   // 加分音效 - 欢快上升
   playScoreUp() {
     const notes = [523, 659, 784, 1047];
@@ -161,6 +184,7 @@ class SoundManager {
   }
 
   playPetFeed() {
+    this.playNote(196, 0.08, 'sine', 0.035);
     this.playSequence(
       [
         [392, 0.08, 'triangle', 0.08],
@@ -174,11 +198,16 @@ class SoundManager {
     );
 
     setTimeout(() => {
+      this.playSweep(520, 760, 0.14, 'triangle', 0.05);
+    }, 120);
+
+    setTimeout(() => {
       this.playChord([392, 523, 659], 0.2, 'triangle', 0.04);
-    }, 140);
+    }, 180);
   }
 
   playPetPlay() {
+    this.playNote(294, 0.07, 'triangle', 0.035);
     this.playSequence(
       [
         [523, 0.06, 'triangle', 0.08],
@@ -193,11 +222,16 @@ class SoundManager {
     );
 
     setTimeout(() => {
+      this.playSweep(680, 1180, 0.16, 'sine', 0.05);
+    }, 120);
+
+    setTimeout(() => {
       this.playChord([659, 784, 988], 0.18, 'triangle', 0.04);
-    }, 180);
+    }, 220);
   }
 
   playPetClean() {
+    this.playSweep(880, 1640, 0.16, 'triangle', 0.05);
     this.playSequence(
       [
         [784, 0.05, 'triangle', 0.08],
@@ -213,6 +247,10 @@ class SoundManager {
     setTimeout(() => {
       this.playChord([988, 1319, 1760], 0.22, 'triangle', 0.04);
     }, 160);
+
+    setTimeout(() => {
+      this.playNote(1865, 0.08, 'sine', 0.04);
+    }, 260);
   }
 
   playPetClaim() {
@@ -239,6 +277,7 @@ class SoundManager {
   }
 
   playPetHatch() {
+    this.playNote(180, 0.12, 'sine', 0.03);
     this.playSequence(
       [
         [392, 0.08, 'triangle', 0.08],
@@ -259,6 +298,10 @@ class SoundManager {
     }, 140);
 
     setTimeout(() => {
+      this.playSweep(220, 980, 0.24, 'triangle', 0.06);
+    }, 260);
+
+    setTimeout(() => {
       this.playChord([523, 659, 784, 1047], 0.36, 'sine', 0.07);
     }, 410);
 
@@ -267,11 +310,16 @@ class SoundManager {
     }, 560);
 
     setTimeout(() => {
+      this.playSweep(980, 1760, 0.22, 'sine', 0.05);
+    }, 620);
+
+    setTimeout(() => {
       this.playChord([784, 1047, 1319], 0.3, 'sine', 0.05);
     }, 760);
   }
 
   playPetEvolve() {
+    this.playSweep(180, 660, 0.28, 'triangle', 0.05);
     this.playSequence(
       [
         [330, 0.1, 'triangle', 0.1],
@@ -293,12 +341,20 @@ class SoundManager {
     }, 120);
 
     setTimeout(() => {
+      this.playSweep(660, 1568, 0.34, 'sine', 0.08);
+    }, 420);
+
+    setTimeout(() => {
       this.playChord([523, 659, 880, 1319], 0.54, 'sine', 0.1);
     }, 520);
 
     setTimeout(() => {
       this.playChord([659, 988, 1319, 1760], 0.62, 'triangle', 0.08);
     }, 760);
+
+    setTimeout(() => {
+      this.playSweep(523, 2093, 0.46, 'triangle', 0.06);
+    }, 940);
 
     setTimeout(() => {
       this.playChord([784, 1175, 1568, 2093], 0.68, 'sine', 0.06);

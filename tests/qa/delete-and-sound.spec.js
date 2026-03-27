@@ -197,6 +197,7 @@ async function loginAdmin(page) {
 }
 
 async function selectClass(page, className) {
+  await page.getByRole('button', { name: /Class Hub/i }).first().click();
   await page.getByRole('button', { name: new RegExp(className) }).first().click();
   await page.waitForTimeout(1200);
 }

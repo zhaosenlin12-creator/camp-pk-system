@@ -16,6 +16,7 @@ const EMPTY_JOURNEY = {
   growth_value: 0,
   growth_from_score: 0,
   growth_from_care: 0,
+  growth_from_bonus: 0,
   care_score: 0,
   satiety: 0,
   mood: 0,

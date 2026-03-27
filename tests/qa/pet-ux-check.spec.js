@@ -115,6 +115,7 @@ async function deleteStudent(request, studentId) {
 }
 
 async function selectClass(page) {
+  await page.getByRole('button', { name: /Class Hub/i }).first().click();
   await page.getByRole('button', { name: /python-2/i }).first().click();
   await page.waitForTimeout(1200);
 }
@@ -246,6 +247,11 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
 
     const studentSelect = page.getByTestId('pet-center-student-select');
     await expect(studentSelect).toBeVisible();
+    await expect(page.getByTestId('pet-catalog-series-chip-engineering')).toBeVisible();
+    await page.getByTestId('pet-catalog-series-chip-engineering').click();
+    await expect(page.getByTestId('pet-catalog-series-highlight')).toContainText('工程车萌宠系列');
+    await page.getByTestId('pet-catalog-series-chip-all').click();
+    await expect(page.getByTestId('pet-catalog-series-highlight')).toContainText('全部系列');
 
     await studentSelect.selectOption(String(claimUiStudent.id));
     await page.waitForTimeout(900);
@@ -262,6 +268,7 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await expect(page.getByTestId('pet-care-action-cluster')).toBeVisible();
     await expect(page.getByTestId('pet-care-action-cluster')).toContainText('-4 积分');
     await page.getByTestId('pet-action-feed').click();
+    await expect(page.getByTestId('pet-hero-action-cue')).toBeVisible();
     await expect(page.getByTestId('pet-action-feedback')).toBeVisible();
     await expect(page.getByTestId('pet-action-feedback')).toContainText('消耗 4 积分');
     await saveShot(page, 'admin-feed-feedback.png', false);
@@ -279,6 +286,7 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await studentSelect.selectOption(String(hatchStudent.id));
     await page.waitForTimeout(900);
     await page.getByTestId('pet-action-hatch').click();
+    await expect(page.getByTestId('pet-ceremony-overlay')).toContainText('蛋壳震动点亮');
     await page.waitForTimeout(1200);
     await saveShot(page, 'admin-hatch-ceremony.png', false);
     await page.mouse.click(16, 16);
@@ -287,6 +295,7 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await studentSelect.selectOption(String(evolveStudent.id));
     await page.waitForTimeout(900);
     await page.getByTestId('pet-action-evolve').click();
+    await expect(page.getByTestId('pet-ceremony-overlay')).toContainText('能量重构升阶');
     await page.waitForTimeout(1300);
     await saveShot(page, 'admin-evolve-ceremony.png', false);
     await page.mouse.click(16, 16);

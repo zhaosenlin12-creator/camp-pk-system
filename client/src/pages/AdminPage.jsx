@@ -95,7 +95,7 @@ export default function AdminPage() {
     students,
     fetchTeams,
     fetchStudents,
-    addLotteryLog,
+    executeLotteryDraw,
     restoreAdminSession,
     logoutAdmin
   } = useStore();
@@ -158,6 +158,25 @@ export default function AdminPage() {
 
   const handlePunishmentResult = (punishment) => {
     // 不自动跳转，等用户点击
+  };
+
+  const handleLotteryResult = async (type, item) => {
+    if (!currentClass || !item) return;
+
+    const target = lotteryTargetType === 'team' ? selectedTeamForLottery : selectedStudentForLottery;
+    if (!target?.id) return;
+
+    try {
+      await executeLotteryDraw({
+        classId: currentClass.id,
+        targetType: lotteryTargetType,
+        targetId: target.id,
+        type,
+        itemId: item.id
+      });
+    } catch (error) {
+      console.error('lottery-execute-failed:', error);
+    }
   };
 
   if (!authReady) {
@@ -565,27 +584,9 @@ export default function AdminPage() {
           <LotteryWheel 
             items={rewards} 
             type="reward" 
+            targetType={lotteryTargetType}
             onClose={() => setShowRewardWheel(false)}
-            onResult={(reward) => {
-              if (currentClass) {
-                const targetName = lotteryTargetType === 'team' 
-                  ? selectedTeamForLottery?.name 
-                  : selectedStudentForLottery?.name;
-                const targetId = lotteryTargetType === 'team'
-                  ? selectedTeamForLottery?.id
-                  : selectedStudentForLottery?.id;
-                if (targetName) {
-                  addLotteryLog(
-                    currentClass.id,
-                    targetId,
-                    `${lotteryTargetType === 'student' ? '👤 ' : ''}${targetName}`,
-                    'reward',
-                    reward.name,
-                    reward.icon
-                  );
-                }
-              }
-            }}
+            onResult={(reward) => handleLotteryResult('reward', reward)}
           />
         )}
       </AnimatePresence>
@@ -595,27 +596,9 @@ export default function AdminPage() {
           <LotteryWheel
             items={punishments}
             type="punishment"
+            targetType={lotteryTargetType}
             onClose={() => setShowPunishmentWheel(false)}
-            onResult={(punishment) => {
-              if (currentClass) {
-                const targetName = lotteryTargetType === 'team' 
-                  ? selectedTeamForLottery?.name 
-                  : selectedStudentForLottery?.name;
-                const targetId = lotteryTargetType === 'team'
-                  ? selectedTeamForLottery?.id
-                  : selectedStudentForLottery?.id;
-                if (targetName) {
-                  addLotteryLog(
-                    currentClass.id,
-                    targetId,
-                    `${lotteryTargetType === 'student' ? '👤 ' : ''}${targetName}`,
-                    'punishment',
-                    punishment.name,
-                    punishment.icon
-                  );
-                }
-              }
-            }}
+            onResult={(punishment) => handleLotteryResult('punishment', punishment)}
             onStartPunishment={(punishment) => {
               setShowPunishmentWheel(false);
               setSelectedPunishment(punishment);

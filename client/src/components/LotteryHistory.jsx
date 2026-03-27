@@ -49,6 +49,12 @@ export default function LotteryHistory({ onClose }) {
     return team?.color || '#666';
   };
 
+  const getTargetLabel = (log) => {
+    if (log?.target_name) return log.target_name;
+    if (log?.target_type === 'team') return log?.team_name || '未指定战队';
+    return log?.team_name || '未指定对象';
+  };
+
   const groupedLogs = lotteryLogs.reduce((groups, log) => {
     const date = log.created_at.split('T')[0];
     if (!groups[date]) groups[date] = [];
@@ -148,12 +154,17 @@ export default function LotteryHistory({ onClose }) {
                           <span className="text-3xl">{log.item_icon}</span>
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-gray-800">{log.item_name}</div>
+                            {log.effect_summary && (
+                              <div className="mt-1 text-sm font-medium text-gray-600">
+                                {log.effect_summary}
+                              </div>
+                            )}
                             <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
                               <span
                                 className="inline-block h-3 w-3 rounded-full"
                                 style={{ backgroundColor: getTeamColor(log.team_id) }}
                               />
-                              <span>{log.team_name}</span>
+                              <span>{getTargetLabel(log)}</span>
                               <span>·</span>
                               <span>{formatDate(log.created_at)}</span>
                             </div>
