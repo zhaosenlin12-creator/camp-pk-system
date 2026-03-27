@@ -25,6 +25,36 @@ app.set('trust proxy', 1);
 // ============ 安全配置加载 ============
 // 从加密文件加载敏感配置（绑定机器指纹，防止配置文件被盗用）
 const secureConfig = security.loadSecureConfig();
+const getEnvAdminPin = () => (
+  typeof process.env.ADMIN_PIN === 'string'
+    ? process.env.ADMIN_PIN.trim().slice(0, 20)
+    : ''
+);
+const isAdminPinManagedByEnv = () => Boolean(getEnvAdminPin());
+const syncAdminPinHashFromEnv = () => {
+  const envPin = getEnvAdminPin();
+  if (!envPin) return;
+
+  if (secureConfig.ADMIN_PIN_HASH && security.verifyPassword(envPin, secureConfig.ADMIN_PIN_HASH)) {
+    if (secureConfig.ADMIN_PIN) {
+      secureConfig.ADMIN_PIN = null;
+      security.saveSecureConfig(secureConfig);
+    }
+    return;
+  }
+
+  secureConfig.ADMIN_PIN_HASH = security.hashPassword(envPin);
+  secureConfig.ADMIN_PIN = null;
+
+  if (security.saveSecureConfig(secureConfig)) {
+    console.log('🔐 ADMIN_PIN 环境变量已同步为安全哈希配置');
+  } else {
+    console.warn('⚠️ ADMIN_PIN 环境变量未能写入加密配置，请检查 .secrets.enc');
+  }
+};
+
+syncAdminPinHashFromEnv();
+
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || secureConfig.DEEPSEEK_API_KEY;
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -620,7 +650,7 @@ const normalizeScore = (score) => {
 };
 
 const getAdminPinCandidate = () => {
-  const envPin = typeof process.env.ADMIN_PIN === 'string' ? process.env.ADMIN_PIN.trim() : '';
+  const envPin = getEnvAdminPin();
   const configPin = typeof secureConfig.ADMIN_PIN === 'string' ? secureConfig.ADMIN_PIN.trim() : '';
   return envPin || configPin || '';
 };
@@ -3508,6 +3538,10 @@ app.post('/api/admin/change-password', adminLimiter, (req, res) => {
   const { currentPin, newPin } = req.body;
   const current = sanitizeString(currentPin, 20);
   const newPassword = sanitizeString(newPin, 20);
+
+  if (isAdminPinManagedByEnv()) {
+    return res.status(409).json({ error: '当前管理员密码由 ADMIN_PIN 环境变量固定，请先修改服务器环境变量后再重启服务。' });
+  }
   
   if (!current || !newPassword) {
     return res.status(400).json({ error: '请提供当前密码和新密码' });

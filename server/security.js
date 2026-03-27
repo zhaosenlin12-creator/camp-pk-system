@@ -38,6 +38,21 @@ function getMachineFingerprint() {
   return crypto.createHash('sha256').update(parts.join('|')).digest('hex');
 }
 
+function resolveSecureConfigMasterKey() {
+  const configuredKey = typeof process.env.SECURE_CONFIG_KEY === 'string'
+    ? process.env.SECURE_CONFIG_KEY.trim().slice(0, 256)
+    : '';
+
+  if (configuredKey) {
+    return crypto
+      .createHash('sha256')
+      .update(`camp-pk-system|${configuredKey}`)
+      .digest('hex');
+  }
+
+  return getMachineFingerprint();
+}
+
 // 派生加密密钥（使用PBKDF2）
 function deriveKey(password, salt) {
   return crypto.pbkdf2Sync(password, salt, 100000, KEY_LENGTH, 'sha512');
@@ -124,7 +139,7 @@ function verifyPassword(password, storedHash) {
 // ============ 安全配置管理 ============
 
 const CONFIG_FILE = path.join(__dirname, '../.secrets.enc');
-const MASTER_KEY = getMachineFingerprint(); // 使用机器指纹作为主密钥
+const MASTER_KEY = resolveSecureConfigMasterKey();
 
 function normalizeSecretValue(value, maxLength = 200) {
   if (typeof value !== 'string') return null;

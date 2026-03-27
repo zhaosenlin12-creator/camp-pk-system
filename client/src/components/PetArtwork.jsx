@@ -142,6 +142,264 @@ function getAnimationProfile(effectKey, visualState, reduceMotion = false, phase
   }
 }
 
+function resolveSeriesRole(pet) {
+  const explicitRole = pet?.seriesRole || pet?.role;
+  if (explicitRole) return explicitRole;
+
+  const assetKey = String(pet?.assetKey || '');
+  const knownRoles = ['excavator', 'bulldozer', 'crane', 'mixer', 'roller', 'radar', 'shield', 'medic', 'assault', 'owl'];
+  return knownRoles.find((role) => assetKey.includes(role)) || '';
+}
+
+function EngineeringAmbientRig({ role, accent, boosted = false }) {
+  const loop = boosted ? 1.5 : 2.8;
+  const glow = `${accent}46`;
+
+  return (
+    <motion.svg
+      viewBox="0 0 100 100"
+      className="absolute inset-0 z-[1] h-full w-full overflow-visible"
+      initial={{ opacity: 0.35, scale: 0.98 }}
+      animate={{ opacity: boosted ? [0.42, 0.92, 0.48] : [0.28, 0.66, 0.32], scale: boosted ? [0.98, 1.04, 1] : [0.98, 1.02, 1] }}
+      transition={{ duration: loop, repeat: Infinity, ease: 'easeInOut' }}
+      aria-hidden="true"
+    >
+      <motion.ellipse
+        cx="50"
+        cy="62"
+        rx="26"
+        ry="18"
+        fill="none"
+        stroke={`${accent}1f`}
+        strokeWidth="2"
+        animate={{ rx: boosted ? [24, 30, 26] : [24, 28, 25], opacity: [0.32, 0.68, 0.32] }}
+        transition={{ duration: loop, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.path
+        d="M20 74 Q50 90 80 74"
+        fill="none"
+        stroke={`${accent}38`}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        animate={{ pathLength: [0.3, 1, 0.3], opacity: [0.2, 0.78, 0.22] }}
+        transition={{ duration: loop + 0.2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.circle
+        cx="50"
+        cy="20"
+        r="3.5"
+        fill={glow}
+        animate={{ scale: [0.85, 1.4, 0.9], opacity: [0.3, 0.9, 0.3] }}
+        transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {role === 'excavator' && (
+        <motion.g
+          style={{ originX: '70%', originY: '52%' }}
+          animate={{ rotate: boosted ? [-9, 11, -6] : [-5, 7, -4] }}
+          transition={{ duration: loop, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <path d="M66 54 L78 42 L84 46 L72 58" fill={`${accent}26`} stroke={`${accent}8f`} strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M78 42 L90 38 L92 44 L82 48" fill={`${accent}52`} />
+          <circle cx="78" cy="42" r="2.3" fill={accent} />
+        </motion.g>
+      )}
+
+      {role === 'bulldozer' && (
+        <>
+          {[0, 1, 2, 3].map((index) => (
+            <motion.rect
+              key={`bulldozer-tread-${index}`}
+              x={18 + index * 12}
+              y="76"
+              width="8"
+              height="4"
+              rx="2"
+              fill={`${accent}5c`}
+              animate={{ x: [18 + index * 12, 22 + index * 12, 18 + index * 12], opacity: [0.35, 0.86, 0.35] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'linear', delay: index * 0.08 }}
+            />
+          ))}
+        </>
+      )}
+
+      {role === 'crane' && (
+        <motion.g
+          style={{ originX: '70%', originY: '30%' }}
+          animate={{ rotate: boosted ? [-8, 10, -6] : [-4, 6, -4] }}
+          transition={{ duration: loop + 0.3, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <path d="M58 30 L82 18" fill="none" stroke={`${accent}9a`} strokeWidth="2.6" strokeLinecap="round" />
+          <path d="M82 18 L82 42" fill="none" stroke={`${accent}7c`} strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M78 42 Q82 48 86 42" fill="none" stroke={`${accent}b4`} strokeWidth="2" strokeLinecap="round" />
+        </motion.g>
+      )}
+
+      {role === 'mixer' && (
+        <motion.g
+          style={{ originX: '74%', originY: '58%' }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: boosted ? 1.4 : 2.8, repeat: Infinity, ease: 'linear' }}
+        >
+          <circle cx="74" cy="58" r="8" fill="none" stroke={`${accent}72`} strokeWidth="2" />
+          <path d="M68 58 H80 M74 52 L74 64" stroke={`${accent}b0`} strokeWidth="1.8" strokeLinecap="round" />
+        </motion.g>
+      )}
+
+      {role === 'roller' && (
+        <motion.g
+          style={{ originX: '72%', originY: '76%' }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: boosted ? 1.1 : 2.2, repeat: Infinity, ease: 'linear' }}
+        >
+          <ellipse cx="72" cy="76" rx="11" ry="7" fill="none" stroke={`${accent}78`} strokeWidth="2" />
+          <path d="M61 76 H83" stroke={`${accent}b0`} strokeWidth="2" strokeLinecap="round" />
+        </motion.g>
+      )}
+    </motion.svg>
+  );
+}
+
+function MechaAmbientRig({ role, accent, boosted = false }) {
+  const loop = boosted ? 1.35 : 2.4;
+
+  return (
+    <motion.svg
+      viewBox="0 0 100 100"
+      className="absolute inset-0 z-[1] h-full w-full overflow-visible"
+      initial={{ opacity: 0.32, scale: 0.98 }}
+      animate={{ opacity: boosted ? [0.4, 0.88, 0.44] : [0.24, 0.64, 0.28], scale: boosted ? [0.98, 1.05, 1] : [0.98, 1.02, 1] }}
+      transition={{ duration: loop, repeat: Infinity, ease: 'easeInOut' }}
+      aria-hidden="true"
+    >
+      <motion.circle
+        cx="50"
+        cy="48"
+        r="28"
+        fill="none"
+        stroke={`${accent}1f`}
+        strokeWidth="2"
+        strokeDasharray="3 5"
+        animate={{ rotate: 360 }}
+        transition={{ duration: boosted ? 3 : 5.2, repeat: Infinity, ease: 'linear' }}
+        style={{ originX: '50%', originY: '48%' }}
+      />
+      <motion.path
+        d="M24 26 Q50 8 76 26"
+        fill="none"
+        stroke={`${accent}58`}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        animate={{ pathLength: [0.2, 1, 0.24], opacity: [0.18, 0.82, 0.22] }}
+        transition={{ duration: loop + 0.2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.circle
+        cx="50"
+        cy="30"
+        r="4"
+        fill={`${accent}52`}
+        animate={{ scale: [0.9, 1.5, 0.95], opacity: [0.26, 0.92, 0.28] }}
+        transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {role === 'radar' && (
+        <motion.path
+          d="M64 24 A20 20 0 0 1 88 48"
+          fill="none"
+          stroke={`${accent}b8`}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          animate={{ opacity: [0.15, 0.92, 0.18], scale: [0.92, 1.05, 0.94] }}
+          transition={{ duration: loop, repeat: Infinity, ease: 'easeOut' }}
+          style={{ originX: '76%', originY: '36%' }}
+        />
+      )}
+
+      {role === 'shield' && (
+        <motion.path
+          d="M18 56 L28 46 L40 54 L34 72 L20 66 Z"
+          fill={`${accent}18`}
+          stroke={`${accent}98`}
+          strokeWidth="2"
+          animate={{ scale: [0.9, 1.08, 0.92], opacity: [0.2, 0.84, 0.22] }}
+          transition={{ duration: loop, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ originX: '29%', originY: '59%' }}
+        />
+      )}
+
+      {role === 'medic' && (
+        <motion.g
+          animate={{ opacity: [0.18, 0.9, 0.22], scale: [0.92, 1.08, 0.94] }}
+          transition={{ duration: 1.25, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ originX: '78%', originY: '54%' }}
+        >
+          <circle cx="78" cy="54" r="9" fill={`${accent}18`} stroke={`${accent}90`} strokeWidth="2" />
+          <path d="M78 48 V60 M72 54 H84" stroke={`${accent}c4`} strokeWidth="2.4" strokeLinecap="round" />
+        </motion.g>
+      )}
+
+      {role === 'assault' && (
+        <>
+          {[0, 1].map((index) => (
+            <motion.path
+              key={`assault-trail-${index}`}
+              d={`M${38 + index * 24} 76 Q${40 + index * 24} 88 ${36 + index * 24} 96`}
+              fill="none"
+              stroke={`${accent}a8`}
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              animate={{ opacity: [0.18, 0.92, 0.12], y: [0, 4, 8] }}
+              transition={{ duration: 0.9, repeat: Infinity, ease: 'easeOut', delay: index * 0.12 }}
+            />
+          ))}
+        </>
+      )}
+
+      {role === 'owl' && (
+        <>
+          <motion.path
+            d="M26 54 Q18 42 14 30 Q30 36 38 52"
+            fill="none"
+            stroke={`${accent}92`}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            animate={{ opacity: [0.2, 0.86, 0.24], rotate: [-3, 4, -2] }}
+            transition={{ duration: loop, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ originX: '26%', originY: '44%' }}
+          />
+          <motion.path
+            d="M74 54 Q82 42 86 30 Q70 36 62 52"
+            fill="none"
+            stroke={`${accent}92`}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            animate={{ opacity: [0.2, 0.86, 0.24], rotate: [3, -4, 2] }}
+            transition={{ duration: loop, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ originX: '74%', originY: '44%' }}
+          />
+        </>
+      )}
+    </motion.svg>
+  );
+}
+
+function SeriesAmbientRig({ pet, accent, effectKey, effectPhase, idleMotion, reduceMotion = false }) {
+  if (reduceMotion || !pet) return null;
+  if (idleMotion === 'none' && !effectKey) return null;
+
+  const seriesKey = pet.seriesKey;
+  if (seriesKey !== 'engineering' && seriesKey !== 'mecha') return null;
+
+  const role = resolveSeriesRole(pet);
+  const boosted = Boolean(effectKey) || effectPhase === 'burst' || effectPhase === 'ascend';
+
+  if (seriesKey === 'engineering') {
+    return <EngineeringAmbientRig role={role} accent={accent} boosted={boosted} />;
+  }
+
+  return <MechaAmbientRig role={role} accent={accent} boosted={boosted} />;
+}
+
 function ArtworkEffectLayer({ effectKey, effectPhase, accent, visualState, reduceMotion = false }) {
   const meta = getEffectMeta(effectKey, accent, visualState);
   if (!meta) return null;
@@ -324,6 +582,14 @@ function PetArtwork({
           effectPhase={effectPhase}
           accent={accent}
           visualState={visualState}
+          reduceMotion={reduceMotion}
+        />
+        <SeriesAmbientRig
+          pet={pet}
+          accent={accent}
+          effectKey={effectKey}
+          effectPhase={effectPhase}
+          idleMotion={idleMotion}
           reduceMotion={reduceMotion}
         />
 
