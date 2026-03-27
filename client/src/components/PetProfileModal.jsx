@@ -84,13 +84,15 @@ function CollectionShowcaseCard({
       </div>
 
       <div className="mt-5 grid items-center gap-4 sm:grid-cols-[120px_minmax(0,1fr)]">
-        <div className="pet-hero-frame flex h-[120px] w-[120px] items-center justify-center rounded-[32px] bg-white/92">
+        <div className="pet-hero-frame pet-hero-frame-active flex h-[120px] w-[120px] items-center justify-center rounded-[32px] bg-white/92">
           <PetArtwork
             pet={pet}
             journey={journey}
             className="flex h-[98px] w-[98px] items-center justify-center"
             imageClassName="h-[84px] w-[84px] object-contain"
             fallbackClassName="text-5xl"
+            priority
+            idleMotion="soft"
           />
         </div>
 
@@ -604,8 +606,10 @@ export default function PetProfileModal({
                       previewLevel={currentStageLevel}
                       previewSlotState={currentSlotState}
                       previewVisualState={currentVisualState}
-                      className="pet-hero-frame flex h-[300px] w-[300px] items-center justify-center rounded-[44px]"
+                      className="pet-hero-frame pet-hero-frame-active flex h-[300px] w-[300px] items-center justify-center rounded-[44px]"
                       imageClassName="h-[260px] w-[260px]"
+                      priority
+                      idleMotion="float"
                     />
                   </motion.div>
 

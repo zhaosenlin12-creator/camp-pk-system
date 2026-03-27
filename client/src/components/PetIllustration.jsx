@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { getPetStageArtwork, getPetVisualMeta } from '../utils/petVisuals';
 
 function FallbackGlyph({ pet, meta, fallbackClassName = '' }) {
@@ -16,14 +16,17 @@ function FallbackGlyph({ pet, meta, fallbackClassName = '' }) {
   );
 }
 
-export default function PetIllustration({
+function PetIllustration({
   pet,
   className = '',
   imageClassName = '',
   fallbackClassName = '',
   stageLevel = 1,
   slotState = 'hatched',
-  visualState = 'pet'
+  visualState = 'pet',
+  priority = false,
+  loadingStrategy = 'lazy',
+  idleMotion = 'none'
 }) {
   const meta = getPetVisualMeta(pet);
   const stageArtwork = useMemo(
@@ -38,17 +41,23 @@ export default function PetIllustration({
 
   if (visualState === 'egg') return null;
 
+  const motionClassName = idleMotion === 'float'
+    ? 'pet-illustration-motion-float'
+    : idleMotion === 'soft'
+      ? 'pet-illustration-motion-soft'
+      : 'pet-illustration-static';
+
   return (
     <div className={className}>
       {stageArtwork?.src && !imageFailed ? (
         <img
           src={stageArtwork.src}
           alt={stageArtwork.alt}
-          loading="eager"
+          loading={priority ? 'eager' : loadingStrategy}
           decoding="async"
-          fetchPriority="high"
+          fetchPriority={priority ? 'high' : 'auto'}
           draggable="false"
-          className={`pet-illustration pet-stage-image ${imageClassName}`.trim()}
+          className={`pet-illustration pet-stage-image ${motionClassName} ${imageClassName}`.trim()}
           onError={() => setImageFailed(true)}
           referrerPolicy="no-referrer"
         />
@@ -62,3 +71,21 @@ export default function PetIllustration({
     </div>
   );
 }
+
+function arePetIllustrationPropsEqual(prevProps, nextProps) {
+  return (
+    prevProps.pet?.id === nextProps.pet?.id
+    && prevProps.pet?.assetKey === nextProps.pet?.assetKey
+    && prevProps.className === nextProps.className
+    && prevProps.imageClassName === nextProps.imageClassName
+    && prevProps.fallbackClassName === nextProps.fallbackClassName
+    && prevProps.stageLevel === nextProps.stageLevel
+    && prevProps.slotState === nextProps.slotState
+    && prevProps.visualState === nextProps.visualState
+    && prevProps.priority === nextProps.priority
+    && prevProps.loadingStrategy === nextProps.loadingStrategy
+    && prevProps.idleMotion === nextProps.idleMotion
+  );
+}
+
+export default memo(PetIllustration, arePetIllustrationPropsEqual);

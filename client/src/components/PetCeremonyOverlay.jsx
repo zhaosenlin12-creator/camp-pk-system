@@ -328,7 +328,7 @@ function CeremonyStageCard({
             {'★'.repeat(rarityMeta.stars)}
           </div>
           <div
-            className={`pet-hero-frame relative z-10 mx-auto flex h-[212px] w-full max-w-[228px] items-center justify-center rounded-[30px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] ${
+            className={`pet-hero-frame pet-hero-frame-active relative z-10 mx-auto flex h-[212px] w-full max-w-[228px] items-center justify-center rounded-[30px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] ${
               isAfter ? 'border-white/90 shadow-[0_28px_56px_rgba(148,163,184,0.28)]' : 'border-white/85 shadow-[0_22px_42px_rgba(148,163,184,0.22)]'
             }`}
           >
@@ -343,6 +343,7 @@ function CeremonyStageCard({
               fallbackClassName="text-6xl"
               effectKey={effectKey}
               effectPhase={effectPhase}
+              priority
             />
           </div>
           <div
@@ -815,7 +816,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                     className="flex items-center gap-4 rounded-[28px] px-4 py-4 shadow-inner"
                     style={{ background: rarityMeta.panel }}
                   >
-                    <div className="pet-hero-frame flex h-20 w-20 items-center justify-center rounded-[24px] bg-white/92">
+                    <div className="pet-hero-frame pet-hero-frame-active flex h-20 w-20 items-center justify-center rounded-[24px] bg-white/92">
                       <PetArtwork
                         pet={ceremony.pet}
                         journey={nextJourney}
@@ -827,6 +828,7 @@ export default function PetCeremonyOverlay({ ceremony, onClose, onContinue }) {
                         fallbackClassName="text-3xl"
                         effectKey="claim"
                         effectPhase="burst"
+                        priority
                       />
                     </div>
                     <div>

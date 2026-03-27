@@ -190,6 +190,14 @@ const HERO_EFFECT_DURATIONS = {
   evolve: 4800
 };
 
+const ACTION_COMPACT_LABELS = {
+  feed: '喂养',
+  play: '互动',
+  clean: '清洁',
+  hatch: '孵化',
+  evolve: '进化'
+};
+
 const JOURNEY_METRIC_LABELS = {
   satiety: '饱腹',
   mood: '心情',
@@ -360,6 +368,10 @@ function getHeroActionCueMeta(cue) {
     ...meta,
     title
   };
+}
+
+function getCompactActionLabel(action, fallbackLabel = '') {
+  return ACTION_COMPACT_LABELS[action] || fallbackLabel || '操作';
 }
 
 function createCatalogPreviewJourney(pet) {
@@ -581,6 +593,27 @@ function CareMeter({ label, value, color, delta = null, highlight = false }) {
           className="rounded-full transition-all duration-500"
           style={{ width: `${value}%`, height: highlight ? 10 : 8, backgroundColor: color }}
         />
+      </div>
+    </div>
+  );
+}
+
+function ActionTooltip({ accent = '#38bdf8', title, detail }) {
+  if (!detail) return null;
+
+  return (
+    <div
+      className="pet-action-tooltip absolute left-1/2 top-full z-30 mt-2 w-[210px] rounded-[18px] border border-white/80 bg-white/96 px-3 py-3 text-left shadow-[0_18px_38px_rgba(15,23,42,0.16)]"
+      style={{ borderColor: withAlpha(accent, '24') }}
+      aria-hidden="true"
+    >
+      {title && (
+        <div className="text-[11px] font-black tracking-[0.16em]" style={{ color: accent }}>
+          {title}
+        </div>
+      )}
+      <div className={`text-[11px] font-semibold leading-5 text-slate-500 ${title ? 'mt-1.5' : ''}`}>
+        {detail}
       </div>
     </div>
   );
@@ -1958,13 +1991,14 @@ export default function PetCenter() {
                         onClick={handlePreviewSelectedStudent}
                         data-testid="pet-center-profile-summary-cta"
                         className="rounded-3xl border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-sky-50 px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                        title="打开完整成长档案，查看阶段形态、里程碑和收藏位记录"
                       >
-                        <div className="text-sm font-black text-slate-800">查看完整成长档案</div>
+                        <div className="text-sm font-black text-slate-800">成长档案</div>
                         <p className="mt-2 text-sm leading-6 text-slate-500">
-                          具体形态、成长轨迹、里程碑和收藏位解锁都集中在档案里，主页只保留课堂操作必需信息。
+                          形态、里程碑、收藏位都在这里。
                         </p>
                         <div className="mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700 shadow-sm">
-                          打开详细档案
+                          打开
                         </div>
                       </button>
                     </div>
@@ -2136,7 +2170,7 @@ export default function PetCenter() {
                       </div>
 
                       <div
-                        className="pet-hero-frame mx-auto mt-4 flex h-56 w-full items-center justify-center rounded-[28px] bg-white/92"
+                        className="pet-hero-frame pet-hero-frame-active mx-auto mt-4 flex h-56 w-full items-center justify-center rounded-[28px] bg-white/92"
                         data-testid="pet-center-hero-stage"
                         style={heroCueMeta
                           ? {
@@ -2169,6 +2203,8 @@ export default function PetCenter() {
                           fallbackClassName="text-7xl"
                           effectKey={heroActionCue?.action}
                           effectPhase={heroActionCue?.phase}
+                          priority
+                          idleMotion="float"
                         />
                       </div>
 
@@ -2289,6 +2325,7 @@ export default function PetCenter() {
                         const isFeedbackAction = actionFeedback?.action === action;
                         const isWorking = busyKey === action;
                         const actionLabel = getPetActionLabel(selectedJourney, action);
+                        const compactLabel = getCompactActionLabel(action, actionLabel);
                         const helperText = selectedJourney.is_dormant
                           ? (scoreShortage > 0 ? `还差 ${scoreShortage} 积分才能唤醒` : '立刻照料，让它慢慢醒来')
                           : (scoreShortage > 0 ? `还差 ${scoreShortage} 积分` : meta.flavor);
@@ -2304,7 +2341,7 @@ export default function PetCenter() {
                         const stateLabel = isWorking ? '处理中...' : (isFeedbackAction ? '已触发' : null);
 
                         return (
-                          <div key={action} className="relative">
+                          <div key={action} className="group relative">
                             <motion.button
                               type="button"
                               onClick={() => handlePetAction(action)}
@@ -2313,7 +2350,7 @@ export default function PetCenter() {
                               disabled={disabled}
                               whileHover={disabled ? undefined : { y: -3, scale: 1.01 }}
                               whileTap={disabled ? undefined : { scale: 0.985 }}
-                              className={`pet-care-action-card relative h-full w-full overflow-hidden rounded-[24px] border px-3 py-3.5 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                              className={`pet-care-action-card relative h-full w-full overflow-hidden rounded-[24px] border px-3 py-3 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                 isFeedbackAction ? 'pet-care-action-card-active' : ''
                               }`}
                               style={{
@@ -2342,7 +2379,7 @@ export default function PetCenter() {
                                 />
                               )}
 
-                              <div className="relative flex min-h-[124px] flex-col items-center text-center">
+                              <div className="relative flex min-h-[108px] flex-col items-center text-center">
                                 <div className="flex w-full items-start justify-between gap-2">
                                   <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-black leading-none shadow-sm ${meta.badgeClass}`}>
                                     -{actionCost} 积分
@@ -2358,23 +2395,28 @@ export default function PetCenter() {
                                   </span>
                                 </div>
                                 <span
-                                  className="mt-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white/96 text-2xl shadow-sm"
+                                  className="mt-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-white/96 text-2xl shadow-sm"
                                   style={{ boxShadow: `0 12px 26px ${withAlpha(meta.accent || '#38bdf8', '22')}` }}
                                 >
                                   {meta.icon}
                                 </span>
-                                <div className="mt-3 min-w-0">
+                                <div className="mt-2.5 min-w-0">
                                   <div className="text-sm font-black tracking-[0.08em] text-slate-800">
-                                    {isWorking ? '处理中...' : actionLabel}
+                                    {isWorking ? '处理中' : compactLabel}
                                   </div>
                                 </div>
                                 {stateLabel && (
-                                  <div className="mt-3 rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
+                                  <div className="mt-2.5 rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
                                     {stateLabel}
                                   </div>
                                 )}
                               </div>
                             </motion.button>
+                            <ActionTooltip
+                              accent={meta.accent}
+                              title={actionLabel}
+                              detail={helperText}
+                            />
                           </div>
                         );
                       })}
@@ -2387,13 +2429,14 @@ export default function PetCenter() {
                           const isFeedbackAction = actionFeedback?.action === action;
                           const isWorking = busyKey === action;
                           const actionLabel = getPetActionLabel(selectedJourney, action);
+                          const compactLabel = getCompactActionLabel(action, actionLabel);
                           const cardClass = action === 'evolve'
                             ? 'from-fuchsia-50 via-white to-pink-50 border-fuchsia-100'
                             : 'from-amber-50 via-white to-orange-50 border-amber-100';
                           const stateLabel = isWorking ? '处理中...' : (isFeedbackAction ? '已触发' : '仪式');
 
                           return (
-                            <div key={action} className="relative">
+                            <div key={action} className="group relative">
                               <motion.button
                                 type="button"
                                 onClick={() => handlePetAction(action)}
@@ -2412,10 +2455,7 @@ export default function PetCenter() {
                                   </span>
                                   <div className="min-w-0 flex-1">
                                     <div className="text-sm font-black text-slate-800">
-                                      {isWorking ? '处理中...' : actionLabel}
-                                    </div>
-                                    <div className="mt-1 text-[11px] font-bold text-slate-500">
-                                      {meta.description}
+                                      {isWorking ? '处理中' : compactLabel}
                                     </div>
                                   </div>
                                   <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
@@ -2423,6 +2463,11 @@ export default function PetCenter() {
                                   </span>
                                 </div>
                               </motion.button>
+                              <ActionTooltip
+                                accent={meta.accent}
+                                title={actionLabel}
+                                detail={meta.description}
+                              />
                             </div>
                           );
                         })}

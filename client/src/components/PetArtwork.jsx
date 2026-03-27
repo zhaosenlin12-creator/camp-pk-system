@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import PetIllustration from './PetIllustration';
 
@@ -277,7 +278,7 @@ function EggArtwork({
   );
 }
 
-export default function PetArtwork({
+function PetArtwork({
   pet,
   journey,
   className = '',
@@ -287,7 +288,10 @@ export default function PetArtwork({
   previewSlotState = null,
   previewVisualState = null,
   effectKey = null,
-  effectPhase = 'active'
+  effectPhase = 'active',
+  priority = false,
+  loadingStrategy = 'lazy',
+  idleMotion = 'none'
 }) {
   const reduceMotion = useReducedMotion();
   const accent = journey?.accent || pet?.accent || '#F59E0B';
@@ -336,9 +340,38 @@ export default function PetArtwork({
             slotState={slotState}
             visualState={visualState}
             fallbackClassName={fallbackClassName}
+            priority={priority}
+            loadingStrategy={loadingStrategy}
+            idleMotion={idleMotion}
           />
         </motion.div>
       </div>
     </div>
   );
 }
+
+function arePetArtworkPropsEqual(prevProps, nextProps) {
+  return (
+    prevProps.pet?.id === nextProps.pet?.id
+    && prevProps.pet?.assetKey === nextProps.pet?.assetKey
+    && prevProps.pet?.accent === nextProps.pet?.accent
+    && prevProps.journey?.accent === nextProps.journey?.accent
+    && prevProps.journey?.can_hatch === nextProps.journey?.can_hatch
+    && prevProps.journey?.visual_state === nextProps.journey?.visual_state
+    && prevProps.journey?.slot_state === nextProps.journey?.slot_state
+    && prevProps.journey?.stage_level === nextProps.journey?.stage_level
+    && prevProps.className === nextProps.className
+    && prevProps.imageClassName === nextProps.imageClassName
+    && prevProps.fallbackClassName === nextProps.fallbackClassName
+    && prevProps.previewLevel === nextProps.previewLevel
+    && prevProps.previewSlotState === nextProps.previewSlotState
+    && prevProps.previewVisualState === nextProps.previewVisualState
+    && prevProps.effectKey === nextProps.effectKey
+    && prevProps.effectPhase === nextProps.effectPhase
+    && prevProps.priority === nextProps.priority
+    && prevProps.loadingStrategy === nextProps.loadingStrategy
+    && prevProps.idleMotion === nextProps.idleMotion
+  );
+}
+
+export default memo(PetArtwork, arePetArtworkPropsEqual);

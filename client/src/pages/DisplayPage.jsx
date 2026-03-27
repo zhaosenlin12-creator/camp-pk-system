@@ -560,13 +560,15 @@ export default function DisplayPage() {
                           </div>
                         </div>
 
-                        <div className="pet-hero-frame flex h-[220px] w-[220px] items-center justify-center rounded-[36px]">
+                        <div className="pet-hero-frame pet-hero-frame-active flex h-[220px] w-[220px] items-center justify-center rounded-[36px]">
                           <PetArtwork
                             pet={spotlightPet.student.pet}
                             journey={spotlightPet.journey}
                             className="flex h-[190px] w-[190px] items-center justify-center"
                             imageClassName="h-[170px] w-[170px]"
                             fallbackClassName="text-7xl"
+                            priority
+                            idleMotion="float"
                           />
                         </div>
                       </div>

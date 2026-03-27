@@ -156,6 +156,11 @@ body {
   50% { transform: translateY(-8px) scale(1.02); }
 }
 
+@keyframes pet-bob-soft {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.01); }
+}
+
 @keyframes egg-breathe {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-6px) scale(1.03); }
@@ -199,10 +204,22 @@ body {
 }
 
 .pet-illustration {
-  animation: pet-bob 3.8s ease-in-out infinite;
   transform-origin: center;
   filter: drop-shadow(0 20px 32px rgba(35, 49, 79, 0.18)) saturate(1.04);
+}
+
+.pet-illustration-motion-float {
+  animation: pet-bob 3.8s ease-in-out infinite;
   will-change: transform;
+}
+
+.pet-illustration-motion-soft {
+  animation: pet-bob-soft 4.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.pet-illustration-static {
+  animation: none;
 }
 
 .pet-stage-image {
@@ -230,7 +247,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.72);
   background:
     radial-gradient(circle at 30% 18%, rgba(255,255,255,0.99), rgba(255,246,232,0.96) 34%, rgba(228,242,255,0.88) 68%, rgba(214,233,255,0.72) 100%);
-  animation: pet-glow 4.6s ease-in-out infinite;
 }
 
 .pet-hero-frame::before {
@@ -240,9 +256,8 @@ body {
   border-radius: 999px;
   background:
     conic-gradient(from 0deg, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.68) 58deg, rgba(255,255,255,0) 128deg);
-  opacity: 0.7;
+  opacity: 0;
   filter: blur(12px);
-  animation: halo-spin 12s linear infinite;
 }
 
 .pet-hero-frame::after {
@@ -251,8 +266,34 @@ body {
   inset: -20% auto -20% -38%;
   width: 42%;
   background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.72), rgba(255,255,255,0));
+  opacity: 0;
+}
+
+.pet-hero-frame-active {
+  animation: pet-glow 4.6s ease-in-out infinite;
+}
+
+.pet-hero-frame-active::before {
+  opacity: 0.7;
+  animation: halo-spin 12s linear infinite;
+}
+
+.pet-hero-frame-active::after {
   opacity: 0.7;
   animation: frame-shimmer 3.8s ease-in-out infinite;
+}
+
+.pet-action-tooltip {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px) translateX(-50%);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.group:hover > .pet-action-tooltip,
+.group:focus-within > .pet-action-tooltip {
+  opacity: 1;
+  transform: translateY(0) translateX(-50%);
 }
 
 .pet-passport-card {
@@ -333,9 +374,9 @@ body {
   .animate-wiggle,
   .pet-illustration,
   .pet-egg-shell,
-  .pet-hero-frame,
-  .pet-hero-frame::before,
-  .pet-hero-frame::after,
+  .pet-hero-frame-active,
+  .pet-hero-frame-active::before,
+  .pet-hero-frame-active::after,
   .pet-care-action-card-active,
   .pet-care-feedback-panel::after,
   .pet-care-feedback-chip {
