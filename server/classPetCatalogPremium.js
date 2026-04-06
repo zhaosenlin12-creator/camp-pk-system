@@ -339,33 +339,51 @@ function buildEngineeringHead(role, config) {
   switch (role) {
     case 'excavator':
       return `
-        <path d="M122 112 L134 78 L152 110" fill="${config.trim}" />
-        <path d="M198 112 L186 78 L168 110" fill="${config.trim}" />
+        <path d="M118 118 Q106 88 124 72 L146 108" fill="${config.trim}" />
+        <path d="M202 118 Q214 88 196 72 L174 108" fill="${config.trim}" />
+        <path d="M124 72 L140 60 Q148 68 146 108" fill="${mixHex(config.trim, 0.15)}" />
+        <circle cx="130" cy="76" r="5" fill="${mixHex(config.body, 0.2)}" />
+        <circle cx="190" cy="76" r="5" fill="${mixHex(config.body, 0.2)}" />
       `;
     case 'bulldozer':
       return `
-        <path d="M118 128 Q102 104 114 90 Q136 92 142 118" fill="${mixHex(config.trim, 0.08)}" />
-        <path d="M202 128 Q218 104 206 90 Q184 92 178 118" fill="${mixHex(config.trim, 0.08)}" />
+        <path d="M112 130 Q94 100 110 84 Q138 86 148 120" fill="${mixHex(config.trim, 0.12)}" />
+        <path d="M208 130 Q226 100 210 84 Q182 86 172 120" fill="${mixHex(config.trim, 0.12)}" />
+        <ellipse cx="122" cy="92" rx="10" ry="8" fill="${mixHex(config.body, 0.18)}" />
+        <ellipse cx="198" cy="92" rx="10" ry="8" fill="${mixHex(config.body, 0.18)}" />
+        <circle cx="118" cy="90" r="4" fill="${mixHex(config.accent, 0.3)}" />
+        <circle cx="202" cy="90" r="4" fill="${mixHex(config.accent, 0.3)}" />
       `;
     case 'crane':
       return `
-        <path d="M134 114 L126 62 L144 56 L152 114" fill="${config.trim}" />
-        <path d="M186 114 L194 62 L176 56 L168 114" fill="${config.trim}" />
-        <path d="M134 70 L144 64 M186 70 L176 64" stroke="${mixHex(config.trim, 0.24)}" stroke-width="3" stroke-linecap="round" />
+        <path d="M130 116 L118 58 L140 50 L152 116" fill="${config.trim}" />
+        <path d="M190 116 L202 58 L180 50 L168 116" fill="${config.trim}" />
+        <path d="M118 58 L140 50 Q150 62 152 116" fill="${mixHex(config.trim, 0.2)}" />
+        <ellipse cx="128" cy="62" rx="6" ry="4" fill="${mixHex(config.body, 0.15)}" />
+        <ellipse cx="192" cy="62" rx="6" ry="4" fill="${mixHex(config.body, 0.15)}" />
+        <path d="M140 50 L156 42 Q162 52 152 70" fill="${mixHex(config.accent, 0.1)}" />
       `;
     case 'mixer':
       return `
-        <path d="M138 98 Q126 70 142 58 Q156 72 152 102" fill="${config.trim}" />
-        <path d="M182 98 Q194 70 178 58 Q164 72 168 102" fill="${config.trim}" />
-        <circle cx="144" cy="82" r="6" fill="${config.detail}" />
-        <circle cx="176" cy="82" r="6" fill="${config.detail}" />
+        <path d="M134 104 Q120 72 138 56 Q158 74 154 106" fill="${config.trim}" />
+        <path d="M186 104 Q200 72 182 56 Q162 74 166 106" fill="${config.trim}" />
+        <ellipse cx="140" cy="74" rx="12" ry="10" fill="${mixHex(config.body, 0.15)}" />
+        <ellipse cx="180" cy="74" rx="12" ry="10" fill="${mixHex(config.body, 0.15)}" />
+        <circle cx="136" cy="72" r="5" fill="${config.detail}" />
+        <circle cx="184" cy="72" r="5" fill="${config.detail}" />
+        <circle cx="136" cy="72" r="2.5" fill="${mixHex(config.accent, 0.4)}" />
+        <circle cx="184" cy="72" r="2.5" fill="${mixHex(config.accent, 0.4)}" />
       `;
     case 'roller':
       return `
-        <circle cx="134" cy="94" r="16" fill="${config.trim}" />
-        <circle cx="186" cy="94" r="16" fill="${config.trim}" />
-        <circle cx="134" cy="94" r="8" fill="${mixHex(config.trim, 0.18)}" />
-        <circle cx="186" cy="94" r="8" fill="${mixHex(config.trim, 0.18)}" />
+        <ellipse cx="130" cy="100" rx="20" ry="18" fill="${config.trim}" />
+        <ellipse cx="190" cy="100" rx="20" ry="18" fill="${config.trim}" />
+        <ellipse cx="130" cy="100" rx="12" ry="10" fill="${mixHex(config.trim, 0.2)}" />
+        <ellipse cx="190" cy="100" rx="12" ry="10" fill="${mixHex(config.trim, 0.2)}" />
+        <circle cx="130" cy="100" r="5" fill="${config.detail}" />
+        <circle cx="190" cy="100" r="5" fill="${config.detail}" />
+        <circle cx="130" cy="100" r="2" fill="${mixHex(config.accent, 0.5)}" />
+        <circle cx="190" cy="100" r="2" fill="${mixHex(config.accent, 0.5)}" />
       `;
     default:
       return '';
@@ -376,50 +394,67 @@ function buildEngineeringAccessory(role, config, stage) {
   const metal = config.metal || '#D7E1EC';
   const trim = config.trim || mixHex(config.accent, -0.18);
   const detail = config.detail || mixHex(config.accent, 0.16);
-  const glow = hexToRgba(config.accent, 0.2 + stage * 0.03);
+  const glow = hexToRgba(config.accent, 0.25 + stage * 0.04);
+  const glowStrong = hexToRgba(config.accent, 0.4 + stage * 0.05);
+  const sparkle = hexToRgba('#ffffff', 0.6 + stage * 0.08);
 
   switch (role) {
     case 'excavator':
       return `
-        <path d="M214 176 L238 140 L256 146 L232 182" fill="${trim}" />
-        <path d="M238 140 L276 122 L286 136 L254 152" fill="${metal}" />
-        <path d="M276 122 Q292 126 290 140 Q282 154 266 150 L258 140 Q270 134 276 122Z" fill="${detail}" />
-        <path d="M220 172 L208 162" stroke="${metal}" stroke-width="5" stroke-linecap="round" />
-        <circle cx="240" cy="142" r="7" fill="${glow}" />
+        <path d="M216 178 L242 138 L262 146 L236 186" fill="${trim}" />
+        <path d="M242 138 L282 118 L294 134 L260 156" fill="${metal}" />
+        <path d="M282 118 Q300 122 298 138 Q288 154 270 150 L260 138 Q274 130 282 118Z" fill="${detail}" />
+        <path d="M222 174 L208 162" stroke="${metal}" stroke-width="6" stroke-linecap="round" />
+        <circle cx="244" cy="140" r="9" fill="${glow}" />
+        <circle cx="244" cy="140" r="4" fill="${sparkle}" />
+        ${stage >= 3 ? `<path d="M234 148 L226 160" stroke="${glowStrong}" stroke-width="3" stroke-linecap="round" />` : ''}
+        ${stage >= 4 ? `<circle cx="270" cy="130" r="5" fill="${sparkle}" />` : ''}
       `;
     case 'bulldozer':
       return `
-        <path d="M224 182 L286 170 L290 206 L220 214 Q208 196 224 182Z" fill="${detail}" />
-        <path d="M232 182 L282 174" stroke="${mixHex(detail, 0.28)}" stroke-width="6" stroke-linecap="round" />
-        <path d="M240 170 L252 146 L270 146 L262 176" fill="${trim}" />
-        <path d="M232 212 H286" stroke="${hexToRgba('#ffffff', 0.46)}" stroke-width="4" stroke-linecap="round" />
+        <path d="M226 184 L290 172 L294 210 L220 218 Q206 198 226 184Z" fill="${detail}" />
+        <path d="M234 184 L286 176" stroke="${mixHex(detail, 0.32)}" stroke-width="8" stroke-linecap="round" />
+        <path d="M244 172 L256 146 L276 146 L266 178" fill="${trim}" />
+        <path d="M234 214 H290" stroke="${hexToRgba('#ffffff', 0.52)}" stroke-width="5" stroke-linecap="round" />
+        <path d="M240 180 L250 172 L260 180" stroke="${metal}" stroke-width="3" stroke-linecap="round" fill="none" />
+        ${stage >= 3 ? `<rect x="248" y="156" width="16" height="8" rx="4" fill="${glow}" />` : ''}
+        ${stage >= 4 ? `<path d="M236 196 L230 206 M286 196 L292 206" stroke="${sparkle}" stroke-width="3" stroke-linecap="round" />` : ''}
       `;
     case 'crane':
       return `
-        <path d="M186 124 L264 86 L274 100 L198 136" fill="${trim}" />
-        <path d="M260 92 L270 154" stroke="${metal}" stroke-width="7" stroke-linecap="round" />
-        <path d="M270 154 V194" stroke="${metal}" stroke-width="4" stroke-linecap="round" />
-        <path d="M260 194 Q270 210 280 194" fill="none" stroke="${detail}" stroke-width="6" stroke-linecap="round" />
-        <circle cx="270" cy="152" r="7" fill="${glow}" />
+        <path d="M188 126 L268 84 L280 100 L200 140" fill="${trim}" />
+        <path d="M264 90 L276 156" stroke="${metal}" stroke-width="8" stroke-linecap="round" />
+        <path d="M276 156 V198" stroke="${metal}" stroke-width="5" stroke-linecap="round" />
+        <path d="M264 198 Q276 216 288 198" fill="none" stroke="${detail}" stroke-width="7" stroke-linecap="round" />
+        <circle cx="276" cy="154" r="9" fill="${glow}" />
+        <circle cx="276" cy="154" r="4" fill="${sparkle}" />
+        ${stage >= 3 ? `<path d="M270 180 L282 180" stroke="${metal}" stroke-width="4" stroke-linecap="round" />` : ''}
+        ${stage >= 4 ? `<circle cx="290" cy="118" r="6" fill="${detail}" /><circle cx="290" cy="118" r="3" fill="${sparkle}" />` : ''}
+        ${stage >= 5 ? `<path d="M258 96 L250 86 L262 82 L268 94" fill="${sparkle}" />` : ''}
       `;
     case 'mixer':
       return `
-        <g transform="translate(228 180)">
-          <circle cx="0" cy="0" r="34" fill="${detail}" />
-          <circle cx="0" cy="0" r="24" fill="${mixHex(config.theme, -0.06)}" />
-          <path d="M-20 -6 Q0 -24 20 -6" stroke="${metal}" stroke-width="8" stroke-linecap="round" fill="none" />
-          <path d="M-18 10 Q0 -8 18 10" stroke="${metal}" stroke-width="8" stroke-linecap="round" fill="none" />
-          <path d="M-12 -22 L18 18" stroke="${hexToRgba('#ffffff', 0.42)}" stroke-width="4" stroke-linecap="round" />
-          <circle cx="0" cy="0" r="6" fill="${glow}" />
+        <g transform="translate(230 182)">
+          <circle cx="0" cy="0" r="38" fill="${detail}" />
+          <circle cx="0" cy="0" r="28" fill="${mixHex(config.theme, -0.08)}" />
+          <path d="M-22 -8 Q0 -28 22 -8" stroke="${metal}" stroke-width="10" stroke-linecap="round" fill="none" />
+          <path d="M-20 12 Q0 -10 20 12" stroke="${metal}" stroke-width="10" stroke-linecap="round" fill="none" />
+          <path d="M-14 -26 L22 20" stroke="${hexToRgba('#ffffff', 0.48)}" stroke-width="5" stroke-linecap="round" />
+          <circle cx="0" cy="0" r="8" fill="${glow}" />
+          <circle cx="0" cy="0" r="4" fill="${sparkle}" />
+          ${stage >= 3 ? `<circle cx="-16" cy="-16" r="4" fill="${sparkle}" />` : ''}
+          ${stage >= 4 ? `<circle cx="18" cy="18" r="4" fill="${sparkle}" />` : ''}
         </g>
       `;
     case 'roller':
       return `
-        <rect x="212" y="172" width="44" height="14" rx="7" fill="${trim}" />
-        <ellipse cx="252" cy="212" rx="48" ry="34" fill="${detail}" />
-        <ellipse cx="252" cy="212" rx="32" ry="22" fill="${mixHex(detail, 0.22)}" />
-        <ellipse cx="252" cy="212" rx="16" ry="10" fill="${hexToRgba('#ffffff', 0.28)}" />
-        <path d="M214 186 L202 166" stroke="${metal}" stroke-width="7" stroke-linecap="round" />
+        <rect x="214" y="174" width="48" height="16" rx="8" fill="${trim}" />
+        <ellipse cx="254" cy="214" rx="52" ry="38" fill="${detail}" />
+        <ellipse cx="254" cy="214" rx="36" ry="26" fill="${mixHex(detail, 0.26)}" />
+        <ellipse cx="254" cy="214" rx="20" ry="14" fill="${hexToRgba('#ffffff', 0.32)}" />
+        <path d="M216 188 L202 166" stroke="${metal}" stroke-width="8" stroke-linecap="round" />
+        ${stage >= 3 ? `<circle cx="254" cy="214" r="8" fill="${glow}" />` : ''}
+        ${stage >= 4 ? `<circle cx="228" cy="200" r="5" fill="${sparkle}" /><circle cx="280" cy="200" r="5" fill="${sparkle}" />` : ''}
       `;
     default:
       return '';
@@ -427,107 +462,216 @@ function buildEngineeringAccessory(role, config, stage) {
 }
 
 function buildEngineeringPetSvg(config, stage) {
-  const scale = 0.85 + stage * 0.075;
+  const scale = 0.88 + stage * 0.045;
   const body = config.body || config.accent;
-  const canopy = config.canopy || mixHex(config.theme, -0.04);
-  const trim = config.trim || mixHex(body, -0.2);
-  const detail = config.detail || mixHex(config.accent, 0.16);
-  const metal = config.metal || '#E6EEF7';
+  const canopy = config.canopy || mixHex(config.theme, -0.08);
+  const trim = config.trim || mixHex(body, -0.22);
+  const detail = config.detail || mixHex(config.accent, 0.22);
+  const metal = config.metal || '#F0F8FF';
   const rim = config.rim || '#1E293B';
-  const halo = hexToRgba(config.accent, 0.12 + stage * 0.03);
-  const glow = hexToRgba(config.accent, 0.2 + stage * 0.04);
-  const stripe = mixHex(config.accent, 0.32);
-  const sparkles = Array.from({ length: stage + 2 }, (_, index) => {
-    const x = 62 + index * 30;
-    const y = index % 2 === 0 ? 58 : 74;
-    const size = index % 3 === 0 ? 4 : 3;
-    return `<circle cx="${x}" cy="${y}" r="${size}" fill="${hexToRgba('#ffffff', 0.72)}" />`;
+  const halo = hexToRgba(config.accent, 0.18 + stage * 0.05);
+  const glow = hexToRgba(config.accent, 0.28 + stage * 0.06);
+  const glowStrong = hexToRgba(config.accent, 0.55 + stage * 0.06);
+  const sparkle = hexToRgba('#ffffff', 0.78 + stage * 0.04);
+  const goldStar = hexToRgba('#FFD700', 0.6 + stage * 0.07);
+  const pinkGlow = hexToRgba('#FF69B4', 0.45 + stage * 0.06);
+  
+  const starParticles = Array.from({ length: 10 + stage * 3 }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / (10 + stage * 3);
+    const x = 160 + Math.cos(angle) * (75 + stage * 8);
+    const y = 145 + Math.sin(angle) * (55 + stage * 6);
+    const size = 3 + (index % 4) * 1.5;
+    const opacity = 0.35 + (index % 5) * 0.13;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${size}" fill="${index % 3 === 0 ? goldStar : sparkle}" opacity="${opacity}" />`;
   }).join('');
+  
+  const floatingStars = Array.from({ length: 8 + stage * 2 }, (_, index) => {
+    const x = 35 + index * 38;
+    const y = 28 + (index % 4) * 28;
+    const size = 4 + (index % 3) * 2.5;
+    return `<circle cx="${x}" cy="${y}" r="${size}" fill="${index % 2 === 0 ? sparkle : goldStar}" opacity="0.75" />`;
+  }).join('');
+  
+  const heartParticles = stage >= 2 ? Array.from({ length: 4 + stage }, (_, index) => {
+    const x = 50 + index * 60;
+    const y = 45 + (index % 3) * 20;
+    return `<circle cx="${x}" cy="${y}" r="${5 + index}" fill="${pinkGlow}" opacity="0.5" />`;
+  }).join('') : '';
+  
   const workshopPanels = Array.from({ length: 3 }, (_, index) => {
-    const offset = 58 + index * 66;
+    const offset = 48 + index * 74;
     return `
-      <rect x="${offset}" y="${44 + index * 10}" width="44" height="18" rx="9" fill="${hexToRgba('#ffffff', 0.3)}" />
-      <circle cx="${offset + 12}" cy="${53 + index * 10}" r="3" fill="${hexToRgba(config.accent, 0.42)}" />
-      <rect x="${offset + 20}" y="${49 + index * 10}" width="16" height="6" rx="3" fill="${hexToRgba('#ffffff', 0.56)}" />
+      <rect x="${offset}" y="${36 + index * 15}" width="56" height="24" rx="12" fill="${hexToRgba('#ffffff', 0.45)}" />
+      <circle cx="${offset + 18}" cy="${48 + index * 15}" r="6" fill="${hexToRgba(config.accent, 0.65)}" />
+      <circle cx="${offset + 18}" cy="${48 + index * 15}" r="3" fill="${sparkle}" />
+      <rect x="${offset + 28}" y="${42 + index * 15}" width="20" height="12" rx="6" fill="${hexToRgba('#ffffff', 0.75)}" />
     `;
   }).join('');
+  
   const mobility = config.role === 'bulldozer'
     ? `
-      <rect x="92" y="214" width="136" height="38" rx="18" fill="${rim}" />
-      <rect x="104" y="224" width="112" height="18" rx="9" fill="${mixHex(rim, 0.16)}" />
-      ${Array.from({ length: 6 }, (_, index) => `<rect x="${108 + index * 18}" y="226" width="10" height="14" rx="4" fill="${metal}" opacity="0.84" />`).join('')}
+      <rect x="82" y="208" width="156" height="50" rx="24" fill="${rim}" />
+      <rect x="94" y="218" width="132" height="30" rx="15" fill="${mixHex(rim, 0.22)}" />
+      ${Array.from({ length: 8 }, (_, index) => `<rect x="${100 + index * 15}" y="222" width="14" height="22" rx="6" fill="${metal}" opacity="0.92" />`).join('')}
+      ${stage >= 3 ? `<rect x="94" y="252" width="132" height="6" rx="3" fill="${glowStrong}" />` : ''}
+      ${stage >= 5 ? `<ellipse cx="160" cy="265" rx="60" ry="8" fill="${goldStar}" opacity="0.4" />` : ''}
     `
     : config.role === 'roller'
       ? `
-        <circle cx="124" cy="232" r="26" fill="${rim}" />
-        <circle cx="124" cy="232" r="13" fill="${metal}" />
-        <ellipse cx="204" cy="228" rx="42" ry="30" fill="${detail}" />
-        <ellipse cx="204" cy="228" rx="26" ry="18" fill="${mixHex(detail, 0.28)}" />
+        <circle cx="114" cy="238" r="38" fill="${rim}" />
+        <circle cx="114" cy="238" r="22" fill="${metal}" />
+        <circle cx="114" cy="238" r="10" fill="${glow}" />
+        <ellipse cx="210" cy="234" rx="54" ry="42" fill="${detail}" />
+        <ellipse cx="210" cy="234" rx="38" ry="28" fill="${mixHex(detail, 0.35)}" />
+        <ellipse cx="210" cy="234" rx="20" ry="14" fill="${hexToRgba('#ffffff', 0.42)}" />
+        ${stage >= 3 ? `<circle cx="114" cy="238" r="14" fill="${glowStrong}" />` : ''}
+        ${stage >= 5 ? `<ellipse cx="114" cy="238" rx="28" ry="20" fill="${goldStar}" opacity="0.5" />` : ''}
       `
       : `
-        <circle cx="122" cy="232" r="26" fill="${rim}" />
-        <circle cx="122" cy="232" r="14" fill="${metal}" />
-        <circle cx="206" cy="232" r="26" fill="${rim}" />
-        <circle cx="206" cy="232" r="14" fill="${metal}" />
+        <circle cx="112" cy="238" r="38" fill="${rim}" />
+        <circle cx="112" cy="238" r="20" fill="${metal}" />
+        <circle cx="112" cy="238" r="8" fill="${glow}" />
+        <circle cx="216" cy="238" r="38" fill="${rim}" />
+        <circle cx="216" cy="238" r="20" fill="${metal}" />
+        <circle cx="216" cy="238" r="8" fill="${glow}" />
+        ${stage >= 2 ? `
+          <circle cx="112" cy="238" r="14" fill="none" stroke="${glowStrong}" stroke-width="3" />
+          <circle cx="216" cy="238" r="14" fill="none" stroke="${glowStrong}" stroke-width="3" />
+        ` : ''}
+        ${stage >= 4 ? `
+          <ellipse cx="112" cy="238" rx="24" ry="18" fill="${goldStar}" opacity="0.35" />
+          <ellipse cx="216" cy="238" rx="24" ry="18" fill="${goldStar}" opacity="0.35" />
+        ` : ''}
       `;
+  
   const crown = stage >= 5
-    ? `<path d="M126 82 L142 54 L160 78 L178 54 L194 82 L180 94 H140Z" fill="${mixHex(config.accent, 0.34)}" stroke="${mixHex(config.accent, -0.18)}" stroke-width="4" />`
+    ? `
+      <path d="M114 72 L138 36 L160 66 L182 36 L206 72 L188 90 H132Z" fill="${mixHex(config.accent, 0.55)}" stroke="${mixHex(config.accent, -0.08)}" stroke-width="7" />
+      <circle cx="138" cy="44" r="10" fill="${sparkle}" />
+      <circle cx="182" cy="44" r="10" fill="${sparkle}" />
+      <circle cx="160" cy="56" r="9" fill="${sparkle}" />
+      <circle cx="138" cy="44" r="5" fill="${goldStar}" />
+      <circle cx="182" cy="44" r="5" fill="${goldStar}" />
+      <circle cx="160" cy="56" r="4.5" fill="${goldStar}" />
+      <path d="M126 66 L114 52" stroke="${glowStrong}" stroke-width="6" stroke-linecap="round" />
+      <path d="M194 66 L206 52" stroke="${glowStrong}" stroke-width="6" stroke-linecap="round" />
+      <path d="M160 36 L160 24" stroke="${goldStar}" stroke-width="4" stroke-linecap="round" />
+    `
+    : stage >= 4
+    ? `
+      <path d="M120 78 L140 48 L160 74 L180 48 L200 78 H120Z" fill="${mixHex(config.accent, 0.45)}" stroke="${mixHex(config.accent, -0.06)}" stroke-width="5" />
+      <circle cx="140" cy="54" r="8" fill="${sparkle}" />
+      <circle cx="180" cy="54" r="8" fill="${sparkle}" />
+      <circle cx="140" cy="54" r="4" fill="${goldStar}" />
+      <circle cx="180" cy="54" r="4" fill="${goldStar}" />
+    `
     : '';
+  
   const ribbon = stage >= 4
-    ? `<path d="M210 102 L224 126 L250 132 L232 148 L236 174 L210 162 L184 174 L188 148 L170 132 L196 126Z" fill="${hexToRgba(config.accent, 0.24)}" />`
+    ? `
+      <path d="M216 92 L236 122 L268 130 L244 152 L248 184 L216 168 L184 184 L188 152 L164 130 L196 122Z" fill="${hexToRgba(config.accent, 0.45)}" stroke="${hexToRgba('#ffffff', 0.55)}" stroke-width="3" />
+      <circle cx="216" cy="130" r="12" fill="${sparkle}" />
+      <circle cx="216" cy="130" r="6" fill="${goldStar}" />
+      <circle cx="244" cy="152" r="6" fill="${pinkGlow}" />
+      <circle cx="188" cy="152" r="6" fill="${pinkGlow}" />
+    `
     : '';
+  
   const sideBadge = stage >= 3
-    ? `<path d="M110 176 Q126 164 142 176" stroke="${stripe}" stroke-width="8" stroke-linecap="round" />`
+    ? `
+      <path d="M102 182 Q124 164 146 182" stroke="${mixHex(config.accent, 0.45)}" stroke-width="14" stroke-linecap="round" />
+      <circle cx="124" cy="170" r="9" fill="${sparkle}" />
+      <circle cx="124" cy="170" r="4.5" fill="${goldStar}" />
+    `
+    : '';
+  
+  const chestPlate = stage >= 2
+    ? `
+      <ellipse cx="160" cy="188" rx="36" ry="30" fill="${hexToRgba(config.accent, 0.35)}" stroke="${hexToRgba('#ffffff', 0.45)}" stroke-width="4" />
+      <circle cx="160" cy="184" r="14" fill="${glow}" />
+      <circle cx="160" cy="184" r="7" fill="${sparkle}" />
+      <circle cx="160" cy="184" r="3.5" fill="${goldStar}" />
+      ${stage >= 4 ? `<ellipse cx="160" cy="184" rx="24" ry="20" fill="none" stroke="${hexToRgba('#ffffff', 0.35)}" stroke-width="2" />` : ''}
+    `
+    : '';
+  
+  const wings = stage >= 4
+    ? `
+      <path d="M56 158 Q32 134 44 110 Q68 122 92 152" fill="${hexToRgba(config.accent, 0.28)}" />
+      <path d="M264 158 Q288 134 276 110 Q252 122 228 152" fill="${hexToRgba(config.accent, 0.28)}" />
+      <path d="M56 158 Q32 134 44 110" fill="none" stroke="${sparkle}" stroke-width="2.5" opacity="0.7" />
+      <path d="M264 158 Q288 134 276 110" fill="none" stroke="${sparkle}" stroke-width="2.5" opacity="0.7" />
+      <circle cx="44" cy="110" r="5" fill="${goldStar}" />
+      <circle cx="276" cy="110" r="5" fill="${goldStar}" />
+    `
     : '';
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
       <defs>
-        <radialGradient id="engineering-bg-${config.assetKey}-${stage}" cx="50%" cy="34%" r="72%">
-          <stop offset="0%" stop-color="${mixHex(config.theme, 0.22)}" />
-          <stop offset="64%" stop-color="${config.theme}" />
-          <stop offset="100%" stop-color="${mixHex(config.theme, -0.06)}" />
+        <radialGradient id="engineering-bg-${config.assetKey}-${stage}" cx="50%" cy="26%" r="80%">
+          <stop offset="0%" stop-color="${mixHex(config.theme, 0.4)}" />
+          <stop offset="50%" stop-color="${config.theme}" />
+          <stop offset="100%" stop-color="${mixHex(config.theme, -0.18)}" />
         </radialGradient>
         <linearGradient id="engineering-body-${config.assetKey}-${stage}" x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stop-color="${mixHex(body, 0.12)}" />
-          <stop offset="100%" stop-color="${mixHex(body, -0.08)}" />
+          <stop offset="0%" stop-color="${mixHex(body, 0.22)}" />
+          <stop offset="45%" stop-color="${body}" />
+          <stop offset="100%" stop-color="${mixHex(body, -0.15)}" />
         </linearGradient>
-        <linearGradient id="engineering-glass-${config.assetKey}-${stage}" x1="18%" y1="0%" x2="82%" y2="100%">
-          <stop offset="0%" stop-color="${hexToRgba('#ffffff', 0.96)}" />
-          <stop offset="56%" stop-color="${canopy}" />
-          <stop offset="100%" stop-color="${mixHex(canopy, -0.08)}" />
+        <linearGradient id="engineering-glass-${config.assetKey}-${stage}" x1="10%" y1="0%" x2="90%" y2="100%">
+          <stop offset="0%" stop-color="${hexToRgba('#ffffff', 1)}" />
+          <stop offset="35%" stop-color="${canopy}" />
+          <stop offset="100%" stop-color="${mixHex(canopy, -0.22)}" />
         </linearGradient>
+        <filter id="engineering-glow-${config.assetKey}-${stage}">
+          <feGaussianBlur stdDeviation="7" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="engineering-softglow-${config.assetKey}-${stage}">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
       </defs>
       <rect width="320" height="320" rx="80" fill="url(#engineering-bg-${config.assetKey}-${stage})" />
-      <circle cx="160" cy="152" r="${92 + stage * 10}" fill="${halo}" />
-      <path d="M60 232 Q160 188 260 232" stroke="${hexToRgba(config.accent, 0.18)}" stroke-width="12" stroke-linecap="round" fill="none" />
-      <path d="M74 244 H246" stroke="${hexToRgba('#ffffff', 0.38)}" stroke-width="6" stroke-linecap="round" opacity="0.72" />
+      ${starParticles}
+      ${floatingStars}
+      ${heartParticles}
+      <circle cx="160" cy="142" r="${108 + stage * 16}" fill="${halo}" />
+      <circle cx="160" cy="142" r="${88 + stage * 12}" fill="${hexToRgba(config.accent, 0.12 + stage * 0.03)}" />
+      <path d="M48 244 Q160 180 272 244" stroke="${hexToRgba(config.accent, 0.32)}" stroke-width="18" stroke-linecap="round" fill="none" />
+      <path d="M64 256 H256" stroke="${hexToRgba('#ffffff', 0.55)}" stroke-width="9" stroke-linecap="round" opacity="0.85" />
       ${workshopPanels}
-      ${sparkles}
-      <g transform="translate(160 184) scale(${scale}) translate(-160 -184)">
-        <ellipse cx="160" cy="270" rx="92" ry="18" fill="${hexToRgba('#0f172a', 0.15)}" />
+      <g transform="translate(160 178) scale(${scale}) translate(-160 -188)">
+        <ellipse cx="160" cy="280" rx="104" ry="24" fill="${hexToRgba('#0f172a', 0.06)}" />
+        ${wings}
         ${buildEngineeringAccessory(config.role, { ...config, detail, trim, metal }, stage)}
-        <path d="M80 178 Q88 142 122 138 H206 Q240 142 248 176 V214 Q248 242 220 244 H108 Q80 242 80 214Z" fill="url(#engineering-body-${config.assetKey}-${stage})" />
-        <path d="M96 180 Q118 166 144 166 H196 Q220 166 236 180 V210 Q218 222 198 222 H122 Q102 222 84 210Z" fill="${trim}" opacity="0.9" />
-        <path d="M112 122 Q128 98 150 98 H194 Q214 98 228 122 V162 H112Z" fill="url(#engineering-glass-${config.assetKey}-${stage})" />
-        <path d="M118 130 H222" stroke="${hexToRgba('#ffffff', 0.72)}" stroke-width="6" stroke-linecap="round" />
-        <path d="M112 152 Q160 136 228 152" stroke="${hexToRgba(config.accent, 0.16)}" stroke-width="10" stroke-linecap="round" />
-        ${buildEngineeringHead(config.role, { trim, detail })}
-        <path d="M112 160 Q94 146 94 128 Q94 112 110 112 H128 Q138 126 138 154Z" fill="${mixHex(body, -0.04)}" opacity="0.86" />
-        <path d="M208 160 Q226 146 226 128 Q226 112 210 112 H192 Q182 126 182 154Z" fill="${mixHex(body, -0.04)}" opacity="0.86" />
-        <path d="M134 182 Q160 172 186 182" stroke="${hexToRgba('#ffffff', 0.32)}" stroke-width="8" stroke-linecap="round" />
-        <circle cx="146" cy="146" r="10" fill="#1f2937" />
-        <circle cx="176" cy="146" r="10" fill="#1f2937" />
-        <circle cx="142" cy="142" r="3.5" fill="#ffffff" />
-        <circle cx="172" cy="142" r="3.5" fill="#ffffff" />
-        <ellipse cx="132" cy="164" rx="10" ry="6" fill="${hexToRgba('#fb7185', 0.3)}" />
-        <ellipse cx="190" cy="164" rx="10" ry="6" fill="${hexToRgba('#fb7185', 0.3)}" />
-        <path d="M148 164 Q160 174 172 164" stroke="#1f2937" stroke-width="6" stroke-linecap="round" fill="none" />
-        <rect x="144" y="94" width="32" height="18" rx="9" fill="${detail}" />
-        <circle cx="160" cy="92" r="12" fill="${glow}" />
-        <path d="M106 198 H214" stroke="${hexToRgba('#ffffff', 0.2)}" stroke-width="8" stroke-linecap="round" />
-        <path d="M114 204 H170" stroke="${hexToRgba('#ffffff', 0.5)}" stroke-width="4" stroke-linecap="round" />
+        <path d="M68 186 Q82 136 122 128 H206 Q250 136 268 184 V226 Q268 254 228 256 H100 Q68 254 68 226Z" fill="url(#engineering-body-${config.assetKey}-${stage})" />
+        <path d="M86 188 Q114 168 144 168 H196 Q226 168 246 188 V216 Q222 232 196 232 H116 Q90 232 68 216Z" fill="${trim}" opacity="0.96" />
+        <path d="M102 112 Q124 80 150 80 H194 Q218 80 240 112 V168 H102Z" fill="url(#engineering-glass-${config.assetKey}-${stage})" />
+        <path d="M108 120 H232" stroke="${hexToRgba('#ffffff', 0.9)}" stroke-width="9" stroke-linecap="round" />
+        <path d="M102 158 Q160 138 238 158" stroke="${hexToRgba(config.accent, 0.3)}" stroke-width="15" stroke-linecap="round" />
+        ${buildEngineeringHead(config.role, { trim, detail, body })}
+        <path d="M102 168 Q78 148 78 124 Q78 100 114 100 H136 Q150 120 150 154Z" fill="${mixHex(body, -0.1)}" opacity="0.92" />
+        <path d="M218 168 Q242 148 242 124 Q242 100 206 100 H184 Q170 120 170 154Z" fill="${mixHex(body, -0.1)}" opacity="0.92" />
+        <path d="M128 188 Q160 172 192 188" stroke="${hexToRgba('#ffffff', 0.5)}" stroke-width="11" stroke-linecap="round" />
+        <circle cx="140" cy="152" r="16" fill="#1f2937" />
+        <circle cx="180" cy="152" r="16" fill="#1f2937" />
+        <circle cx="135" cy="147" r="6.5" fill="#ffffff" />
+        <circle cx="175" cy="147" r="6.5" fill="#ffffff" />
+        <circle cx="137" cy="144" r="3" fill="${config.accent}" />
+        <circle cx="177" cy="144" r="3" fill="${config.accent}" />
+        <ellipse cx="126" cy="176" rx="16" ry="9" fill="${hexToRgba('#ff69b4', 0.45)}" />
+        <ellipse cx="196" cy="176" rx="16" ry="9" fill="${hexToRgba('#ff69b4', 0.45)}" />
+        <path d="M142 176 Q160 192 178 176" stroke="#1f2937" stroke-width="9" stroke-linecap="round" fill="none" />
+        <rect x="138" y="82" width="44" height="28" rx="14" fill="${detail}" filter="url(#engineering-glow-${config.assetKey}-${stage})" />
+        <circle cx="160" cy="80" r="22" fill="${glow}" filter="url(#engineering-glow-${config.assetKey}-${stage})" />
+        <circle cx="160" cy="80" r="11" fill="${sparkle}" />
+        <circle cx="160" cy="80" r="5.5" fill="${goldStar}" />
+        <path d="M94 206 H226" stroke="${hexToRgba('#ffffff', 0.28)}" stroke-width="11" stroke-linecap="round" />
+        <path d="M108 216 H178" stroke="${hexToRgba('#ffffff', 0.65)}" stroke-width="7" stroke-linecap="round" />
         ${sideBadge}
+        ${chestPlate}
         ${mobility}
         ${ribbon}
         ${crown}
@@ -537,41 +681,56 @@ function buildEngineeringPetSvg(config, stage) {
 }
 
 function buildMechaAccessory(role, config, stage) {
-  const detail = config.detail || mixHex(config.accent, 0.2);
-  const trim = config.trim || mixHex(config.accent, -0.2);
+  const detail = config.detail || mixHex(config.accent, 0.22);
+  const trim = config.trim || mixHex(config.accent, -0.18);
+  const glow = hexToRgba(config.accent, 0.35 + stage * 0.05);
+  const sparkle = hexToRgba('#ffffff', 0.6 + stage * 0.08);
 
   switch (role) {
     case 'radar':
       return `
-        <path d="M228 118 L252 92 L266 106 L242 132Z" fill="${trim}" />
-        <circle cx="262" cy="98" r="18" fill="none" stroke="${detail}" stroke-width="6" />
-        <path d="M248 98 A14 14 0 0 1 276 98" fill="none" stroke="${hexToRgba(config.accent, 0.48)}" stroke-width="5" stroke-linecap="round" />
-        <circle cx="262" cy="98" r="6" fill="${detail}" />
+        <path d="M230 116 L256 88 L272 104 L246 132Z" fill="${trim}" />
+        <circle cx="268" cy="96" r="22" fill="none" stroke="${detail}" stroke-width="7" />
+        <path d="M252 96 A16 16 0 0 1 284 96" fill="none" stroke="${hexToRgba(config.accent, 0.55)}" stroke-width="6" stroke-linecap="round" />
+        <circle cx="268" cy="96" r="8" fill="${detail}" />
+        <circle cx="268" cy="96" r="4" fill="${sparkle}" />
+        ${stage >= 3 ? `<path d="M254 88 L246 76" stroke="${glow}" stroke-width="4" stroke-linecap="round" />` : ''}
+        ${stage >= 4 ? `<circle cx="280" cy="86" r="6" fill="${glow}" />` : ''}
       `;
     case 'shield':
       return `
-        <path d="M70 178 L114 150 L146 170 L124 234 L72 208Z" fill="${detail}" />
-        <path d="M90 176 L114 160 L130 174 L116 212 L90 198Z" fill="${mixHex(detail, 0.18)}" />
-        <path d="M112 172 V204 M98 188 H126" stroke="${hexToRgba('#ffffff', 0.54)}" stroke-width="4" stroke-linecap="round" />
+        <path d="M66 180 L114 150 L148 172 L124 238 L68 210Z" fill="${detail}" />
+        <path d="M88 178 L114 160 L132 176 L116 218 L88 200Z" fill="${mixHex(detail, 0.22)}" />
+        <path d="M110 172 V208 M94 190 H130" stroke="${hexToRgba('#ffffff', 0.6)}" stroke-width="5" stroke-linecap="round" />
+        ${stage >= 3 ? `<path d="M74 188 L60 176" stroke="${glow}" stroke-width="4" stroke-linecap="round" />` : ''}
+        ${stage >= 4 ? `<circle cx="58" cy="170" r="6" fill="${detail}" />` : ''}
       `;
     case 'medic':
       return `
-        <circle cx="244" cy="174" r="30" fill="${detail}" />
-        <circle cx="244" cy="174" r="18" fill="${mixHex(detail, 0.18)}" />
-        <rect x="238" y="156" width="12" height="36" rx="4" fill="#ffffff" />
-        <rect x="226" y="168" width="36" height="12" rx="4" fill="#ffffff" />
+        <circle cx="246" cy="172" r="34" fill="${detail}" />
+        <circle cx="246" cy="172" r="22" fill="${mixHex(detail, 0.22)}" />
+        <rect x="238" y="152" width="16" height="40" rx="5" fill="#ffffff" />
+        <rect x="224" y="166" width="44" height="14" rx="5" fill="#ffffff" />
+        ${stage >= 3 ? `<circle cx="246" cy="172" r="10" fill="${glow}" />` : ''}
+        ${stage >= 4 ? `<circle cx="246" cy="172" r="5" fill="${sparkle}" />` : ''}
       `;
     case 'assault':
       return `
-        <path d="M228 162 L274 136 L284 152 L238 178Z" fill="${detail}" />
-        <path d="M232 194 L274 216 L264 230 L222 206Z" fill="${trim}" />
-        <path d="M260 180 L282 170 L276 192Z" fill="${hexToRgba(config.accent, 0.42)}" />
+        <path d="M230 160 L280 132 L292 150 L242 180Z" fill="${detail}" />
+        <path d="M234 196 L280 220 L268 236 L222 210Z" fill="${trim}" />
+        <path d="M264 178 L288 166 L282 192Z" fill="${hexToRgba(config.accent, 0.5)}" />
+        ${stage >= 3 ? `<path d="M268 168 L282 156" stroke="${glow}" stroke-width="4" stroke-linecap="round" />` : ''}
+        ${stage >= 4 ? `<circle cx="286" cy="152" r="6" fill="${sparkle}" />` : ''}
       `;
     case 'owl':
       return `
-        <path d="M108 170 Q70 150 54 118 Q92 124 124 154" fill="${detail}" opacity="0.88" />
-        <path d="M212 170 Q250 150 266 118 Q228 124 196 154" fill="${detail}" opacity="0.88" />
-        <path d="M150 78 L160 56 L170 78" fill="${mixHex(config.accent, 0.18)}" />
+        <path d="M104 172 Q62 150 44 114 Q88 122 126 156" fill="${detail}" opacity="0.9" />
+        <path d="M216 172 Q258 150 276 114 Q232 122 194 156" fill="${detail}" opacity="0.9" />
+        <path d="M148 76 L160 52 L172 76" fill="${mixHex(config.accent, 0.22)}" />
+        <path d="M136 82 L148 62" stroke="${glow}" stroke-width="4" stroke-linecap="round" />
+        <path d="M184 82 L172 62" stroke="${glow}" stroke-width="4" stroke-linecap="round" />
+        ${stage >= 4 ? `<circle cx="44" cy="108" r="8" fill="${sparkle}" />` : ''}
+        ${stage >= 4 ? `<circle cx="276" cy="108" r="8" fill="${sparkle}" />` : ''}
       `;
     default:
       return '';
@@ -582,29 +741,40 @@ function buildMechaHead(role, config) {
   switch (role) {
     case 'radar':
       return `
-        <path d="M124 118 L138 78 L156 110" fill="${config.trim}" />
-        <path d="M196 118 L182 78 L164 110" fill="${config.trim}" />
+        <path d="M120 120 L136 74 L156 108" fill="${config.trim}" />
+        <path d="M200 120 L184 74 L164 108" fill="${config.trim}" />
+        <path d="M136 74 L150 60 Q158 70 156 108" fill="${mixHex(config.trim, 0.18)}" />
+        <circle cx="134" cy="76" r="6" fill="${mixHex(config.body, 0.2)}" />
+        <circle cx="186" cy="76" r="6" fill="${mixHex(config.body, 0.2)}" />
       `;
     case 'shield':
       return `
-        <path d="M160 72 L182 106 H138Z" fill="${config.trim}" />
-        <path d="M146 88 H174" stroke="${hexToRgba('#ffffff', 0.42)}" stroke-width="4" stroke-linecap="round" />
+        <path d="M160 68 L186 108 H134Z" fill="${config.trim}" />
+        <path d="M144 90 H176" stroke="${hexToRgba('#ffffff', 0.48)}" stroke-width="5" stroke-linecap="round" />
+        <path d="M150 80 L156 72 L164 78 L170 72" stroke="${hexToRgba('#ffffff', 0.3)}" stroke-width="3" stroke-linecap="round" fill="none" />
       `;
     case 'medic':
       return `
-        <path d="M128 110 Q120 72 144 70 Q150 96 150 118" fill="${config.trim}" />
-        <path d="M192 110 Q200 72 176 70 Q170 96 170 118" fill="${config.trim}" />
+        <path d="M124 112 Q114 68 142 66 Q150 94 150 118" fill="${config.trim}" />
+        <path d="M196 112 Q206 68 178 66 Q170 94 170 118" fill="${config.trim}" />
+        <ellipse cx="132" cy="82" rx="8" ry="6" fill="${mixHex(config.body, 0.18)}" />
+        <ellipse cx="188" cy="82" rx="8" ry="6" fill="${mixHex(config.body, 0.18)}" />
       `;
     case 'assault':
       return `
-        <path d="M126 114 L106 82 L136 86" fill="${config.trim}" />
-        <path d="M194 114 L214 82 L184 86" fill="${config.trim}" />
+        <path d="M122 116 L100 80 L134 84" fill="${config.trim}" />
+        <path d="M198 116 L220 80 L186 84" fill="${config.trim}" />
+        <path d="M100 80 L88 66 Q98 78 134 84" fill="${mixHex(config.accent, 0.12)}" />
+        <path d="M220 80 L232 66 Q222 78 186 84" fill="${mixHex(config.accent, 0.12)}" />
       `;
     case 'owl':
       return `
-        <path d="M128 112 L140 68 L156 110" fill="${config.trim}" />
-        <path d="M192 112 L180 68 L164 110" fill="${config.trim}" />
-        <path d="M146 78 H174" stroke="${hexToRgba('#ffffff', 0.36)}" stroke-width="4" stroke-linecap="round" />
+        <path d="M124 114 L138 64 L160 108" fill="${config.trim}" />
+        <path d="M196 114 L182 64 L160 108" fill="${config.trim}" />
+        <path d="M138 64 L152 52 Q160 62 160 108" fill="${mixHex(config.trim, 0.2)}" />
+        <path d="M144 76 H176" stroke="${hexToRgba('#ffffff', 0.42)}" stroke-width="5" stroke-linecap="round" />
+        <path d="M148 66 L156 58" stroke="${hexToRgba(config.accent, 0.5)}" stroke-width="3" stroke-linecap="round" />
+        <path d="M172 66 L164 58" stroke="${hexToRgba(config.accent, 0.5)}" stroke-width="3" stroke-linecap="round" />
       `;
     default:
       return '';
@@ -612,75 +782,184 @@ function buildMechaHead(role, config) {
 }
 
 function buildMechaPetSvg(config, stage) {
-  const scale = 0.86 + stage * 0.075;
+  const scale = 0.88 + stage * 0.048;
   const body = config.body || config.accent;
-  const armor = config.armor || mixHex(config.theme, -0.12);
+  const armor = config.armor || mixHex(config.theme, -0.16);
   const trim = config.trim || mixHex(body, -0.18);
-  const detail = config.detail || mixHex(config.accent, 0.2);
-  const visor = config.visor || '#DFF7FF';
-  const halo = hexToRgba(config.accent, 0.12 + stage * 0.032);
-  const orbitDots = Array.from({ length: stage + 3 }, (_, index) => {
-    const angle = (Math.PI * 2 * index) / (stage + 3);
-    const x = 160 + Math.cos(angle) * 92;
-    const y = 128 + Math.sin(angle) * 44;
-    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${index % 2 === 0 ? 4 : 3}" fill="${hexToRgba(config.accent, 0.42)}" />`;
+  const detail = config.detail || mixHex(config.accent, 0.24);
+  const visor = config.visor || '#E8F8FF';
+  const halo = hexToRgba(config.accent, 0.16 + stage * 0.045);
+  const glow = hexToRgba(config.accent, 0.32 + stage * 0.055);
+  const glowStrong = hexToRgba(config.accent, 0.52 + stage * 0.06);
+  const sparkle = hexToRgba('#ffffff', 0.72 + stage * 0.05);
+  const cyanBlast = hexToRgba('#00FFFF', 0.5 + stage * 0.06);
+  const purpleBeam = hexToRgba('#BF00FF', 0.45 + stage * 0.06);
+  const goldCore = hexToRgba('#FFD700', 0.6 + stage * 0.07);
+  
+  const orbitDots = Array.from({ length: 8 + stage * 3 }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / (8 + stage * 3);
+    const x = 160 + Math.cos(angle) * (100 + stage * 10);
+    const y = 130 + Math.sin(angle) * (52 + stage * 7);
+    const r = 3 + (index % 4) * 1.5;
+    const opacity = 0.35 + (index % 5) * 0.13;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${index % 3 === 0 ? cyanBlast : index % 3 === 1 ? sparkle : purpleBeam}" opacity="${opacity}" />`;
   }).join('');
+  
+  const energyParticles = Array.from({ length: 6 + stage * 2 }, (_, index) => {
+    const x = 50 + index * 42;
+    const y = 35 + (index % 3) * 25;
+    return `<circle cx="${x}" cy="${y}" r="${3 + index % 3}" fill="${index % 2 === 0 ? cyanBlast : purpleBeam}" opacity="0.6" />`;
+  }).join('');
+  
   const shoulderLights = stage >= 4
     ? `
-      <circle cx="112" cy="160" r="10" fill="${hexToRgba(config.accent, 0.42)}" />
-      <circle cx="208" cy="160" r="10" fill="${hexToRgba(config.accent, 0.42)}" />
+      <circle cx="106" cy="156" r="18" fill="${hexToRgba(config.accent, 0.5)}" />
+      <circle cx="106" cy="156" r="9" fill="${sparkle}" />
+      <circle cx="106" cy="156" r="4.5" fill="${cyanBlast}" />
+      <circle cx="214" cy="156" r="18" fill="${hexToRgba(config.accent, 0.5)}" />
+      <circle cx="214" cy="156" r="9" fill="${sparkle}" />
+      <circle cx="214" cy="156" r="4.5" fill="${cyanBlast}" />
+      ${stage >= 5 ? `
+        <path d="M96 144 L86 130" stroke="${glowStrong}" stroke-width="5" stroke-linecap="round" />
+        <path d="M224 144 L234 130" stroke="${glowStrong}" stroke-width="5" stroke-linecap="round" />
+        <circle cx="86" cy="126" r="5" fill="${goldCore}" />
+        <circle cx="234" cy="126" r="5" fill="${goldCore}" />
+      ` : ''}
+    `
+    : stage >= 3
+    ? `
+      <circle cx="108" cy="158" r="14" fill="${hexToRgba(config.accent, 0.4)}" />
+      <circle cx="108" cy="158" r="7" fill="${sparkle}" />
+      <circle cx="212" cy="158" r="14" fill="${hexToRgba(config.accent, 0.4)}" />
+      <circle cx="212" cy="158" r="7" fill="${sparkle}" />
     `
     : '';
+  
   const crown = stage >= 5
-    ? `<path d="M124 72 L142 46 L160 74 L178 46 L196 72 L182 86 H138Z" fill="${mixHex(config.accent, 0.26)}" stroke="${mixHex(config.accent, -0.18)}" stroke-width="4" />`
+    ? `
+      <path d="M114 64 L140 32 L160 62 L180 32 L206 64 L186 84 H134Z" fill="${mixHex(config.accent, 0.4)}" stroke="${mixHex(config.accent, -0.08)}" stroke-width="6" />
+      <circle cx="140" cy="40" r="9" fill="${sparkle}" />
+      <circle cx="180" cy="40" r="9" fill="${sparkle}" />
+      <circle cx="160" cy="52" r="8" fill="${sparkle}" />
+      <circle cx="140" cy="40" r="4.5" fill="${cyanBlast}" />
+      <circle cx="180" cy="40" r="4.5" fill="${cyanBlast}" />
+      <circle cx="160" cy="52" r="4" fill="${goldCore}" />
+      <path d="M128 60 L116 46" stroke="${glowStrong}" stroke-width="5" stroke-linecap="round" />
+      <path d="M192 60 L204 46" stroke="${glowStrong}" stroke-width="5" stroke-linecap="round" />
+      <path d="M160 32 L160 18" stroke="${goldCore}" stroke-width="4" stroke-linecap="round" />
+    `
     : '';
+  
   const orbitRing = stage >= 3
-    ? `<path d="M78 138 Q160 74 242 138" fill="none" stroke="${hexToRgba(config.accent, 0.22)}" stroke-width="10" stroke-linecap="round" />`
+    ? `
+      <path d="M68 132 Q160 58 252 132" fill="none" stroke="${hexToRgba(config.accent, 0.3)}" stroke-width="14" stroke-linecap="round" />
+      <path d="M76 142 Q160 74 244 142" fill="none" stroke="${hexToRgba('#ffffff', 0.18)}" stroke-width="5" stroke-linecap="round" />
+      <path d="M84 130 Q160 66 236 130" fill="none" stroke="${cyanBlast}" stroke-width="2" stroke-linecap="round" opacity="0.5" />
+    `
+    : '';
+  
+  const chestCore = stage >= 2
+    ? `
+      <circle cx="160" cy="186" r="26" fill="${hexToRgba(config.accent, 0.22)}" stroke="${hexToRgba('#ffffff', 0.3)}" stroke-width="4" />
+      <circle cx="160" cy="186" r="12" fill="${glow}" />
+      <circle cx="160" cy="186" r="6" fill="${sparkle}" />
+      <circle cx="160" cy="186" r="3" fill="${cyanBlast}" />
+      ${stage >= 4 ? `
+        <circle cx="160" cy="186" r="20" fill="none" stroke="${hexToRgba(config.accent, 0.45)}" stroke-width="3" />
+        <circle cx="160" cy="186" r="28" fill="none" stroke="${purpleBeam}" stroke-width="2" opacity="0.6" />
+      ` : ''}
+    `
+    : '';
+  
+  const energyLines = stage >= 3
+    ? `
+      <path d="M98 202 Q76 214 64 238" stroke="${hexToRgba(config.accent, 0.45)}" stroke-width="5" stroke-linecap="round" fill="none" />
+      <path d="M222 202 Q244 214 256 238" stroke="${hexToRgba(config.accent, 0.45)}" stroke-width="5" stroke-linecap="round" fill="none" />
+      <path d="M64 238 L56 248" stroke="${cyanBlast}" stroke-width="3" stroke-linecap="round" />
+      <path d="M256 238 L264 248" stroke="${cyanBlast}" stroke-width="3" stroke-linecap="round" />
+    `
+    : '';
+  
+  const backThrusters = stage >= 4
+    ? `
+      <ellipse cx="80" cy="200" rx="18" ry="12" fill="${hexToRgba(config.accent, 0.3)}" />
+      <ellipse cx="80" cy="200" rx="10" ry="7" fill="${cyanBlast}" opacity="0.7" />
+      <ellipse cx="240" cy="200" rx="18" ry="12" fill="${hexToRgba(config.accent, 0.3)}" />
+      <ellipse cx="240" cy="200" rx="10" ry="7" fill="${cyanBlast}" opacity="0.7" />
+      ${stage >= 5 ? `
+        <path d="M70 192 Q60 180 70 168" stroke="${purpleBeam}" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6" />
+        <path d="M250 192 Q260 180 250 168" stroke="${purpleBeam}" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6" />
+      ` : ''}
+    `
     : '';
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
       <defs>
-        <radialGradient id="mecha-bg-${config.assetKey}-${stage}" cx="50%" cy="34%" r="70%">
-          <stop offset="0%" stop-color="${mixHex(config.theme, 0.18)}" />
-          <stop offset="58%" stop-color="${config.theme}" />
-          <stop offset="100%" stop-color="${mixHex(config.theme, -0.08)}" />
+        <radialGradient id="mecha-bg-${config.assetKey}-${stage}" cx="50%" cy="28%" r="75%">
+          <stop offset="0%" stop-color="${mixHex(config.theme, 0.28)}" />
+          <stop offset="50%" stop-color="${config.theme}" />
+          <stop offset="100%" stop-color="${mixHex(config.theme, -0.12)}" />
         </radialGradient>
         <linearGradient id="mecha-body-${config.assetKey}-${stage}" x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stop-color="${mixHex(body, 0.1)}" />
-          <stop offset="100%" stop-color="${mixHex(body, -0.12)}" />
+          <stop offset="0%" stop-color="${mixHex(body, 0.18)}" />
+          <stop offset="45%" stop-color="${body}" />
+          <stop offset="100%" stop-color="${mixHex(body, -0.16)}" />
         </linearGradient>
+        <linearGradient id="mecha-armor-${config.assetKey}-${stage}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${armor}" />
+          <stop offset="100%" stop-color="${mixHex(armor, -0.12)}" />
+        </linearGradient>
+        <filter id="mecha-glow-${config.assetKey}-${stage}">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="mecha-coreglow-${config.assetKey}-${stage}">
+          <feGaussianBlur stdDeviation="8" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
       </defs>
       <rect width="320" height="320" rx="80" fill="url(#mecha-bg-${config.assetKey}-${stage})" />
-      <circle cx="160" cy="146" r="${94 + stage * 10}" fill="${halo}" />
-      <path d="M78 232 Q160 198 242 232" stroke="${hexToRgba(config.accent, 0.22)}" stroke-width="10" stroke-linecap="round" fill="none" />
+      ${energyParticles}
+      <circle cx="160" cy="140" r="${106 + stage * 14}" fill="${halo}" />
+      <circle cx="160" cy="140" r="${86 + stage * 10}" fill="${hexToRgba(config.accent, 0.08 + stage * 0.02)}" />
+      <path d="M68 240 Q160 188 252 240" stroke="${hexToRgba(config.accent, 0.3)}" stroke-width="14" stroke-linecap="round" fill="none" />
+      <path d="M84 252 H236" stroke="${hexToRgba('#ffffff', 0.35)}" stroke-width="6" stroke-linecap="round" opacity="0.65" />
       ${orbitRing}
       ${orbitDots}
-      <g transform="translate(160 182) scale(${scale}) translate(-160 -182)">
-        <ellipse cx="160" cy="268" rx="90" ry="18" fill="${hexToRgba('#0f172a', 0.14)}" />
+      <g transform="translate(160 178) scale(${scale}) translate(-160 -186)">
+        <ellipse cx="160" cy="276" rx="98" ry="22" fill="${hexToRgba('#0f172a', 0.08)}" />
+        ${backThrusters}
         ${buildMechaAccessory(config.role, { ...config, detail, trim }, stage)}
-        <path d="M108 212 Q86 176 104 138 Q122 104 160 104 Q198 104 216 138 Q234 176 212 212 Q190 240 160 240 Q130 240 108 212Z" fill="url(#mecha-body-${config.assetKey}-${stage})" />
-        <path d="M100 174 L82 206 L110 206 L126 184" fill="${trim}" />
-        <path d="M220 174 L238 206 L210 206 L194 184" fill="${trim}" />
-        <path d="M130 124 Q144 92 160 92 Q176 92 190 124 V158 Q190 178 174 188 H146 Q130 178 130 158Z" fill="${armor}" />
-        <path d="M120 150 Q100 156 98 176 Q122 176 136 164" fill="${mixHex(body, -0.1)}" />
-        <path d="M200 150 Q220 156 222 176 Q198 176 184 164" fill="${mixHex(body, -0.1)}" />
-        ${buildMechaHead(config.role, { trim })}
-        <path d="M132 182 H188" stroke="${hexToRgba('#ffffff', 0.26)}" stroke-width="10" stroke-linecap="round" />
-        <rect x="134" y="126" width="52" height="18" rx="9" fill="${visor}" />
-        <circle cx="146" cy="135" r="4" fill="${config.accent}" />
-        <circle cx="174" cy="135" r="4" fill="${config.accent}" />
-        <path d="M146 150 Q160 160 174 150" stroke="${trim}" stroke-width="5" stroke-linecap="round" fill="none" />
-        <ellipse cx="134" cy="168" rx="10" ry="6" fill="${hexToRgba('#fb7185', 0.22)}" />
-        <ellipse cx="186" cy="168" rx="10" ry="6" fill="${hexToRgba('#fb7185', 0.22)}" />
-        <path d="M122 188 L110 228 H136 L144 196" fill="${trim}" />
-        <path d="M198 188 L210 228 H184 L176 196" fill="${trim}" />
-        <path d="M138 190 H182" stroke="${detail}" stroke-width="12" stroke-linecap="round" />
-        <circle cx="160" cy="184" r="18" fill="${detail}" />
-        <circle cx="160" cy="184" r="8" fill="${hexToRgba('#ffffff', 0.54)}" />
-        <path d="M160 172 V196 M148 184 H172" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="${config.role === 'medic' ? '1' : '0.22'}" />
-        <path d="M120 208 Q160 220 200 208" stroke="${hexToRgba('#ffffff', 0.28)}" stroke-width="6" stroke-linecap="round" />
+        <path d="M100 220 Q74 176 98 130 Q120 88 160 88 Q200 88 222 130 Q246 176 220 220 Q194 252 160 252 Q126 252 100 220Z" fill="url(#mecha-body-${config.assetKey}-${stage})" />
+        <path d="M92 170 L70 210 L106 210 L130 184" fill="${trim}" />
+        <path d="M228 170 L250 210 L214 210 L190 184" fill="${trim}" />
+        <path d="M122 118 Q140 78 160 78 Q180 78 198 118 V162 Q198 186 178 198 H142 Q122 186 122 162Z" fill="url(#mecha-armor-${config.assetKey}-${stage})" />
+        <path d="M110 154 Q86 160 84 184 Q112 184 130 168" fill="${mixHex(body, -0.1)}" />
+        <path d="M210 154 Q234 160 236 184 Q208 184 190 168" fill="${mixHex(body, -0.1)}" />
+        ${buildMechaHead(config.role, { trim, body, accent: config.accent })}
+        <path d="M124 188 H196" stroke="${hexToRgba('#ffffff', 0.35)}" stroke-width="12" stroke-linecap="round" />
+        <rect x="126" y="120" width="68" height="24" rx="12" fill="${visor}" filter="url(#mecha-glow-${config.assetKey}-${stage})" />
+        <circle cx="142" cy="132" r="6" fill="${config.accent}" />
+        <circle cx="178" cy="132" r="6" fill="${config.accent}" />
+        <circle cx="140" cy="129" r="2.5" fill="#ffffff" />
+        <circle cx="176" cy="129" r="2.5" fill="#ffffff" />
+        <circle cx="143" cy="127" r="1.2" fill="${cyanBlast}" />
+        <circle cx="179" cy="127" r="1.2" fill="${cyanBlast}" />
+        <path d="M142 154 Q160 168 178 154" stroke="${trim}" stroke-width="7" stroke-linecap="round" fill="none" />
+        <ellipse cx="128" cy="176" rx="14" ry="8" fill="${hexToRgba('#ff69b4', 0.32)}" />
+        <ellipse cx="192" cy="176" rx="14" ry="8" fill="${hexToRgba('#ff69b4', 0.32)}" />
+        <path d="M114 196 L98 244 H136 L148 204" fill="${trim}" />
+        <path d="M206 196 L222 244 H184 L172 204" fill="${trim}" />
+        <path d="M130 198 H190" stroke="${detail}" stroke-width="16" stroke-linecap="round" />
+        <circle cx="160" cy="186" r="24" fill="${detail}" />
+        <circle cx="160" cy="186" r="12" fill="${hexToRgba('#ffffff', 0.62)}" />
+        <circle cx="160" cy="186" r="6" fill="${sparkle}" filter="url(#mecha-coreglow-${config.assetKey}-${stage})" />
+        <path d="M160 170 V202 M144 186 H176" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="${config.role === 'medic' ? '1' : '0.28'}" />
+        <path d="M112 216 Q160 232 208 216" stroke="${hexToRgba('#ffffff', 0.38)}" stroke-width="8" stroke-linecap="round" />
         ${shoulderLights}
+        ${chestCore}
+        ${energyLines}
         ${crown}
       </g>
     </svg>
@@ -712,7 +991,6 @@ function createGeneratedPet(id, config) {
     seriesRole: config.role || null
   });
 }
-
 const ORIGINAL_PET_SERIES = [
   {
     assetKey: 'engineer-excavator-cat',
@@ -900,7 +1178,6 @@ const ORIGINAL_PET_SERIES = [
     renderer: buildMechaPetSvg
   }
 ];
-
 function enrichRemotePet(snapshotPet, id) {
   const key = extractPetAssetKey(snapshotPet);
   const meta = REMOTE_META_BY_KEY[key] || buildFallbackRemoteMeta(key);

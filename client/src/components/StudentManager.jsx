@@ -150,7 +150,7 @@ export default function StudentManager() {
                   <span className="font-bold">{team.name}</span>
                   <span className="text-sm text-gray-500">({teamStudents.length}人)</span>
                 </div>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                   {teamStudents.map((student) => (
                     <StudentItem
                       key={student.id}
@@ -171,7 +171,7 @@ export default function StudentManager() {
                 <span className="font-bold">未分配战队</span>
                 <span className="text-sm">({unassignedStudents.length}人)</span>
               </div>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                 {unassignedStudents.map((student) => (
                   <StudentItem
                     key={student.id}
@@ -307,41 +307,44 @@ function StudentItem({ student, onEdit, onDelete, onModifyScore }) {
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02 }}
-      className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+      whileHover={{ y: -3 }}
+      className="flex items-start gap-4 rounded-[26px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] p-4 shadow-[0_18px_40px_rgba(35,49,79,0.1)]"
     >
-      <span className="text-3xl">{student.avatar}</span>
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-white text-3xl shadow-sm">
+        {student.avatar}
+      </div>
       <div className="min-w-0 flex-1">
         <div className="truncate font-bold text-gray-800">{student.name}</div>
         <div className="flex items-center gap-1 text-sm">
           <span>{rank.icon}</span>
           <span style={{ color: rank.color }}>{rank.name}</span>
         </div>
-        <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+        <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
           <PetArtwork
             pet={student.pet}
             journey={petJourney}
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-50"
-            imageClassName="h-4 w-4 object-contain"
-            fallbackClassName="text-xs"
+            className="pet-hero-frame pet-hero-frame-active flex h-14 w-14 items-center justify-center rounded-[18px] bg-white/92"
+            imageClassName="h-10 w-10 object-contain"
+            fallbackClassName="text-xl"
+            idleMotion="soft"
           />
-          <span className="truncate">{petJourney.name}</span>
+          <span className="truncate font-black text-slate-700">{petJourney.name}</span>
           <span
-            className="rounded-full px-2 py-0.5 font-bold"
+            className="rounded-full px-2.5 py-1 font-bold shadow-sm"
             style={{ backgroundColor: `${petJourney.accent}18`, color: petJourney.accent }}
           >
             {petJourney.stage_name}
           </span>
         </div>
       </div>
-      <div className="text-xl font-bold" style={{ color: rank.color }}>
+      <div className="shrink-0 rounded-[18px] border border-white/80 bg-white/92 px-4 py-3 text-right text-xl font-black shadow-sm" style={{ color: rank.color }}>
         {formatScore(student.score)}
       </div>
-      <div className="flex gap-1">
+      <div className="flex gap-2">
         <button
           onClick={onModifyScore}
           data-testid={`student-score-${student.id}`}
-          className="rounded-lg bg-green-100 p-2 font-bold text-green-600 hover:bg-green-200"
+          className="rounded-[14px] bg-emerald-100 p-2.5 font-bold text-emerald-700 transition hover:bg-emerald-200"
           title="修改积分"
         >
           卤
@@ -349,7 +352,7 @@ function StudentItem({ student, onEdit, onDelete, onModifyScore }) {
         <button
           onClick={onEdit}
           data-testid={`student-edit-${student.id}`}
-          className="rounded-lg bg-blue-100 p-2 text-blue-600 hover:bg-blue-200"
+          className="rounded-[14px] bg-sky-100 p-2.5 text-sky-700 transition hover:bg-sky-200"
           title="编辑"
         >
           ✍️
@@ -357,7 +360,7 @@ function StudentItem({ student, onEdit, onDelete, onModifyScore }) {
         <button
           onClick={onDelete}
           data-testid={`student-delete-${student.id}`}
-          className="rounded-lg bg-red-100 p-2 text-red-600 hover:bg-red-200"
+          className="rounded-[14px] bg-rose-100 p-2.5 text-rose-700 transition hover:bg-rose-200"
           title="删除"
         >
           🗑️

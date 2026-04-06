@@ -374,6 +374,153 @@ function getCompactActionLabel(action, fallbackLabel = '') {
   return ACTION_COMPACT_LABELS[action] || fallbackLabel || '操作';
 }
 
+function clampDisplayPercent(value) {
+  return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+}
+
+function getPetMilestoneMeta(
+  journey,
+  {
+    collectionLength = 0,
+    collectionCapacity = 1,
+    canClaimAnotherPet = false
+  } = {}
+) {
+  const accent = journey?.accent || journey?.stage_color || '#38bdf8';
+
+  if (!journey?.claimed) {
+    return {
+      title: '先领取伙伴',
+      summary: '先挑一只喜欢的宠物蛋，课堂努力才会开始点亮它。',
+      detail: '领取后就会进入真实培养线。',
+      badge: '待开启',
+      progress: 0,
+      accent,
+      steps: ['去图鉴挑选']
+    };
+  }
+
+  if (journey.is_dormant) {
+    return {
+      title: '快来救救我',
+      summary: journey.revive_hint || '先补回积分，再做一次照料，它就会慢慢醒来。',
+      detail: '唤醒后就能继续成长。',
+      badge: '沉睡中',
+      progress: clampDisplayPercent(Math.max(journey.satiety || 0, journey.mood || 0, journey.cleanliness || 0)),
+      accent: '#64748b',
+      steps: ['先赚积分', '再做一次照料']
+    };
+  }
+
+  if (journey.visual_state === 'egg') {
+    const missingScore = Math.max(0, 20 - Number(journey.growth_from_score || 0));
+    const missingCare = Math.max(0, 2 - Number(journey.total_care_actions || 0));
+
+    return {
+      title: journey.can_hatch ? '可以孵化了' : '距离孵化',
+      summary: journey.can_hatch
+        ? '条件已经备齐，点击孵化就能公开亮相。'
+        : `还差 ${missingScore} 点课堂成长值和 ${missingCare} 次照料。`,
+      detail: '照料后这里会立刻更新。',
+      badge: journey.can_hatch ? '已达成' : `${journey.progress}%`,
+      progress: journey.can_hatch ? 100 : clampDisplayPercent(journey.progress),
+      accent,
+      steps: [
+        missingScore > 0 ? `成长 ${missingScore}` : '成长已够',
+        missingCare > 0 ? `照料 ${missingCare}` : '照料已够'
+      ]
+    };
+  }
+
+  if (journey.slot_state === 'evolved') {
+    return {
+      title: canClaimAnotherPet && collectionLength < collectionCapacity ? '新宠物位已点亮' : '已经完成进化',
+      summary: canClaimAnotherPet && collectionLength < collectionCapacity
+        ? '现在可以再领一只喜欢的新宠物蛋。'
+        : '继续保持好状态，让它一直闪亮。',
+      detail: canClaimAnotherPet && collectionLength < collectionCapacity
+        ? `收藏位 ${collectionLength}/${collectionCapacity}，随时可去图鉴区挑新伙伴。`
+        : '保持饱腹、心情和清洁都在线。',
+      badge: canClaimAnotherPet && collectionLength < collectionCapacity ? '新位已开' : '终阶',
+      progress: 100,
+      accent,
+      steps: canClaimAnotherPet && collectionLength < collectionCapacity
+        ? ['去图鉴挑新宠', `收藏 ${collectionLength}/${collectionCapacity}`]
+        : ['保持稳定', '继续互动']
+    };
+  }
+
+  const growthValue = Math.max(0, Number(journey.growth_value || 0));
+  const careScore = Math.max(0, Number(journey.care_score || 0));
+  const totalCareActions = Math.max(0, Number(journey.total_care_actions || 0));
+  const missingGrowth = Math.max(0, 460 - growthValue);
+  const missingCareScore = Math.max(0, 72 - careScore);
+  const missingActions = Math.max(0, 8 - totalCareActions);
+  const evolveProgress = clampDisplayPercent(
+    ((Math.min(growthValue, 460) / 460) * 55)
+    + ((Math.min(careScore, 72) / 72) * 25)
+    + ((Math.min(totalCareActions, 8) / 8) * 20)
+  );
+
+  if (journey.can_evolve) {
+    return {
+      title: '可以进化了',
+      summary: '成长、照料和次数都达标了，准备进入高光形态。',
+      detail: '现在点击进化最有仪式感。',
+      badge: '已达成',
+      progress: 100,
+      accent,
+      steps: ['进化条件完成', '点亮守护形态']
+    };
+  }
+
+  return {
+    title: '距离进化',
+    summary: `还差 ${missingGrowth} 点成长、${missingCareScore} 点照料分和 ${missingActions} 次照料。`,
+    detail: '喂养、互动、清洁后会马上刷新。',
+    badge: `Lv.${Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}`,
+    progress: evolveProgress,
+    accent,
+    steps: [
+      missingGrowth > 0 ? `成长 ${missingGrowth}` : '成长已够',
+      missingCareScore > 0 ? `照料分 ${missingCareScore}` : '照料分已够',
+      missingActions > 0 ? `照料 ${missingActions}` : '次数已够'
+    ]
+  };
+}
+
+function getHeroStagePrompt(journey, heroCueMeta, milestoneMeta) {
+  if (journey?.is_dormant) {
+    return {
+      title: '快来救救我~',
+      detail: journey.revive_hint || '先赚分，再照料我一下，我就会慢慢醒来。',
+      accent: '#64748b'
+    };
+  }
+
+  if (heroCueMeta) {
+    return {
+      title: heroCueMeta.title,
+      detail: heroCueMeta.description,
+      accent: heroCueMeta.accent
+    };
+  }
+
+  if (milestoneMeta) {
+    return {
+      title: milestoneMeta.title,
+      detail: milestoneMeta.detail,
+      accent: milestoneMeta.accent
+    };
+  }
+
+  return {
+    title: '点舞台看档案',
+    detail: '形态、里程碑和收藏记录都在完整成长档案里。',
+    accent: journey?.accent || '#38bdf8'
+  };
+}
+
 function createCatalogPreviewJourney(pet) {
   return {
     claimed: true,
@@ -412,7 +559,7 @@ function getRosterStatusMeta(journey) {
   if (journey.is_dormant) {
     return {
       label: '待唤醒',
-      detail: journey.revive_hint || '需要先重新获得积分，再照料把它叫醒。',
+      detail: journey.revive_hint || '先补积分，再把它叫醒。',
       className: 'bg-slate-200 text-slate-700'
     };
   }
@@ -420,7 +567,7 @@ function getRosterStatusMeta(journey) {
   if (journey.can_evolve) {
     return {
       label: '可进化',
-      detail: '已经满足进化条件，适合做公开仪式。',
+      detail: '条件已满，可以公开进化。',
       className: 'bg-fuchsia-100 text-fuchsia-700'
     };
   }
@@ -428,7 +575,7 @@ function getRosterStatusMeta(journey) {
   if (journey.can_hatch) {
     return {
       label: '可孵化',
-      detail: '成长值与照料行为已经达标，可以安排孵化。',
+      detail: '已经达标，可以准备孵化。',
       className: 'bg-amber-100 text-amber-700'
     };
   }
@@ -436,7 +583,7 @@ function getRosterStatusMeta(journey) {
   if (!journey.claimed) {
     return {
       label: '待领取',
-      detail: '还没绑定宠物，先发一只宠物蛋。',
+      detail: '先发一只宠物蛋。',
       className: 'bg-slate-100 text-slate-600'
     };
   }
@@ -444,14 +591,14 @@ function getRosterStatusMeta(journey) {
   if (journey.visual_state === 'egg') {
     return {
       label: '蛋态培养',
-      detail: '继续照料几次，就能把蛋顺利孵出来。',
+      detail: '再照料几次，就能顺利破壳。',
       className: 'bg-cyan-100 text-cyan-700'
     };
   }
 
   return {
     label: '稳定成长',
-    detail: '状态平稳，继续积累成长值和照料评分。',
+    detail: '状态稳定，继续培养。',
     className: 'bg-emerald-100 text-emerald-700'
   };
 }
@@ -502,9 +649,9 @@ function PetActionFeedbackPanel({ feedback, className = '' }) {
       exit={{ opacity: 0, y: -10, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 260, damping: 24 }}
       data-testid="pet-action-feedback"
-      className={`pet-care-feedback-panel relative overflow-hidden rounded-[26px] border border-white/75 px-4 py-3 text-slate-700 shadow-[0_18px_40px_rgba(35,49,79,0.16)] ${className}`}
+      className={`pet-care-feedback-panel relative overflow-hidden rounded-[22px] border border-white/60 px-3.5 py-3 text-slate-700 shadow-[0_18px_40px_rgba(35,49,79,0.14)] ${className}`}
       style={{
-        ...buildSoftPanelStyle(feedback.theme, feedback.accent, 138),
+        background: `linear-gradient(138deg, rgba(255,255,255,0.72) 0%, ${withAlpha(feedback.theme, 'd8')} 72%, ${withAlpha(feedback.accent, '16')} 100%)`,
         backdropFilter: 'blur(18px)',
         WebkitBackdropFilter: 'blur(18px)'
       }}
@@ -522,7 +669,7 @@ function PetActionFeedbackPanel({ feedback, className = '' }) {
 
       <div className="relative flex items-start gap-3">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-white/90 text-2xl shadow-sm"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] bg-white/88 text-xl shadow-sm"
           style={{ boxShadow: `0 10px 24px ${withAlpha(feedback.accent, '18')}` }}
         >
           {feedback.icon}
@@ -540,6 +687,10 @@ function PetActionFeedbackPanel({ feedback, className = '' }) {
             <span className="rounded-full bg-white/82 px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
               剩余 {feedback.scoreBalance}
             </span>
+          </div>
+
+          <div className="mt-1.5 text-xs font-semibold leading-5 text-slate-600">
+            {feedback.flavor}
           </div>
 
           <div className="mt-2 flex flex-wrap gap-2">
@@ -1231,6 +1382,7 @@ export default function PetCenter() {
   const [catalogSort, setCatalogSort] = useState('rarity');
   const [catalogQuery, setCatalogQuery] = useState('');
   const [rosterFilter, setRosterFilter] = useState('all');
+  const [insightPanel, setInsightPanel] = useState('queue');
   const [busyKey, setBusyKey] = useState('');
   const [profileTarget, setProfileTarget] = useState(null);
   const [ceremony, setCeremony] = useState(null);
@@ -1666,10 +1818,30 @@ export default function PetCenter() {
   if (selectedJourney.can_hatch) ritualActionButtons.push('hatch');
   if (selectedJourney.can_evolve) ritualActionButtons.push('evolve');
   const selectedScoreBalance = Number(selectedJourney.score_balance ?? selectedStudent?.score ?? 0);
+  const milestoneMeta = getPetMilestoneMeta(selectedJourney, {
+    collectionLength: selectedCollection.length,
+    collectionCapacity: selectedPetCapacity,
+    canClaimAnotherPet
+  });
   const feedbackMetricMap = new Map((actionFeedback?.metrics || []).map((item) => [item.key, item.delta]));
   const feedbackStatChips = (actionFeedback?.metrics || [])
     .filter((item) => !['satiety', 'mood', 'cleanliness'].includes(item.key))
     .slice(0, 3);
+  const stageFeedbackChips = [
+    ...feedbackStatChips.map((item) => ({
+      key: item.key,
+      label: `${item.label} ${item.delta > 0 ? `+${item.delta}` : item.delta}`,
+      tone: 'bg-white/88 text-slate-700'
+    })),
+    ...(actionFeedback?.scoreSpent > 0
+      ? [{
+          key: 'score-spent',
+          label: `消耗 ${actionFeedback.scoreSpent} 积分`,
+          tone: 'bg-slate-900 text-white'
+        }]
+      : [])
+  ];
+  const heroStagePrompt = getHeroStagePrompt(selectedJourney, heroCueMeta, milestoneMeta);
   const ritualPlannerActionLabel = !selectedJourney.claimed
     ? '去图鉴挑选第一只宠物'
     : canClaimAnotherPet && selectedCollection.length < selectedPetCapacity
@@ -1695,9 +1867,9 @@ export default function PetCenter() {
                 <span className="text-lg">🐾</span>
                 乐享宠物工作台
               </div>
-              <h3 className="mt-4 text-3xl font-black text-slate-800">把班级宠物做成一条完整的成长叙事线</h3>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                这里不是简单发放宠物，而是班级情绪价值、成长反馈和课堂节奏的中枢。学生先领取宠物蛋，再通过课堂积分、喂养、互动、清洁完成孵化、升级和进化。
+              <h3 className="mt-4 text-2xl font-black text-slate-800">先选学生，再把主宠和照料动作放到最前面。</h3>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                这里只保留课堂里最常用的内容：聚光灯学生、主宠照料、收藏位和图鉴发放。
               </p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1709,17 +1881,17 @@ export default function PetCenter() {
                 <div className="rounded-[28px] bg-white/85 px-4 py-4 shadow-sm">
                   <div className="text-xs font-bold text-slate-400">仪式队列</div>
                   <div className="mt-2 text-3xl font-black text-cyan-500">{actionQueue.length}</div>
-                  <div className="mt-2 text-xs text-slate-500">待领取 / 可孵化 / 可进化</div>
+                  <div className="mt-2 text-xs text-slate-500">待领 / 孵化 / 进化</div>
                 </div>
                 <div className="rounded-[28px] bg-white/85 px-4 py-4 shadow-sm">
                   <div className="text-xs font-bold text-slate-400">平均培养力</div>
                   <div className="mt-2 text-3xl font-black text-fuchsia-500">{averagePower}</div>
-                  <div className="mt-2 text-xs text-slate-500">控制差距，保留竞争感</div>
+                  <div className="mt-2 text-xs text-slate-500">看整体状态</div>
                 </div>
                 <div className="rounded-[28px] bg-white/85 px-4 py-4 shadow-sm">
                   <div className="text-xs font-bold text-slate-400">稳定照料</div>
                   <div className="mt-2 text-3xl font-black text-emerald-500">{stableCount}</div>
-                  <div className="mt-2 text-xs text-slate-500">照料分 75 以上的学生</div>
+                  <div className="mt-2 text-xs text-slate-500">照料分 75+</div>
                 </div>
               </div>
             </div>
@@ -1791,8 +1963,8 @@ export default function PetCenter() {
           <section className="card-game border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <div className="text-xs font-bold tracking-[0.22em] text-cyan-500">培养操作台</div>
-                <h3 className="mt-2 text-2xl font-black text-slate-800">培养控制台</h3>
+                <div className="text-xs font-bold tracking-[0.22em] text-cyan-500">主宠操作台</div>
+                <h3 className="mt-2 text-2xl font-black text-slate-800">课堂操作区</h3>
                 <p className="mt-2 text-sm text-slate-500">
                   班级「{currentClass?.name || '未选择'}」当前聚焦学生：
                   <span className="font-bold text-slate-700"> {selectedStudent?.name || '未选择'}</span>
@@ -1838,38 +2010,49 @@ export default function PetCenter() {
             </div>
 
             {selectedStudent ? (
-              <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-5">
-                  <div className="rounded-[32px] bg-white/88 p-5 shadow-sm">
-                    <div className="flex flex-wrap items-start gap-4">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-[28px] bg-white text-5xl shadow-md">
-                        {selectedStudent.avatar}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-2xl font-black text-slate-800">{selectedStudent.name}</h4>
-                          <span className={`rounded-full px-3 py-1 text-xs font-black ${tone.bg} ${tone.text}`}>
-                            {selectedJourney.status_label}
-                          </span>
-                          {selectedStudent.team_name && (
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                              {selectedStudent.team_name}
+                  <div className="rounded-[30px] border border-white/80 bg-white/90 p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-4xl shadow-md">
+                          {selectedStudent.avatar}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-2xl font-black text-slate-800">{selectedStudent.name}</h4>
+                            <span className={`rounded-full px-3 py-1 text-xs font-black ${tone.bg} ${tone.text}`}>
+                              {selectedJourney.status_label}
                             </span>
-                          )}
-                        </div>
-                        <div className="mt-2 text-sm text-slate-500">{selectedJourney.subtitle}</div>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span className={`pet-score-chip ${selectedPowerTone.bg} ${selectedPowerTone.text}`}>
-                            培养力 {selectedJourney.power_score}
-                          </span>
-                          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">
-                            成长值 {selectedJourney.growth_value}
-                          </span>
-                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
-                            照料分 {selectedJourney.care_score}
-                          </span>
+                            {selectedStudent.team_name && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                                {selectedStudent.team_name}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className={`pet-score-chip ${selectedPowerTone.bg} ${selectedPowerTone.text}`}>
+                              培养力 {selectedJourney.power_score}
+                            </span>
+                            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">
+                              成长 {selectedJourney.growth_value}
+                            </span>
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
+                              照料 {selectedJourney.care_score}
+                            </span>
+                          </div>
                         </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={handlePreviewSelectedStudent}
+                        data-testid="pet-center-profile-summary-cta"
+                        className="rounded-full border border-cyan-100 bg-cyan-50 px-4 py-2 text-xs font-black text-cyan-700 shadow-sm transition hover:-translate-y-0.5"
+                        title="打开完整成长档案，查看阶段形态、里程碑和收藏位记录"
+                      >
+                        查看档案
+                      </button>
                     </div>
 
                     <div className="mt-5 rounded-[32px] bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-5 shadow-sm">
@@ -1877,7 +2060,9 @@ export default function PetCenter() {
                         <div>
                           <div className="text-xs font-bold tracking-[0.18em] text-violet-500">收藏架</div>
                           <div className="mt-2 text-xl font-black text-slate-800">宠物收藏架</div>
-                          <p className="mt-2 text-sm leading-6 text-slate-500">{nextPetSlotHint}</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-500">
+                            当前只保留收藏位和下一步，详细成长记录放到档案里看。
+                          </p>
                         </div>
                         <div
                           className="rounded-[24px] bg-white/90 px-4 py-3 text-right shadow-sm"
@@ -1893,15 +2078,37 @@ export default function PetCenter() {
                         </div>
                       </div>
 
-                      <RitualPlannerCard
-                        plan={ritualPlanner}
-                        journey={selectedJourney}
-                        unlockStatus={unlockStatus}
-                        collectionLength={selectedCollection.length}
-                        collectionCapacity={selectedPetCapacity}
-                        primaryActionLabel={ritualPlannerActionLabel}
-                        onPrimaryAction={ritualPlannerActionLabel ? scrollToCatalogSection : null}
-                      />
+                      <div className="mt-4 rounded-[26px] border border-white/85 bg-white/92 px-4 py-4 shadow-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[11px] font-black tracking-[0.16em] text-violet-500">下一步</div>
+                            <div className="mt-2 text-lg font-black text-slate-800">{ritualPlanner.title}</div>
+                            <p className="mt-2 text-sm leading-6 text-slate-500">{selectedJourney.next_target}</p>
+                          </div>
+                          <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${ritualPlanner.badgeClass}`}>
+                            {ritualPlanner.badge}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-600 shadow-sm">
+                            {unlockStatus.title}
+                          </span>
+                          <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-slate-500 shadow-sm">
+                            {nextPetSlotHint}
+                          </span>
+                          {ritualPlannerActionLabel && (
+                            <button
+                              type="button"
+                              onClick={scrollToCatalogSection}
+                              data-testid="pet-center-plan-action"
+                              className="rounded-full border border-violet-100 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:-translate-y-0.5"
+                            >
+                              {ritualPlannerActionLabel}
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
                       <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                         {Array.from({ length: 3 }, (_, index) => {
@@ -1961,47 +2168,6 @@ export default function PetCenter() {
                       </div>
                     </div>
 
-                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-3xl border border-slate-100 bg-slate-50/80 px-4 py-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-bold text-slate-400">当前阶段</div>
-                            <div className="mt-1 text-xl font-black text-slate-800">
-                              Lv.{Math.max(selectedJourney.stage_level || 0, selectedJourney.claimed ? 1 : 0)} · {selectedJourney.stage_name}
-                            </div>
-                          </div>
-                          <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-black text-cyan-700">
-                            进度 {selectedJourney.progress}%
-                          </span>
-                        </div>
-                        <p className="mt-3 text-sm leading-6 text-slate-500">{selectedJourney.next_target}</p>
-                        <div className="mt-4 h-3 rounded-full bg-white">
-                          <div
-                            className="h-3 rounded-full transition-all"
-                            style={{
-                              width: `${selectedJourney.progress}%`,
-                              backgroundColor: selectedJourney.stage_color
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handlePreviewSelectedStudent}
-                        data-testid="pet-center-profile-summary-cta"
-                        className="rounded-3xl border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-sky-50 px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                        title="打开完整成长档案，查看阶段形态、里程碑和收藏位记录"
-                      >
-                        <div className="text-sm font-black text-slate-800">成长档案</div>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                          形态、里程碑、收藏位都在这里。
-                        </p>
-                        <div className="mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700 shadow-sm">
-                          打开
-                        </div>
-                      </button>
-                    </div>
                   </div>
 
                   <AnimatePresence>
@@ -2185,13 +2351,27 @@ export default function PetCenter() {
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.22 }}
                             data-testid="pet-hero-action-cue"
-                            className="pointer-events-none absolute left-4 top-4 z-20 max-w-[220px] rounded-[20px] border border-white/80 bg-white/90 px-3 py-2 text-left shadow-[0_18px_36px_rgba(15,23,42,0.12)]"
+                            className="pointer-events-none absolute left-4 top-4 z-20 max-w-[230px] rounded-[18px] border border-white/60 bg-white/58 px-3 py-2.5 text-left shadow-[0_18px_36px_rgba(15,23,42,0.12)] backdrop-blur-md"
                           >
                             <div className="text-[11px] font-black tracking-[0.18em]" style={{ color: heroCueMeta.accent }}>
                               {heroCueMeta.title}
                             </div>
-                            <div className="mt-1 text-[11px] font-semibold leading-5 text-slate-500">
+                            <div className="mt-1 text-[11px] font-semibold leading-5 text-slate-600">
                               {heroCueMeta.description}
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {selectedJourney.is_dormant && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: [0.92, 1, 0.92], y: [0, -3, 0] }}
+                            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                            className="pointer-events-none absolute right-4 top-4 z-20 max-w-[180px] rounded-[20px] border border-amber-100 bg-white/76 px-3 py-2 text-left shadow-[0_18px_36px_rgba(15,23,42,0.12)] backdrop-blur-md"
+                          >
+                            <div className="text-[11px] font-black tracking-[0.16em] text-amber-600">状态提醒</div>
+                            <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                              快来救救我~ 先赚分，再照料我一下。
                             </div>
                           </motion.div>
                         )}
@@ -2206,44 +2386,31 @@ export default function PetCenter() {
                           priority
                           idleMotion="float"
                         />
-                      </div>
 
-                      {heroCueMeta && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.24 }}
-                          className="mt-3 rounded-[22px] border border-white/80 bg-white/90 px-4 py-3 text-left shadow-sm"
-                          style={{
-                            background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${withAlpha(heroCueMeta.accent, '10')} 100%)`
-                          }}
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <div className="text-sm font-black text-slate-800">主宠联动进行中</div>
-                              <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                                {heroCueMeta.description}
-                              </div>
+                        <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 flex flex-col gap-3">
+                          <div
+                            className="max-w-[320px] rounded-[18px] border border-white/60 bg-white/52 px-3 py-2.5 text-left shadow-[0_18px_36px_rgba(15,23,42,0.1)] backdrop-blur-md"
+                            style={{ borderColor: withAlpha(heroStagePrompt.accent, '2a') }}
+                          >
+                            <div className="text-[11px] font-black tracking-[0.16em]" style={{ color: heroStagePrompt.accent }}>
+                              {heroStagePrompt.title}
                             </div>
-                            <span
-                              className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
-                              style={{ backgroundColor: withAlpha(heroCueMeta.accent, '18'), color: heroCueMeta.accent }}
-                            >
-                              {heroCueMeta.title}
-                            </span>
+                            <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                              {heroStagePrompt.detail}
+                            </div>
                           </div>
-                        </motion.div>
-                      )}
-                    </div>
 
-                    <AnimatePresence>
-                      {actionFeedback && (
-                        <PetActionFeedbackPanel
-                          feedback={actionFeedback}
-                          className="pointer-events-none absolute inset-x-4 bottom-4 z-20 sm:inset-x-6"
-                        />
-                      )}
-                    </AnimatePresence>
+                          <AnimatePresence>
+                            {actionFeedback && (
+                              <PetActionFeedbackPanel
+                                feedback={actionFeedback}
+                                className="w-full max-w-[360px] self-end"
+                              />
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </div>
                   </button>
 
                   <div
@@ -2298,23 +2465,57 @@ export default function PetCenter() {
                       })}
                     </div>
 
-                    {feedbackStatChips.length > 0 && (
+                    <div
+                      className="mt-4 rounded-[26px] border border-white/80 bg-white/90 px-4 py-4 shadow-sm"
+                      data-testid="pet-care-next-milestone"
+                      style={{
+                        background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${withAlpha(milestoneMeta.accent, '12')} 100%)`
+                      }}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] font-black tracking-[0.16em]" style={{ color: milestoneMeta.accent }}>
+                            下一步
+                          </div>
+                          <div className="mt-2 text-lg font-black text-slate-800">{milestoneMeta.title}</div>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">{milestoneMeta.summary}</p>
+                        </div>
+                        <span
+                          className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                          style={{ backgroundColor: withAlpha(milestoneMeta.accent, '18'), color: milestoneMeta.accent }}
+                        >
+                          {milestoneMeta.badge}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 h-2.5 rounded-full bg-white/90">
+                        <div
+                          className="h-2.5 rounded-full transition-all duration-500"
+                          style={{ width: `${milestoneMeta.progress}%`, backgroundColor: milestoneMeta.accent }}
+                        />
+                      </div>
+
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {feedbackStatChips.map((item) => (
+                        {milestoneMeta.steps.map((item) => (
                           <span
-                            key={item.key}
-                            className="rounded-full bg-white/86 px-3 py-1.5 text-[11px] font-black text-slate-600 shadow-sm"
+                            key={item}
+                            className="rounded-full bg-white/88 px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-sm"
                           >
-                            {item.label} {item.delta > 0 ? `+${item.delta}` : item.delta}
+                            {item}
                           </span>
                         ))}
-                        {actionFeedback?.scoreSpent > 0 && (
-                          <span className="rounded-full bg-slate-900 px-3 py-1.5 text-[11px] font-black text-white shadow-sm">
-                            消耗 {actionFeedback.scoreSpent} 分
+                        {stageFeedbackChips.map((item) => (
+                          <span
+                            key={item.key}
+                            className={`rounded-full px-3 py-1.5 text-[11px] font-black shadow-sm ${item.tone}`}
+                          >
+                            {item.label}
                           </span>
-                        )}
+                        ))}
                       </div>
-                    )}
+
+                      <div className="mt-3 text-xs font-semibold text-slate-500">{milestoneMeta.detail}</div>
+                    </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-3">
                       {careActionButtons.map((action) => {
@@ -2473,30 +2674,6 @@ export default function PetCenter() {
                         })}
                       </div>
                     )}
-                  </div>
-
-                  <div className="relative mt-5">
-                    <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-700">点击宠物卡片查看成长档案</div>
-                      <p className="mt-2 text-xs leading-6 text-slate-500">具体形态、里程碑和收藏位都放在档案里，这里只保留课堂操作必需信息。</p>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-3 gap-2">
-                      <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 text-center shadow-sm">
-                        <div className="text-[11px] font-bold tracking-[0.14em] text-slate-500">积分</div>
-                        <div className="mt-1 text-lg font-black text-slate-800">{selectedStudent.score || 0}</div>
-                      </div>
-                      <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 text-center shadow-sm">
-                        <div className="text-[11px] font-bold tracking-[0.14em] text-slate-500">成长</div>
-                        <div className="mt-1 text-lg font-black" style={{ color: selectedSpotlightAccent }}>
-                          {selectedJourney.growth_value}
-                        </div>
-                      </div>
-                      <div className="rounded-2xl border border-white/80 bg-white/86 px-3 py-3 text-center shadow-sm">
-                        <div className="text-[11px] font-bold tracking-[0.14em] text-slate-500">照料</div>
-                        <div className="mt-1 text-lg font-black text-emerald-600">{selectedJourney.care_score}</div>
-                      </div>
-                    </div>
                   </div>
 
                   <button
@@ -2699,14 +2876,53 @@ export default function PetCenter() {
 
         </div>
 
-        <div className="space-y-6 xl:sticky xl:top-6 self-start">
+        <div className="space-y-4 xl:sticky xl:top-6 self-start">
+          <div className="card-game border-slate-200 bg-white/90">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setInsightPanel('queue')}
+                className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                  insightPanel === 'queue'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                节奏队列
+              </button>
+              <button
+                type="button"
+                onClick={() => setInsightPanel('ranking')}
+                className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                  insightPanel === 'ranking'
+                    ? 'bg-violet-500 text-white shadow-sm'
+                    : 'bg-violet-50 text-violet-700 hover:bg-violet-100'
+                }`}
+              >
+                培养榜
+              </button>
+              <button
+                type="button"
+                onClick={() => setInsightPanel('roster')}
+                className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                  insightPanel === 'roster'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                学生列表
+              </button>
+            </div>
+          </div>
+
+          {insightPanel === 'queue' && (
           <section className="card-game border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-bold tracking-[0.22em] text-amber-500">待办队列</div>
-                <h3 className="mt-2 text-xl font-black text-slate-800">仪式与待办队列</h3>
+                <h3 className="mt-2 text-xl font-black text-slate-800">课堂待办</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  这里优先展示待领取、可孵化、可进化的学生，方便老师快速完成课堂节奏推进。
+                  把最需要马上处理的学生排在前面，领取、孵化、进化一眼就能安排。
                 </p>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-amber-700 shadow-sm">
@@ -2762,14 +2978,16 @@ export default function PetCenter() {
               )}
             </div>
           </section>
+          )}
 
+          {insightPanel === 'ranking' && (
           <section className="card-game border-violet-200 bg-gradient-to-br from-violet-50 via-white to-cyan-50">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-bold tracking-[0.22em] text-violet-500">班级培养榜</div>
                 <h3 className="mt-2 text-xl font-black text-slate-800">班级培养力榜</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  榜单强调激励而不是拉开差距，分数主要来自成长值、照料状态和阶段奖励。
+                  看谁最近照料最稳、成长最快。
                 </p>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-600 shadow-sm">
@@ -2826,13 +3044,15 @@ export default function PetCenter() {
               )}
             </div>
           </section>
+          )}
 
+          {insightPanel === 'roster' && (
           <section className="card-game border-slate-200 bg-gradient-to-br from-white to-slate-50">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-bold tracking-[0.22em] text-slate-400">学员列表</div>
                 <h3 className="mt-2 text-xl font-black text-slate-800">学生宠物列表</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">快速切换培养对象，查看谁还在蛋态、谁准备孵化。</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">快速切换培养对象，看看谁还在蛋态、谁已准备好孵化。</p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
                 {students.length} 人
@@ -2880,6 +3100,7 @@ export default function PetCenter() {
               )}
             </div>
           </section>
+          )}
         </div>
       </div>
       </div>

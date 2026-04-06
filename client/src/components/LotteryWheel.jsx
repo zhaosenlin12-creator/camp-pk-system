@@ -4,6 +4,50 @@ import confetti from 'canvas-confetti';
 import { soundManager } from '../utils/sounds';
 import { getLotteryEffectChips, getLotteryEffectSummary } from '../utils/lotteryEffects';
 
+function getLotteryItemWeight(item, type) {
+  const explicitWeight = Number(item?.draw_weight || 0);
+  if (explicitWeight > 0) return explicitWeight;
+
+  if (type === 'reward') {
+    const rarityWeights = {
+      common: 7,
+      rare: 4,
+      epic: 2,
+      legendary: 1
+    };
+    return rarityWeights[item?.rarity] || 3;
+  }
+
+  const punishmentWeights = {
+    challenge: 4,
+    truth: 3,
+    dare: 3,
+    dance: 2
+  };
+  return punishmentWeights[item?.type] || 3;
+}
+
+function pickWeightedIndex(items, type) {
+  if (!Array.isArray(items) || items.length === 0) return 0;
+
+  const weights = items.map((item) => Math.max(0, getLotteryItemWeight(item, type)));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+
+  if (totalWeight <= 0) {
+    return Math.floor(Math.random() * items.length);
+  }
+
+  let cursor = Math.random() * totalWeight;
+  for (let index = 0; index < items.length; index += 1) {
+    cursor -= weights[index];
+    if (cursor <= 0) {
+      return index;
+    }
+  }
+
+  return items.length - 1;
+}
+
 export default function LotteryWheel({ items, type, targetType = 'student', onClose, onResult, onStartPunishment }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState(null);
@@ -20,7 +64,7 @@ export default function LotteryWheel({ items, type, targetType = 'student', onCl
 
     soundManager.playSpinStart();
 
-    const resultIndex = Math.floor(Math.random() * items.length);
+    const resultIndex = pickWeightedIndex(items, type);
     const resultItem = items[resultIndex];
 
     let count = 0;

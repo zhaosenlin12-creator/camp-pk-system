@@ -116,17 +116,19 @@ test('lottery execution applies score and pet cultivation effects for student an
     const rewards = await parseJson(await request.get(`${baseUrl}/api/rewards`));
     const punishments = await parseJson(await request.get(`${baseUrl}/api/punishments`));
 
-    expect(rewards.length).toBeGreaterThanOrEqual(23);
-    expect(punishments.length).toBeGreaterThanOrEqual(31);
+    expect(rewards.length).toBeGreaterThanOrEqual(26);
+    expect(punishments.length).toBeGreaterThanOrEqual(33);
 
     const engineeringPet = petCatalog.find((pet) => pet.name === '铲铲工程喵') || petCatalog.find((pet) => pet.id >= 25);
     expect(engineeringPet).toBeTruthy();
 
     const studentReward = rewards.find((item) => item.name === '工程喵加餐包');
+    const bonusSlotReward = rewards.find((item) => item.name === '神秘宠物蛋入场券');
     const teamReward = rewards.find((item) => item.name === '机甲能量芯片');
     const teamPunishment = punishments.find((item) => item.name === '电量告急');
 
     expect(studentReward?.score_delta).toBeGreaterThan(0);
+    expect(bonusSlotReward?.pet_bonus_slot_delta).toBe(1);
     expect(studentReward?.pet_growth_delta).toBeGreaterThan(0);
     expect(teamReward?.pet_growth_delta).toBeGreaterThan(0);
     expect(teamPunishment?.score_delta).toBeLessThan(0);
@@ -156,6 +158,20 @@ test('lottery execution applies score and pet cultivation effects for student an
     expect(studentResult.student.pet_journey.growth_value).toBe(
       studentReward.score_delta + studentReward.pet_growth_delta
     );
+
+    const bonusSlotResult = await executeLottery(request, {
+      class_id: classId,
+      target_type: 'student',
+      target_id: student.id,
+      type: 'reward',
+      item_id: bonusSlotReward.id
+    });
+
+    expect(bonusSlotResult.success).toBeTruthy();
+    expect(bonusSlotResult.log.pet_bonus_slot_delta).toBe(1);
+    expect(bonusSlotResult.log.effect_summary).toContain('宠物位 +1');
+    expect(bonusSlotResult.student.pet_capacity).toBe(2);
+    expect(bonusSlotResult.student.can_claim_more_pets).toBeTruthy();
 
     const team = await createTeam(request, teamName);
     createdTeamIds.push(team.id);

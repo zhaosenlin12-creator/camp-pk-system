@@ -129,6 +129,10 @@ const LOTTERY_PET_EFFECT_FIELDS = [
   'pet_cleanliness_delta'
 ];
 
+const LOTTERY_PET_SLOT_EFFECT_FIELDS = [
+  'pet_bonus_slot_delta'
+];
+
 const DEFAULT_REWARD_SEED = [
   { id: 1, name: '免作业神券', description: '可免除一次课后作业', icon: '📜', rarity: 'legendary', is_active: true },
   { id: 2, name: '老师小助手', description: '下节课担任老师小助手', icon: '🤝', rarity: 'epic', is_active: true },
@@ -152,7 +156,10 @@ const DEFAULT_REWARD_SEED = [
   { id: 20, name: '守护装甲贴片', description: '机甲伙伴换上新装甲，成长和状态都更稳。', icon: '🧩', rarity: 'epic', is_active: true, pet_growth_delta: 12, pet_mood_delta: 8, pet_cleanliness_delta: 10 },
   { id: 21, name: '施工徽章贴纸', description: '拿到工程宠物专属徽章，课堂积分也会顺手提升。', icon: '🚧', rarity: 'common', is_active: true, score_delta: 5, pet_growth_delta: 6 },
   { id: 22, name: '机甲能量芯片', description: '战术机甲装上新芯片，培养力和饱腹一起上涨。', icon: '🔋', rarity: 'epic', is_active: true, score_delta: 10, pet_growth_delta: 18, pet_satiety_delta: 8 },
-  { id: 23, name: '宠物午睡补给', description: '让宠物安静休息一会儿，心情和饱腹都会回升。', icon: '💤', rarity: 'common', is_active: true, pet_satiety_delta: 10, pet_mood_delta: 14 }
+  { id: 23, name: '宠物午睡补给', description: '让宠物安静休息一会儿，心情和饱腹都会回升。', icon: '💤', rarity: 'common', is_active: true, pet_satiety_delta: 10, pet_mood_delta: 14 },
+  { id: 24, name: '神秘宠物蛋入场券', description: '给当前学员额外解锁 1 个宠物位，可再领一只宠物蛋。', icon: '🥚', rarity: 'legendary', is_active: true, pet_bonus_slot_delta: 1, draw_weight: 1 },
+  { id: 25, name: '成长加速包', description: '宠物成长、心情和课堂积分一起上涨。', icon: '🚀', rarity: 'rare', is_active: true, score_delta: 8, pet_growth_delta: 12, pet_mood_delta: 10 },
+  { id: 26, name: '闪亮护理站', description: '给宠物做一次高级护理，清洁和状态都会更稳。', icon: '🧼', rarity: 'common', is_active: true, pet_growth_delta: 6, pet_cleanliness_delta: 18, pet_mood_delta: 6 }
 ];
 
 const DEFAULT_PUNISHMENT_SEED = [
@@ -186,7 +193,9 @@ const DEFAULT_PUNISHMENT_SEED = [
   { id: 28, name: '情绪警报', description: '宠物闹情绪，心情值快速下降。', type: 'challenge', icon: '🚨', is_active: true, score_delta: -5, pet_mood_delta: -16 },
   { id: 29, name: '训练偷懒税', description: '少练了一轮，培养力和课堂积分要补交。', type: 'challenge', icon: '😴', is_active: true, score_delta: -10, pet_growth_delta: -12 },
   { id: 30, name: '机械零件散落', description: '零件撒了一地，宠物的清洁和心情都受影响。', type: 'challenge', icon: '⚙️', is_active: true, pet_growth_delta: -8, pet_mood_delta: -6, pet_cleanliness_delta: -10 },
-  { id: 31, name: '战术迷路日', description: '战术伙伴迷路了，状态和分数都要掉一点。', type: 'challenge', icon: '🧭', is_active: true, score_delta: -6, pet_satiety_delta: -8, pet_mood_delta: -12 }
+  { id: 31, name: '战术迷路日', description: '战术伙伴迷路了，状态和分数都要掉一点。', type: 'challenge', icon: '🧭', is_active: true, score_delta: -6, pet_satiety_delta: -8, pet_mood_delta: -12 },
+  { id: 32, name: '宠物打瞌睡', description: '照料节奏断了一下，成长和心情都会回落。', type: 'challenge', icon: '😵', is_active: true, score_delta: -4, pet_growth_delta: -6, pet_mood_delta: -10 },
+  { id: 33, name: '泡泡机故障', description: '刚整理好的宠物又被弄脏了，清洁值明显下降。', type: 'challenge', icon: '🫧', is_active: true, score_delta: -3, pet_cleanliness_delta: -14 }
 ];
 
 function readLotteryCatalogNumber(value, fallback = 0, mode = 'int') {
@@ -212,11 +221,13 @@ function normalizeLotteryCatalogItem(item = {}, kind = 'reward') {
     description: normalizeLotteryCatalogText(item?.description, ''),
     icon: normalizeLotteryCatalogText(item?.icon, kind === 'reward' ? '🎁' : '🎭'),
     is_active: item?.is_active !== false,
+    draw_weight: readLotteryCatalogNumber(item?.draw_weight, 0),
     score_delta: readLotteryCatalogNumber(item?.score_delta, 0, 'score'),
     pet_growth_delta: readLotteryCatalogNumber(item?.pet_growth_delta, 0),
     pet_satiety_delta: readLotteryCatalogNumber(item?.pet_satiety_delta, 0),
     pet_mood_delta: readLotteryCatalogNumber(item?.pet_mood_delta, 0),
-    pet_cleanliness_delta: readLotteryCatalogNumber(item?.pet_cleanliness_delta, 0)
+    pet_cleanliness_delta: readLotteryCatalogNumber(item?.pet_cleanliness_delta, 0),
+    pet_bonus_slot_delta: readLotteryCatalogNumber(item?.pet_bonus_slot_delta, 0)
   };
 
   if (kind === 'reward') {
@@ -1533,10 +1544,15 @@ const ensureStudentPetCollectionV2 = (student) => {
   };
 };
 
+const getStudentPetBonusSlotsV2 = (student) => (
+  Math.max(0, Math.min(MAX_CLASS_PET_SLOTS_V2 - 1, Math.floor(Number(student?.pet_bonus_slots) || 0)))
+);
+
 const getStudentPetCapacityV2 = (student) => {
   const { slots } = ensureStudentPetCollectionV2(student);
   const evolvedCount = slots.filter((slot) => Boolean(slot.pet_evolved_at)).length;
-  return Math.max(1, Math.min(MAX_CLASS_PET_SLOTS_V2, 1 + evolvedCount));
+  const bonusSlots = getStudentPetBonusSlotsV2(student);
+  return Math.max(1, Math.min(MAX_CLASS_PET_SLOTS_V2, 1 + evolvedCount + bonusSlots));
 };
 
 const canStudentClaimAnotherPetV2 = (student) => {
@@ -1981,6 +1997,7 @@ const decorateStudentWithPetJourneyV2 = (student) => {
     active_pet_slot_id: student.active_pet_slot_id || null,
     pet_collection: petCollection,
     pet_capacity: petCapacity,
+    pet_bonus_slots: getStudentPetBonusSlotsV2(student),
     pet_total_collected: petCollection.length,
     can_claim_more_pets: canStudentClaimAnotherPetV2(student),
     next_pet_slot_hint: getStudentNextPetSlotHintV2(student),
@@ -3026,10 +3043,11 @@ const getLotteryEffectValues = (item = {}) => ({
   pet_growth_delta: Math.round(Number(item?.pet_growth_delta) || 0),
   pet_satiety_delta: Math.round(Number(item?.pet_satiety_delta) || 0),
   pet_mood_delta: Math.round(Number(item?.pet_mood_delta) || 0),
-  pet_cleanliness_delta: Math.round(Number(item?.pet_cleanliness_delta) || 0)
+  pet_cleanliness_delta: Math.round(Number(item?.pet_cleanliness_delta) || 0),
+  pet_bonus_slot_delta: Math.round(Number(item?.pet_bonus_slot_delta) || 0)
 });
 
-const hasLotteryPetEffects = (effects = {}) => (
+const hasLotteryPetMetricEffects = (effects = {}) => (
   LOTTERY_PET_EFFECT_FIELDS.some((field) => Number(effects?.[field] || 0) !== 0)
 );
 
@@ -3102,7 +3120,7 @@ const applyTeamScoreDelta = (team, delta, reason, createdAt) => {
 
 const applyPetEffectsToActiveSlot = (activeSlot, effectSource, now = new Date()) => {
   const requestedEffects = getLotteryEffectValues(effectSource);
-  const requested = hasLotteryPetEffects(requestedEffects);
+  const requested = hasLotteryPetMetricEffects(requestedEffects);
 
   const result = {
     requested,
@@ -3139,7 +3157,7 @@ const applyPetEffectsToActiveSlot = (activeSlot, effectSource, now = new Date())
   result.pet_mood_delta = nextMood - previousMood;
   result.pet_cleanliness_delta = nextCleanliness - previousCleanliness;
 
-  if (hasLotteryPetEffects(result)) {
+  if (hasLotteryPetMetricEffects(result)) {
     result.applied = true;
     activeSlot.pet_last_care_at = now.toISOString();
     if (!activeSlot.pet_status || activeSlot.pet_status === 'unclaimed') {
@@ -3147,6 +3165,27 @@ const applyPetEffectsToActiveSlot = (activeSlot, effectSource, now = new Date())
     }
   }
 
+  return result;
+};
+
+const applyPetBonusSlotEffectToStudent = (student, effectSource) => {
+  const requestedEffects = getLotteryEffectValues(effectSource);
+  const requestedDelta = Math.round(Number(requestedEffects.pet_bonus_slot_delta || 0));
+  const result = {
+    requested: requestedDelta !== 0,
+    applied: false,
+    pet_bonus_slot_delta: 0
+  };
+
+  if (!student || !requestedDelta) {
+    return result;
+  }
+
+  const previousBonusSlots = getStudentPetBonusSlotsV2(student);
+  const nextBonusSlots = Math.max(0, Math.min(MAX_CLASS_PET_SLOTS_V2 - 1, previousBonusSlots + requestedDelta));
+  student.pet_bonus_slots = nextBonusSlots;
+  result.pet_bonus_slot_delta = nextBonusSlots - previousBonusSlots;
+  result.applied = result.pet_bonus_slot_delta !== 0;
   return result;
 };
 
@@ -3174,6 +3213,9 @@ const buildLotteryEffectSummary = ({
   }
   if (effectValues.pet_cleanliness_delta) {
     summaryParts.push(`清洁 ${formatSignedValue(effectValues.pet_cleanliness_delta)}`);
+  }
+  if (effectValues.pet_bonus_slot_delta) {
+    summaryParts.push(`宠物位 ${formatSignedValue(effectValues.pet_bonus_slot_delta)}`);
   }
 
   if (petEffectRequested) {
@@ -3232,6 +3274,7 @@ const createLotteryLogEntry = ({
     pet_satiety_delta: normalizedEffects.pet_satiety_delta,
     pet_mood_delta: normalizedEffects.pet_mood_delta,
     pet_cleanliness_delta: normalizedEffects.pet_cleanliness_delta,
+    pet_bonus_slot_delta: normalizedEffects.pet_bonus_slot_delta,
     pet_affected_count: Math.max(0, Math.floor(Number(petAffectedCount) || 0)),
     effect_summary: sanitizeString(effectSummary, 200),
     created_at: createdAt
@@ -3305,6 +3348,7 @@ app.post('/api/lottery/execute', (req, res) => {
     }
 
     const appliedPetEffects = applyPetEffectsToActiveSlot(activeSlot, configuredEffects, now);
+    const appliedPetSlotEffect = applyPetBonusSlotEffectToStudent(student, configuredEffects);
 
     student.pet_collection = slots;
     if (activeSlot) {
@@ -3316,7 +3360,8 @@ app.post('/api/lottery/execute', (req, res) => {
       pet_growth_delta: appliedPetEffects.pet_growth_delta,
       pet_satiety_delta: appliedPetEffects.pet_satiety_delta,
       pet_mood_delta: appliedPetEffects.pet_mood_delta,
-      pet_cleanliness_delta: appliedPetEffects.pet_cleanliness_delta
+      pet_cleanliness_delta: appliedPetEffects.pet_cleanliness_delta,
+      pet_bonus_slot_delta: appliedPetSlotEffect.pet_bonus_slot_delta
     };
 
     const effectSummary = buildLotteryEffectSummary({
@@ -3393,13 +3438,14 @@ app.post('/api/lottery/execute', (req, res) => {
     pet_growth_delta: accumulatedPetEffects.pet_growth_delta,
     pet_satiety_delta: accumulatedPetEffects.pet_satiety_delta,
     pet_mood_delta: accumulatedPetEffects.pet_mood_delta,
-    pet_cleanliness_delta: accumulatedPetEffects.pet_cleanliness_delta
+    pet_cleanliness_delta: accumulatedPetEffects.pet_cleanliness_delta,
+    pet_bonus_slot_delta: 0
   };
 
   const effectSummary = buildLotteryEffectSummary({
     targetType,
     effects: appliedEffects,
-    petEffectRequested: hasLotteryPetEffects(configuredEffects),
+    petEffectRequested: hasLotteryPetMetricEffects(configuredEffects),
     petEffectTargets: affectedPetCount
   });
 
@@ -3450,24 +3496,26 @@ app.post('/api/lottery-logs', (req, res) => {
     teamId,
     teamName: req.body.team_name || '',
     type,
-    item: {
-      id: req.body.item_id,
-      name: req.body.item_name,
-      icon: req.body.item_icon,
-      score_delta: req.body.score_delta,
-      pet_growth_delta: req.body.pet_growth_delta,
-      pet_satiety_delta: req.body.pet_satiety_delta,
-      pet_mood_delta: req.body.pet_mood_delta,
-      pet_cleanliness_delta: req.body.pet_cleanliness_delta
-    },
-    effectSummary: req.body.effect_summary || '',
-    effects: {
-      score_delta: req.body.score_delta,
-      pet_growth_delta: req.body.pet_growth_delta,
-      pet_satiety_delta: req.body.pet_satiety_delta,
-      pet_mood_delta: req.body.pet_mood_delta,
-      pet_cleanliness_delta: req.body.pet_cleanliness_delta
-    },
+      item: {
+        id: req.body.item_id,
+        name: req.body.item_name,
+        icon: req.body.item_icon,
+        score_delta: req.body.score_delta,
+        pet_growth_delta: req.body.pet_growth_delta,
+        pet_satiety_delta: req.body.pet_satiety_delta,
+        pet_mood_delta: req.body.pet_mood_delta,
+        pet_cleanliness_delta: req.body.pet_cleanliness_delta,
+        pet_bonus_slot_delta: req.body.pet_bonus_slot_delta
+      },
+      effectSummary: req.body.effect_summary || '',
+      effects: {
+        score_delta: req.body.score_delta,
+        pet_growth_delta: req.body.pet_growth_delta,
+        pet_satiety_delta: req.body.pet_satiety_delta,
+        pet_mood_delta: req.body.pet_mood_delta,
+        pet_cleanliness_delta: req.body.pet_cleanliness_delta,
+        pet_bonus_slot_delta: req.body.pet_bonus_slot_delta
+      },
     petAffectedCount: req.body.pet_affected_count
   });
 

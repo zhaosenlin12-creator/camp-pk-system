@@ -13,6 +13,7 @@ export function getLotteryEffectChips(item, { targetType = 'student' } = {}) {
   const petSatietyDelta = Number(item.pet_satiety_delta || 0);
   const petMoodDelta = Number(item.pet_mood_delta || 0);
   const petCleanlinessDelta = Number(item.pet_cleanliness_delta || 0);
+  const petBonusSlotDelta = Number(item.pet_bonus_slot_delta || 0);
 
   if (scoreDelta) {
     chips.push(`${targetType === 'team' ? '战队积分' : '学员积分'} ${formatSignedValue(scoreDelta)}`);
@@ -21,6 +22,7 @@ export function getLotteryEffectChips(item, { targetType = 'student' } = {}) {
   if (petSatietyDelta) chips.push(`饱腹 ${formatSignedValue(petSatietyDelta)}`);
   if (petMoodDelta) chips.push(`心情 ${formatSignedValue(petMoodDelta)}`);
   if (petCleanlinessDelta) chips.push(`清洁 ${formatSignedValue(petCleanlinessDelta)}`);
+  if (petBonusSlotDelta) chips.push(`宠物位 ${formatSignedValue(petBonusSlotDelta)}`);
 
   return chips;
 }

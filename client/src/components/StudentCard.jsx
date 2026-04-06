@@ -32,50 +32,50 @@ function getRitualHint(journey, visualMeta) {
 
 function getStudentStory(studentName, journey) {
   if (!journey.claimed) {
-    return '还没有绑定专属宠物，当前会先以宠物蛋的形式等待认领。领取后，课堂积分和照料行为才会真正开始累积。';
+    return '专属档案等待开启。';
   }
 
   if (journey.visual_state === 'egg') {
-    return `${studentName} 已经拿到了专属宠物蛋，继续通过课堂积分与照料动作，把期待感正式兑换成“我的宠物出生了”。`;
+    return `${studentName} 的宠物蛋待孵化。`;
   }
 
   if (journey.can_evolve) {
-    return `${journey.name} 已满足进化条件，只差一次公开的高光仪式，就能把“我真的养大了它”的感觉拉满。`;
+    return `满足进化条件，可高光进阶。`;
   }
 
   if (journey.can_hatch) {
-    return `${journey.name} 已达到孵化门槛，现在很适合在课堂里安排一次公开孵化，让学生立刻感知奖励兑现。`;
+    return `已达孵化条件，可公开孵化。`;
   }
 
   if (journey.slot_state === 'evolved') {
-    return `${journey.name} 已经进入高级形态，当前重点不再只是升级，而是维持状态、稳定发挥和持续制造展示时刻。`;
+    return `到达满阶形态，请稳固状态。`;
   }
 
-  return `${journey.name} 正处在 ${journey.stage_name} 阶段，课堂表现、照料次数与状态条会一起决定它接下来变成什么样。`;
+  return `处在 ${journey.stage_name} 阶段，继续加油。`;
 }
 
 function getPassportNarrative(journey, visualMeta) {
   if (!journey.claimed) {
-    return '先去宠物中心为学生绑定一只课堂伙伴，宠物档案才会正式点亮。';
+    return '请前往宠物中心领取档案。';
   }
 
   if (journey.visual_state === 'egg') {
     if (journey.selected_species) {
-      return `目标宠物是 ${journey.selected_species}，只要继续积累成长值和照料次数，就会迎来正式破壳。`;
+      return `目标：${journey.selected_species}。多得积分，争取破壳！`;
     }
-    return '当前仍是宠物蛋状态，优先补课堂积分和基础照料动作。';
+    return '努力赚积分，加速破壳吧！';
   }
 
   return visualMeta?.vibe || journey.stage_description;
 }
 
 function getNextUnlockCopy(journey) {
-  if (!journey.claimed) return '领取宠物后，课堂成长才会正式开始。';
-  if (journey.can_evolve) return '现在就可以举办进化仪式，解锁更高阶形态。';
-  if (journey.can_hatch) return '已满足孵化条件，适合安排一次公开孵化。';
-  if (journey.visual_state === 'egg') return '继续增加课堂积分和照料动作，解锁正式形态。';
-  if (journey.slot_state === 'evolved') return '终阶形态已解锁，后续重点是维持状态和打造个人展示感。';
-  return `继续提升成长值和照料评分，冲击下一阶段 Lv.${Math.min((journey.stage_level || 1) + 1, 5)}。`;
+  if (!journey.claimed) return '领养伙伴，开启旅程。';
+  if (journey.can_evolve) return '可直接举办进化仪式。';
+  if (journey.can_hatch) return '即可安排公开孵化。';
+  if (journey.visual_state === 'egg') return '继续努力冲刺下一形态。';
+  if (journey.slot_state === 'evolved') return '究极体达成！持续闪耀。';
+  return `目标：Lv.${Math.min((journey.stage_level || 1) + 1, 5)}`;
 }
 
 function CareBar({ label, value, color }) {
@@ -164,7 +164,7 @@ function PetPanel({ student, onPreview }) {
           </span>
         </div>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-[108px_minmax(0,1fr)]">
+        <div className="mt-5 grid gap-4 sm:grid-cols-[132px_minmax(0,1fr)] items-center">
           <div className="pet-hero-frame flex h-[108px] w-[108px] items-center justify-center rounded-[30px] bg-white/92">
             <PetArtwork
               pet={student.pet}
@@ -204,7 +204,7 @@ function PetPanel({ student, onPreview }) {
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3 text-xs font-black text-slate-500">
-          <span>点击查看完整成长档案与阶段预览</span>
+          <span>查看完整档案</span>
           <span className="rounded-full bg-slate-900 px-3 py-1.5 text-white">立即查看</span>
         </div>
       </div>
@@ -226,6 +226,29 @@ export default function StudentCard({ student, rank, compact = false }) {
   const statusTone = getPetStatusTone(journey);
   const ritualHint = getRitualHint(journey, visualMeta);
   const story = getStudentStory(student.name, journey);
+  const displayLevel = Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0);
+  const formattedScore = formatScore(student.score);
+  const compactRankLabel = rank <= 3 && style.icon ? `${style.icon} TOP ${rank}` : `#${rank}`;
+  const compactSummary = !journey.claimed
+    ? '先领取一只宠物蛋，马上开始成长。'
+    : journey.can_evolve
+      ? '条件已满，准备开启进化仪式。'
+      : journey.can_hatch
+        ? '马上就能破壳，等你来见证。'
+        : journey.slot_state === 'evolved'
+          ? '已经成为班级高光主角，继续稳稳发光。'
+          : `正在 ${journey.stage_name}，继续照顾它吧。`;
+  const compactNextBadge = !journey.claimed
+    ? '待开启'
+    : journey.can_evolve
+      ? '进化仪式'
+      : journey.can_hatch
+        ? '孵化仪式'
+        : journey.slot_state === 'evolved'
+          ? '高光形态'
+          : '继续培养';
+  const compactNextCopy = getNextUnlockCopy(journey);
+  const compactIdleMotion = rank <= 3 ? 'soft' : 'none';
   const openPetProfile = () => setShowPetProfile(true);
   const closePetProfile = () => setShowPetProfile(false);
   const handleCardKeyDown = (event) => {
@@ -241,9 +264,10 @@ export default function StudentCard({ student, rank, compact = false }) {
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="pet-passport-card relative flex items-center gap-3 overflow-hidden rounded-[26px] border border-white/70 p-3 shadow-sm"
+          whileHover={{ y: -4 }}
+          className="pet-passport-card relative overflow-hidden rounded-[32px] border border-white/75 p-4 shadow-[0_20px_44px_rgba(35,49,79,0.12)]"
           style={{
-            background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${journey.theme || '#F8FAFC'} 100%)`
+            background: `linear-gradient(135deg, rgba(255,255,255,0.98) 0%, ${journey.theme || '#F8FAFC'} 78%, rgba(255,255,255,0.94) 100%)`
           }}
           data-testid={`student-pet-passport-${student.id}`}
           role="button"
@@ -252,46 +276,102 @@ export default function StudentCard({ student, rank, compact = false }) {
           onKeyDown={handleCardKeyDown}
           aria-label={`查看 ${student.name} 的宠物成长档案`}
         >
-          <div className="pointer-events-none absolute -right-6 top-0 h-16 w-16 rounded-full bg-white/55 blur-2xl" aria-hidden="true" />
+          <div className="pointer-events-none absolute -right-8 top-0 h-24 w-24 rounded-full bg-white/55 blur-3xl" aria-hidden="true" />
+          <div
+            className="pointer-events-none absolute -left-10 bottom-0 h-24 w-24 rounded-full blur-3xl"
+            style={{ backgroundColor: `${journey.accent || '#38bdf8'}18` }}
+            aria-hidden="true"
+          />
 
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white/82 text-2xl shadow-sm">
-            {student.avatar}
-          </div>
+          <div className="relative">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className="rounded-full px-3 py-1.5 text-[11px] font-black shadow-sm"
+                  style={rank <= 3
+                    ? { backgroundColor: `${style.border}22`, color: style.border }
+                    : { backgroundColor: 'rgba(15,23,42,0.06)', color: '#475569' }}
+                >
+                  {compactRankLabel}
+                </span>
+                {student.team_name && (
+                  <span
+                    className="rounded-full px-3 py-1.5 text-[11px] font-black text-white shadow-sm"
+                    style={{ backgroundColor: student.team_color || '#64748b' }}
+                  >
+                    {student.team_name}
+                  </span>
+                )}
+                <span className={`rounded-full px-3 py-1.5 text-[11px] font-black shadow-sm ${statusTone.bg} ${statusTone.text}`}>
+                  {journey.status_label}
+                </span>
+              </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate font-black text-slate-800">{student.name}</span>
-              <span className="text-sm">{studentRank.icon}</span>
-            </div>
-            <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-              <PetArtwork
-                pet={student.pet}
-                journey={journey}
-                className="flex h-7 w-7 items-center justify-center rounded-xl bg-white/82"
-                imageClassName="h-5 w-5 object-contain"
-                fallbackClassName="text-sm"
-              />
-              <span className="truncate font-bold text-slate-700">{journey.name}</span>
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-              <span className={`rounded-full px-2 py-0.5 font-black ${statusTone.bg} ${statusTone.text}`}>
-                {journey.status_label}
+              <span className={`rounded-full px-3 py-1.5 text-xs font-black shadow-sm ${powerTone.bg} ${powerTone.text}`}>
+                培养力 {journey.power_score}
               </span>
-              <span className="rounded-full bg-white/84 px-2 py-0.5 font-bold text-slate-600">{journey.stage_name}</span>
-              <span className="rounded-full bg-violet-100 px-2 py-0.5 font-bold text-violet-700">
-                收藏 {petCollection.length}/{petCapacity}
-              </span>
             </div>
-          </div>
 
-          <div className="shrink-0 rounded-[18px] border border-white/70 bg-white/84 px-3 py-2 text-right shadow-sm">
-            <div className={`rounded-full px-2.5 py-1 text-[10px] font-black ${powerTone.bg} ${powerTone.text}`}>
-              培养力 {journey.power_score}
+            <div className="mt-4 grid gap-4 md:grid-cols-[138px_minmax(0,1fr)] md:items-center">
+              <div className="relative mx-auto md:mx-0">
+                <div className="pet-hero-frame pet-hero-frame-active flex h-[122px] w-[122px] items-center justify-center rounded-[34px] bg-white/94">
+                  <PetArtwork
+                    pet={student.pet}
+                    journey={journey}
+                    className="flex h-[100px] w-[100px] items-center justify-center"
+                    imageClassName="h-[86px] w-[86px] object-contain"
+                    fallbackClassName="text-4xl"
+                    idleMotion={compactIdleMotion}
+                  />
+                </div>
+                <div className="absolute -bottom-3 -right-3 flex h-12 w-12 items-center justify-center rounded-[18px] border border-white/80 bg-white text-2xl shadow-sm">
+                  {student.avatar}
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-xl font-black text-slate-800">{student.name}</span>
+                  <span className="text-sm">{studentRank.icon}</span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span
+                    className="inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black shadow-sm"
+                    style={{ backgroundColor: `${journey.accent || '#38bdf8'}14`, color: journey.accent || '#38bdf8' }}
+                  >
+                    <span className="truncate">{journey.name}</span>
+                    <span>{journey.visual_state === 'egg' ? '蛋态' : `Lv.${displayLevel}`}</span>
+                  </span>
+                  <span className="rounded-full bg-white/92 px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm">
+                    {journey.stage_name}
+                  </span>
+                </div>
+
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{compactSummary}</p>
+              </div>
             </div>
-            <div className="mt-2 text-lg font-black" style={{ color: studentRank.color }}>
-              {formatScore(student.score)}
+
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <InfoPill label="积分" value={formattedScore} toneClassName="bg-white/90 text-slate-700" />
+              <InfoPill label="成长" value={journey.growth_value} toneClassName="bg-white/90 text-slate-700" />
+              <InfoPill label="照料" value={journey.care_score} toneClassName="bg-white/90 text-slate-700" />
+              <InfoPill label="收藏" value={`${petCollection.length}/${petCapacity}`} toneClassName={`${powerTone.bg} ${powerTone.text}`} />
             </div>
-            <div className="text-[10px] font-bold text-slate-400">课堂积分</div>
+
+            <div className="mt-4 rounded-[24px] border border-white/80 bg-white/92 px-4 py-3.5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">下一步</div>
+                <span className="rounded-full bg-slate-900/5 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+                  {compactNextBadge}
+                </span>
+              </div>
+              <div className="mt-2 text-sm font-black leading-6 text-slate-800">{compactNextCopy}</div>
+              <div className="mt-3 flex items-center justify-between gap-3 text-xs font-black text-slate-500">
+                <span>点卡片看完整成长档案</span>
+                <span className="rounded-full bg-slate-900 px-3 py-1.5 text-white shadow-sm">查看</span>
+              </div>
+            </div>
           </div>
         </motion.div>
 

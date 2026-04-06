@@ -5,17 +5,6 @@ import { getPetCareItems, getPetPowerTone, getStudentPetJourney, getStudentPetUn
 import { getPetPreviewStages, getPetVisualMeta } from '../utils/petVisuals';
 import { soundManager } from '../utils/sounds';
 
-function MetricCard({ label, value, accent }) {
-  return (
-    <div className="rounded-[26px] border border-white/70 bg-white/82 px-4 py-4 text-center shadow-sm">
-      <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</div>
-      <div className="mt-2 text-2xl font-black" style={{ color: accent }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
 function HeaderStatPill({ label, value, toneClassName = 'bg-white/88 text-slate-600' }) {
   return (
     <div className={`rounded-[22px] px-4 py-3 shadow-sm ${toneClassName}`}>
@@ -27,15 +16,15 @@ function HeaderStatPill({ label, value, toneClassName = 'bg-white/88 text-slate-
 
 function getCollectionSpotlightCopy(journey, meta, unlockStatus) {
   if (!journey.claimed) {
-    return '先领取第一只宠物，这里就会变成学生自己的完整成长档案。';
+    return '专属成长档案待开启。';
   }
 
   if (journey.can_evolve) {
-    return '已经满足进化条件，很适合做一场全班都能看到的高光进化仪式。';
+    return '满足进化条件，可随时进阶。';
   }
 
   if (journey.can_hatch) {
-    return '孵化条件已经就绪，这个时刻最适合做成全班奖励。';
+    return '孵化就绪，准备破壳。';
   }
 
   if (unlockStatus.progress >= 100 && unlockStatus.nextSlotNumber) {
@@ -141,15 +130,15 @@ function getPreviewHeadline(journey, meta, previewMode, activePreviewLevel) {
   }
 
   if (!journey.claimed) {
-    return '当前还没有正式绑定宠物，领取后这里会变成学生自己的成长档案。';
+    return '绑定宠物后即可解锁档案。';
   }
 
   if (journey.visual_state === 'egg') {
-    return '现在还是宠物蛋阶段，学生会对“什么时候破壳”天然更有期待感。';
+    return '蛋态培养中，期待破壳。';
   }
 
   if (journey.can_evolve) {
-    return '已经具备进化条件，现在最适合安排一场公开的高光仪式。';
+    return '随时可开启进化仪式。';
   }
 
   return journey.stage_description;
@@ -157,24 +146,24 @@ function getPreviewHeadline(journey, meta, previewMode, activePreviewLevel) {
 
 function getStageFocusCopy(journey, previewMode, activePreviewLevel) {
   if (previewMode === 'preview') {
-    return `当前查看的是未来预览，学生会更直观地知道继续努力后能长成什么样。Lv.${activePreviewLevel} 越高，仪式感越强。`;
+    return `预览未来成长形态。`;
   }
 
   if (!journey.claimed) {
-    return '先去宠物中心为学生绑定一只课堂伙伴，再回来查看完整成长路径。';
+    return '请前往宠物中心绑定伙伴。';
   }
 
   if (journey.visual_state === 'egg') {
     return journey.can_hatch
-      ? '已经满足孵化条件，现在就能把“宠物出生”的奖励感做出来。'
-      : '优先补课堂积分和照料动作，让宠物蛋尽快来到可以孵化的节点。';
+      ? '条件已满，可以孵化。'
+      : '积累积分与照料，等待孵化。';
   }
 
   if (journey.slot_state === 'evolved') {
-    return '终阶形态已经解锁，后续重点是维持状态、强化展示和为后面的战斗玩法铺路。';
+    return '终阶已解锁，稳固状态。';
   }
 
-  return `继续提升成长值和照料评分，就能向下一阶段冲刺。当前成长轨迹已经在稳定成型。`;
+  return `稳步积累，迈向下一阶段。`;
 }
 
 function buildMilestoneState(journey, previewStages, previewMode, activePreviewLevel) {
@@ -348,7 +337,7 @@ export default function PetProfileModal({
               <h3 className="mt-4 text-3xl font-black text-slate-800">{pet?.name || journey.name}</h3>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                 {studentName ? `${studentName} 的课堂搭档。` : '班级宠物成长档案。'}
-                {meta ? ` ${meta.vibe}` : ' 领取后会显示完整成长路径。'}
+                {meta ? '' : ''}
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {collectionSlots.length > 0 && (
@@ -434,7 +423,7 @@ export default function PetProfileModal({
                 <div>
                   <div className="text-sm font-black text-slate-800">宠物收藏架</div>
                   <div className="mt-1 text-xs font-bold text-slate-500">
-                    已拥有的伙伴会长期保留，满级后可以继续培养下一只喜欢的宠物。
+                    可长期培养，满级后可切换。
                   </div>
                 </div>
                 <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black text-white">
@@ -689,7 +678,7 @@ export default function PetProfileModal({
                 <div className="mt-6">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm font-black text-slate-700">点击查看各等级形态</div>
-                    <div className="text-xs font-bold text-slate-500">让学生提前看到“养大之后的样子”</div>
+                    <div className="text-xs font-bold text-slate-500">预览各阶形态</div>
                   </div>
                   <div className="mt-3 grid grid-cols-5 gap-3">
                     {previewStages.map((stage) => {
@@ -742,19 +731,26 @@ export default function PetProfileModal({
                   </span>
                 </div>
                 <p className="mt-4 text-sm leading-7 text-slate-600">{headline}</p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <MetricCard label="成长值" value={journey.growth_value} accent={accent} />
-                <MetricCard label="照料评分" value={journey.care_score} accent={accent} />
-                <MetricCard label="阶段等级" value={`Lv.${Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}`} accent={accent} />
-                <MetricCard label="培养力" value={journey.power_score} accent={accent} />
+                <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 shadow-sm">
+                    成长 {journey.growth_value}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 shadow-sm">
+                    照料 {journey.care_score}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 shadow-sm">
+                    等级 Lv.{Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}
+                  </span>
+                  <span className={`rounded-full px-3 py-1.5 shadow-sm ${powerTone.bg} ${powerTone.text}`}>
+                    培养力 {journey.power_score}
+                  </span>
+                </div>
               </div>
 
               <div className="rounded-[32px] border border-white/70 bg-white/82 px-5 py-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm font-black text-slate-700">成长里程碑</div>
-                  <div className="text-xs font-bold text-slate-500">这只宠物的重要时刻会被记录下来</div>
+                  <div className="text-xs font-bold text-slate-500">关键成长记录</div>
                 </div>
 
                 <div className="mt-4 space-y-3">

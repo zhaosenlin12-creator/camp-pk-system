@@ -25,6 +25,23 @@ const TAB_PANE_TRANSITION = {
   ease: [0.22, 1, 0.36, 1]
 };
 
+const DISPLAY_TABS = [
+  { key: 'teams', label: '⚔️ 战队榜' },
+  { key: 'students', label: '🧑 宠物卡' },
+  { key: 'pets', label: '🐾 主角秀台' },
+  { key: 'rating', label: '🌟 评分榜' }
+];
+
+function OverviewStatCard({ label, value, accentClassName, hint }) {
+  return (
+    <div className="rounded-[24px] border border-white/70 bg-white/94 px-4 py-3 shadow-sm">
+      <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">{label}</div>
+      <div className={`mt-2 text-3xl font-black ${accentClassName}`}>{value}</div>
+      {hint && <div className="mt-1 text-[11px] font-semibold text-slate-500">{hint}</div>}
+    </div>
+  );
+}
+
 export default function DisplayPage() {
   const store = useStore();
   const { currentClass, teams, students, rewards, punishments, loading } = store;
@@ -142,24 +159,30 @@ export default function DisplayPage() {
   }, [activeTab, rankingHighlightSignature]);
 
   const handleRewardResult = () => {};
+  const dashboardStats = [
+    { label: '已领伙伴', value: petSummary.claimed, accentClassName: 'text-cyan-500', hint: '已经有专属宠物' },
+    { label: '宠物蛋', value: petSummary.eggs, accentClassName: 'text-amber-500', hint: '正在等破壳' },
+    { label: '已出生', value: hatchedCount, accentClassName: 'text-emerald-500', hint: '已经陪着上课' },
+    { label: '已进化', value: evolvedCount, accentClassName: 'text-fuchsia-500', hint: '班级里的高光主角' }
+  ];
 
   return (
-    <div className="min-h-screen p-6">
-      <header className="mb-8 text-center">
+    <div className="min-h-screen p-4 md:p-6">
+      <header className="mx-auto mb-6 max-w-[1480px] text-center">
         <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="inline-block">
           <BrandMark
             className="justify-center text-left"
-            imageClassName="h-20 w-20 md:h-24 md:w-24"
+            imageClassName="h-16 w-16 md:h-20 md:w-20"
             imageWrapperClassName="bg-white/92 ring-4 ring-white/30"
             title="乐享宠物"
-            titleClassName="text-4xl font-black text-white md:text-5xl"
+            titleClassName="text-3xl font-black text-white md:text-4xl"
             titleStyle={{ textShadow: '3px 3px 0 #FF6B6B, 6px 6px 0 rgba(0,0,0,0.1)' }}
-            subtitle="团队 PK、个人成长、宠物养成和展示评分都在同一个大屏里。"
-            subtitleClassName="mt-2 max-w-xl text-base text-white/85 md:text-lg"
+            subtitle="谁更认真，谁的宠物就会在这里更闪亮。"
+            subtitleClassName="mt-2 max-w-xl text-sm text-white/85 md:text-base"
           />
         </motion.div>
 
-        <div className="mt-6 flex justify-center">
+        <div className="mt-5 flex justify-center">
           <ClassSelector />
         </div>
       </header>
@@ -186,91 +209,86 @@ export default function DisplayPage() {
         </div>
       ) : (
         <>
-          <motion.div
+          <motion.section
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mx-auto mb-6 max-w-5xl"
+            className="mx-auto mb-6 max-w-[1480px] rounded-[34px] border border-white/35 bg-white/14 p-3 shadow-[0_26px_70px_rgba(15,23,42,0.16)] backdrop-blur-xl"
           >
-            <div className="card-game bg-gradient-to-r from-cyan-50 via-white to-violet-50">
-              <div className="flex flex-wrap items-center justify-between gap-5">
-                <div className="max-w-2xl">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-2 text-sm font-black text-white shadow-sm">
-                    <span>🐾</span>
-                    {currentClass.name} 宠物星球入口
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_520px]">
+                <div className="rounded-[28px] border border-white/60 bg-white/90 px-5 py-5 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-cyan-500 px-3 py-1 text-xs font-black text-white shadow-sm">
+                      {currentClass.name}
+                    </span>
+                    <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white shadow-sm">
+                      宠物大屏
+                    </span>
                   </div>
-                  <h3 className="mt-4 text-2xl font-black text-slate-800">学生没领宠物时显示宠物蛋，养成后会一路孵化、升级、进化</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    这里直接对应当前班级。老师在后台绑定宠物后，学生卡片会同步显示宠物状态；没有宠物的学生默认展示宠物蛋，达到条件后再进入正式养成。
+                  <h3 className="mt-3 text-2xl font-black text-slate-800">先看谁的宠物最亮眼。</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    名字、状态、成长和主角卡都会放在最前面，一眼就能看懂。
                   </p>
                 </div>
 
-                <div className="grid min-w-[300px] flex-1 gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                    <div className="text-xs font-bold text-slate-400">已领宠物</div>
-                    <div className="mt-1 text-3xl font-black text-cyan-500">{petSummary.claimed}</div>
-                  </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                    <div className="text-xs font-bold text-slate-400">宠物蛋</div>
-                    <div className="mt-1 text-3xl font-black text-amber-500">{petSummary.eggs}</div>
-                  </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                    <div className="text-xs font-bold text-slate-400">已孵化</div>
-                    <div className="mt-1 text-3xl font-black text-emerald-500">{hatchedCount}</div>
-                  </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                    <div className="text-xs font-bold text-slate-400">已进化</div>
-                    <div className="mt-1 text-3xl font-black text-fuchsia-500">{evolvedCount}</div>
-                  </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {dashboardStats.map((item) => (
+                    <OverviewStatCard
+                      key={item.label}
+                      label={item.label}
+                      value={item.value}
+                      accentClassName={item.accentClassName}
+                      hint={item.hint}
+                    />
+                  ))}
                 </div>
+              </div>
 
-                <button type="button" onClick={() => setActiveTab('pets')} className="btn-game btn-purple text-sm">
-                  进入宠物星球
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setShowRewardWheel(true)}
+                  className="btn-game btn-warning px-4 py-3 text-sm"
+                >
+                  🎁 抽奖励
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setShowPunishmentWheel(true)}
+                  className="btn-game btn-purple px-4 py-3 text-sm"
+                >
+                  😈 抽挑战
+                </motion.button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('pets')}
+                  className="rounded-full bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5"
+                >
+                  去看主角
                 </button>
               </div>
             </div>
-          </motion.div>
 
-          <div className="mb-8 flex justify-center gap-4">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowRewardWheel(true)}
-              className="btn-game btn-warning px-8 text-xl"
-            >
-              🎁 抽奖励
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowPunishmentWheel(true)}
-              className="btn-game btn-purple px-8 text-xl"
-            >
-              😈 抽惩罚
-            </motion.button>
-          </div>
-
-          <div className="mb-6 flex justify-center gap-2 flex-wrap">
-            {[
-              { key: 'teams', label: '⚔️ 战队 PK' },
-              { key: 'students', label: '🧑 个人榜' },
-              { key: 'pets', label: '🐾 宠物星球' },
-              { key: 'rating', label: '🌟 展示评分' }
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                aria-pressed={activeTab === tab.key}
-                className={`rounded-full px-8 py-3 text-lg font-bold transition-all ${
-                  activeTab === tab.key
-                    ? 'bg-white text-orange-500 shadow-lg'
-                    : 'bg-white/30 text-white hover:bg-white/50'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {DISPLAY_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  aria-pressed={activeTab === tab.key}
+                  className={`rounded-full px-5 py-2.5 text-sm font-black transition-all ${
+                    activeTab === tab.key
+                      ? 'bg-white text-orange-500 shadow-lg'
+                      : 'bg-white/18 text-white hover:bg-white/28'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </motion.section>
 
           <>
             {activeTab === 'teams' && (
@@ -280,7 +298,7 @@ export default function DisplayPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={TAB_PANE_TRANSITION}
-                className="mx-auto max-w-5xl"
+                className="mx-auto max-w-[1480px]"
               >
                 {sortedTeams.length === 0 ? (
                   <div className="py-10 text-center">
@@ -361,7 +379,7 @@ export default function DisplayPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={TAB_PANE_TRANSITION}
-                className="mx-auto max-w-5xl"
+                className="mx-auto max-w-[1480px]"
               >
                 {sortedStudents.length === 0 ? (
                   <div className="py-10 text-center">
@@ -370,44 +388,38 @@ export default function DisplayPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="card-game mb-6 bg-gradient-to-r from-cyan-50 via-white to-emerald-50">
-                      <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="mb-4 rounded-[30px] border border-white/60 bg-white/86 px-5 py-5 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                          <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-2 text-sm font-black text-white shadow-sm">
-                            <span>🐾</span>
-                            班级宠物入口
-                          </div>
-                          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                            这里会同步展示每位学生的宠物状态。没有领取宠物的学生会显示宠物蛋，已经孵化和进化的学生会直接在卡片右侧展示。学生卡片现在支持直接点击，查看完整宠物档案和未来形态预览。
+                          <div className="text-[11px] font-black tracking-[0.18em] text-cyan-500">全班宠物卡片</div>
+                          <h3 className="mt-2 text-2xl font-black text-slate-800">找找自己的宠物卡。</h3>
+                          <p className="mt-2 text-sm leading-6 text-slate-500">
+                            每张卡片只保留最重要的状态，点开再看完整成长档案。
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('pets')}
-                          className="btn-game btn-orange text-sm"
-                        >
-                          进入宠物星球
-                        </button>
-                      </div>
-
-                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                          <div className="text-xs font-bold text-slate-400">已领宠物</div>
-                          <div className="mt-1 text-3xl font-black text-cyan-500">{petSummary.claimed}</div>
-                        </div>
-                        <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                          <div className="text-xs font-bold text-slate-400">蛋态学生</div>
-                          <div className="mt-1 text-3xl font-black text-amber-500">{petSummary.eggs}</div>
-                        </div>
-                        <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                          <div className="text-xs font-bold text-slate-400">已进化</div>
-                          <div className="mt-1 text-3xl font-black text-fuchsia-500">{evolvedCount}</div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full bg-cyan-100 px-3 py-2 text-xs font-black text-cyan-700 shadow-sm">
+                            已领宠物 {petSummary.claimed}
+                          </span>
+                          <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-black text-amber-700 shadow-sm">
+                            蛋态 {petSummary.eggs}
+                          </span>
+                          <span className="rounded-full bg-fuchsia-100 px-3 py-2 text-xs font-black text-fuchsia-700 shadow-sm">
+                            已进化 {evolvedCount}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('pets')}
+                            className="rounded-full bg-slate-900 px-4 py-2 text-xs font-black text-white shadow-sm"
+                          >
+                            去主角秀台
+                          </button>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid gap-4">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                       {sortedStudents.map((student, index) => (
                         <StudentCard key={student.id} student={student} rank={index + 1} compact />
                       ))}
@@ -424,112 +436,103 @@ export default function DisplayPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={TAB_PANE_TRANSITION}
-                className="mx-auto max-w-5xl"
+                className="mx-auto max-w-[1480px]"
               >
-                <div className="card-game mb-6 bg-gradient-to-r from-violet-50 via-white to-cyan-50">
+                <div className="mb-4 rounded-[30px] border border-white/60 bg-white/86 px-5 py-5 shadow-sm">
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="max-w-2xl">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-violet-500 px-4 py-2 text-sm font-black text-white shadow-sm">
-                        <span>🐾</span>
-                        宠物星球
-                      </div>
-                      <h3 className="mt-4 text-2xl font-black text-slate-800">班级宠物成长总览</h3>
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        课堂积分会转化成宠物成长值，照料行为会影响宠物状态。没有领取宠物的学生会保持宠物蛋，满足条件后可孵化，再进一步成长并进化。
+                    <div>
+                      <div className="text-[11px] font-black tracking-[0.18em] text-violet-500">宠物聚焦</div>
+                      <h3 className="mt-2 text-2xl font-black text-slate-800">先看今日主角，再看全班宠物卡。</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        这里只保留主角、排行和宠物卡，不再塞进多余说明。
                       </p>
                     </div>
 
-                    <div className="grid min-w-[280px] flex-1 gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                        <div className="text-xs font-bold text-slate-400">已收藏宠物</div>
-                        <div className="mt-1 text-3xl font-black text-violet-500">{petSummary.collectedPets}</div>
-                      </div>
-                      <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                        <div className="text-xs font-bold text-slate-400">多宠物学员</div>
-                        <div className="mt-1 text-3xl font-black text-sky-500">{multiPetOwners}</div>
-                      </div>
-                      <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                        <div className="text-xs font-bold text-slate-400">已孵化</div>
-                        <div className="mt-1 text-3xl font-black text-emerald-500">{hatchedCount}</div>
-                      </div>
-                      <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                        <div className="text-xs font-bold text-slate-400">可进化</div>
-                        <div className="mt-1 text-3xl font-black text-fuchsia-500">{petSummary.readyToEvolve}</div>
-                      </div>
-                      <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                        <div className="text-xs font-bold text-slate-400">可孵化</div>
-                        <div className="mt-1 text-3xl font-black text-amber-500">{petSummary.readyToHatch}</div>
-                      </div>
-                      <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
-                        <div className="text-xs font-bold text-slate-400">覆盖率</div>
-                        <div className="mt-1 text-3xl font-black text-cyan-500">{petSummary.progress}%</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 md:grid-cols-3">
-                    <div className="rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-700">1. 领取宠物蛋</div>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">没领宠物的学生会显示宠物蛋，等老师在后台绑定图鉴宠物。</p>
-                    </div>
-                    <div className="rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-700">2. 孵化与照料</div>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">课堂积分和照料次数会推进孵化；喂养、互动、清洁会影响照料评分。</p>
-                    </div>
-                    <div className="rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-700">3. 成长与进化</div>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">高成长值加稳定状态可以触发进化，形成班级展示亮点。</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-violet-100 px-3 py-2 text-xs font-black text-violet-700 shadow-sm">
+                        已收藏 {petSummary.collectedPets}
+                      </span>
+                      <span className="rounded-full bg-sky-100 px-3 py-2 text-xs font-black text-sky-700 shadow-sm">
+                        多宠物 {multiPetOwners}
+                      </span>
+                      <span className="rounded-full bg-fuchsia-100 px-3 py-2 text-xs font-black text-fuchsia-700 shadow-sm">
+                        可进化 {petSummary.readyToEvolve}
+                      </span>
+                      <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-black text-amber-700 shadow-sm">
+                        可孵化 {petSummary.readyToHatch}
+                      </span>
                     </div>
                   </div>
 
                   {collectionLeaderboard.length > 0 && (
-                    <div className="mt-5 rounded-2xl bg-white/80 px-4 py-4 shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-black text-slate-700">多宠物收藏榜</div>
-                          <div className="mt-1 text-xs font-bold text-slate-500">
-                            满级后继续领取新宠物的学员，会在这里形成更强的展示感。
-                          </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {collectionLeaderboard.map((entry) => (
+                        <div
+                          key={entry.student.id}
+                          className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm"
+                        >
+                          <span>{entry.student.name}</span>
+                          <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">
+                            收藏 {entry.collection.length}/{entry.petCapacity}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">
+                            培养力 {entry.journey.power_score}
+                          </span>
                         </div>
-                        <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
-                          {multiPetOwners} 位已解锁多宠物
-                        </span>
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {collectionLeaderboard.map((entry) => (
-                          <div
-                            key={entry.student.id}
-                            className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm"
-                          >
-                            <span>{entry.student.name}</span>
-                            <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">
-                              收藏 {entry.collection.length}/{entry.petCapacity}
-                            </span>
-                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">
-                              培养力 {entry.journey.power_score}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                      ))}
                     </div>
                   )}
                 </div>
 
                 {spotlightPet && (
-                  <div className="mb-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                  <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_360px]">
                     <div className="card-game border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50">
                       <div className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-xs font-black text-white shadow-sm">
                         <span>✨</span>
-                        班级宠物聚光灯
+                        今日主角
                       </div>
-                      <div className="mt-5 flex flex-wrap items-center justify-between gap-5">
-                        <div className="max-w-md">
-                          <h3 className="text-3xl font-black text-slate-800">{spotlightPet.student.name}</h3>
-                          <p className="mt-2 text-sm font-bold text-slate-500">
-                            {spotlightPet.journey.name} · {spotlightPet.journey.stage_name}
+                      <div className="mt-5 grid gap-5 lg:grid-cols-[250px_minmax(0,1fr)] lg:items-center">
+                        <div className="relative mx-auto lg:mx-0">
+                          <div className="absolute inset-4 rounded-full bg-amber-200/50 blur-3xl" aria-hidden="true" />
+                          <div className="pet-hero-frame pet-hero-frame-active relative flex h-[240px] w-[240px] items-center justify-center rounded-[40px]">
+                            <div className="absolute left-4 top-4 rounded-full bg-white/86 px-3 py-1 text-[11px] font-black text-amber-700 shadow-sm">
+                              {spotlightPet.journey.stage_name}
+                            </div>
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/86 px-3 py-1 text-[11px] font-black text-slate-600 shadow-sm">
+                              {spotlightPet.journey.status_label}
+                            </div>
+                            <PetArtwork
+                              pet={spotlightPet.student.pet}
+                              journey={spotlightPet.journey}
+                              className="flex h-[196px] w-[196px] items-center justify-center"
+                              imageClassName="h-[176px] w-[176px]"
+                              fallbackClassName="text-7xl"
+                              priority
+                              idleMotion="float"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-3xl font-black text-slate-800">{spotlightPet.student.name}</h3>
+                            {spotlightPet.student.team_name && (
+                              <span
+                                className="rounded-full px-3 py-1 text-xs font-black text-white shadow-sm"
+                                style={{ backgroundColor: spotlightPet.student.team_color || '#64748b' }}
+                              >
+                                {spotlightPet.student.team_name}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="mt-3 text-lg font-black text-slate-700">
+                            {spotlightPet.journey.name}
                           </p>
-                          <p className="mt-4 text-sm leading-7 text-slate-600">当前全班培养力最高，课堂积分、照料稳定度和阶段奖励会一起影响它能否继续站在聚光灯下。</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            它现在冲在最前面，成长、照料和课堂积分都会实时变化。
+                          </p>
+
                           <div className="mt-4 flex flex-wrap gap-2">
                             <span className="pet-score-chip bg-amber-100 text-amber-700">
                               培养力 {spotlightPet.journey.power_score}
@@ -541,40 +544,34 @@ export default function DisplayPage() {
                               收藏 {spotlightPet.collection.length}/{spotlightPet.petCapacity}
                             </span>
                           </div>
-                          <div className="mt-4 grid grid-cols-3 gap-2">
-                            <div className="rounded-2xl bg-white/90 px-3 py-3 text-center shadow-sm">
-                              <div className="text-[11px] font-black text-slate-400">成长</div>
-                              <div className="mt-1 text-lg font-black text-amber-600">{spotlightPet.journey.growth_value}</div>
-                            </div>
-                            <div className="rounded-2xl bg-white/90 px-3 py-3 text-center shadow-sm">
-                              <div className="text-[11px] font-black text-slate-400">照料</div>
-                              <div className="mt-1 text-lg font-black text-emerald-600">{spotlightPet.journey.care_score}</div>
-                            </div>
-                            <div className="rounded-2xl bg-white/90 px-3 py-3 text-center shadow-sm">
-                              <div className="text-[11px] font-black text-slate-400">状态</div>
-                              <div className="mt-1 text-sm font-black text-slate-700">{spotlightPet.journey.status_label}</div>
-                            </div>
-                          </div>
-                          <div className="mt-4 text-xs font-bold text-slate-500">
-                            下方卡片点开后可以看完整成长档案。
-                          </div>
-                        </div>
 
-                        <div className="pet-hero-frame pet-hero-frame-active flex h-[220px] w-[220px] items-center justify-center rounded-[36px]">
-                          <PetArtwork
-                            pet={spotlightPet.student.pet}
-                            journey={spotlightPet.journey}
-                            className="flex h-[190px] w-[190px] items-center justify-center"
-                            imageClassName="h-[170px] w-[170px]"
-                            fallbackClassName="text-7xl"
-                            priority
-                            idleMotion="float"
-                          />
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
+                              <div className="text-[11px] font-black text-slate-400">成长</div>
+                              <div className="mt-1 text-2xl font-black text-amber-600">{spotlightPet.journey.growth_value}</div>
+                            </div>
+                            <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
+                              <div className="text-[11px] font-black text-slate-400">照料</div>
+                              <div className="mt-1 text-2xl font-black text-emerald-600">{spotlightPet.journey.care_score}</div>
+                            </div>
+                            <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
+                              <div className="text-[11px] font-black text-slate-400">课堂积分</div>
+                              <div className="mt-1 text-2xl font-black text-cyan-600">{formatScore(spotlightPet.student.score)}</div>
+                            </div>
+                            <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
+                              <div className="text-[11px] font-black text-slate-400">下一步</div>
+                              <div className="mt-1 text-sm font-black text-slate-700">{spotlightPet.journey.next_target}</div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 text-xs font-bold text-slate-500">
+                            点下方宠物卡，可继续看完整成长档案。
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="card-game border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50">
+                    <div className="card-game self-start border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 xl:sticky xl:top-6">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <h3 className="text-xl font-black text-slate-800">培养力排行榜</h3>
@@ -590,7 +587,7 @@ export default function DisplayPage() {
                           const tone = getPetPowerTone(entry.journey.power_score);
 
                           return (
-                            <div key={entry.student.id} className="rounded-[22px] bg-white/85 px-4 py-4 shadow-sm">
+                            <div key={entry.student.id} className="rounded-[22px] bg-white/85 px-3 py-3 shadow-sm">
                               <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black text-white">
                                   #{index + 1}
@@ -626,7 +623,7 @@ export default function DisplayPage() {
                   </div>
                 )}
 
-                <div className="grid gap-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {sortedStudents.map((student, index) => (
                     <StudentCard key={student.id} student={student} rank={index + 1} compact />
                   ))}

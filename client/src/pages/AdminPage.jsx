@@ -201,12 +201,24 @@ export default function AdminPage() {
   const sortedTeams = [...teams].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
   const losingTeam = sortedTeams.length >= 2 ? sortedTeams[sortedTeams.length - 1] : null;
   const isPetWorkspace = activeTab === 'pets';
+  const showSidebar = ['students', 'teams', 'rating'].includes(activeTab);
+  const primaryTabs = [
+    { key: 'students', label: '👥 学员管理' },
+    { key: 'teams', label: '⚔️ 战队管理' },
+    { key: 'pets', label: '🐾 宠物中心', testId: 'admin-tab-pets' }
+  ];
+  const secondaryTabs = [
+    { key: 'rating', label: '🎯 展示评分' },
+    { key: 'report', label: '📄 结营报告' },
+    { key: 'certificate', label: '🏅 奖状导出' }
+  ];
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="mx-auto max-w-[1540px]">
       {/* 头部 */}
-      <header className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <header className="relative z-[90] mb-6 rounded-[32px] border border-white/30 bg-white/12 px-4 py-4 shadow-[0_26px_70px_rgba(15,23,42,0.14)] backdrop-blur-xl md:px-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <motion.div
             initial={{ x: -50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
@@ -215,9 +227,9 @@ export default function AdminPage() {
             <BrandMark
               title="乐享宠物 · 管理台"
               subtitle={currentClass ? `${currentClass.name} 正在管理中` : '老师专属入口'}
-              imageClassName="h-12 w-12"
+              imageClassName="h-11 w-11"
               imageWrapperClassName="bg-white/92"
-              titleClassName="text-2xl font-black text-white md:text-3xl"
+              titleClassName="text-2xl font-black text-white"
               subtitleClassName="mt-1 text-sm text-white/80"
             />
           </motion.div>
@@ -225,20 +237,59 @@ export default function AdminPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={toggleSound}
-              className="px-4 py-2 rounded-xl bg-white/20 text-white hover:bg-white/30 font-bold"
+              className="rounded-xl bg-white/20 px-4 py-2 font-bold text-white hover:bg-white/30"
             >
               {soundEnabled ? '🔊' : '🔇'}
             </button>
             <a
               href="/"
-              className="px-4 py-2 rounded-xl bg-white/20 text-white hover:bg-white/30 font-bold"
+              className="rounded-xl bg-white/20 px-4 py-2 font-bold text-white hover:bg-white/30"
             >
               📺 展示页
             </a>
           </div>
         </div>
 
-        <ClassSelector showCreate={true} />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+          <ClassSelector showCreate={true} />
+
+          <div className="flex flex-wrap gap-2">
+            {primaryTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                aria-pressed={activeTab === tab.key}
+                data-testid={tab.testId}
+                className={`rounded-full px-5 py-2.5 text-sm font-black transition-all ${
+                  activeTab === tab.key
+                    ? 'bg-white text-cyan-600 shadow-lg'
+                    : 'bg-white/22 text-white hover:bg-white/32'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {secondaryTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              aria-pressed={activeTab === tab.key}
+              className={`rounded-full px-4 py-2 text-xs font-black transition-all ${
+                activeTab === tab.key
+                  ? 'bg-white text-cyan-600 shadow-md'
+                  : 'bg-white/14 text-white/90 hover:bg-white/22'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </header>
 
       {!currentClass ? (
@@ -251,85 +302,9 @@ export default function AdminPage() {
           <p className="text-xl text-white font-bold">请先选择或创建一个班级</p>
         </motion.div>
       ) : (
-        <div className={`grid grid-cols-1 gap-6 ${isPetWorkspace ? '' : 'lg:grid-cols-3'}`}>
+        <div className={`grid grid-cols-1 gap-6 ${showSidebar && !isPetWorkspace ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : ''}`}>
           {/* 左侧管理区 */}
-          <div className={isPetWorkspace ? 'space-y-6' : 'lg:col-span-2 space-y-6'}>
-            <div className="flex gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setActiveTab('students')}
-                aria-pressed={activeTab === 'students'}
-                className={`px-6 py-2 rounded-full font-bold transition-all ${
-                  activeTab === 'students'
-                    ? 'bg-white text-cyan-600 shadow-lg'
-                    : 'bg-white/30 text-white hover:bg-white/50'
-                }`}
-              >
-                👥 学员管理
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('teams')}
-                aria-pressed={activeTab === 'teams'}
-                className={`px-6 py-2 rounded-full font-bold transition-all ${
-                  activeTab === 'teams'
-                    ? 'bg-white text-cyan-600 shadow-lg'
-                    : 'bg-white/30 text-white hover:bg-white/50'
-                }`}
-              >
-                ⚔️ 战队管理
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('pets')}
-                aria-pressed={activeTab === 'pets'}
-                data-testid="admin-tab-pets"
-                className={`px-6 py-2 rounded-full font-bold transition-all ${
-                  activeTab === 'pets'
-                    ? 'bg-white text-cyan-600 shadow-lg'
-                    : 'bg-white/30 text-white hover:bg-white/50'
-                }`}
-              >
-                🐾 宠物中心
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('rating')}
-                aria-pressed={activeTab === 'rating'}
-                className={`px-6 py-2 rounded-full font-bold transition-all ${
-                  activeTab === 'rating'
-                    ? 'bg-white text-cyan-600 shadow-lg'
-                    : 'bg-white/30 text-white hover:bg-white/50'
-                }`}
-              >
-                🎯 展示评分
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('report')}
-                aria-pressed={activeTab === 'report'}
-                className={`px-6 py-2 rounded-full font-bold transition-all ${
-                  activeTab === 'report'
-                    ? 'bg-white text-cyan-600 shadow-lg'
-                    : 'bg-white/30 text-white hover:bg-white/50'
-                }`}
-              >
-                📄 结营报告
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('certificate')}
-                aria-pressed={activeTab === 'certificate'}
-                className={`px-6 py-2 rounded-full font-bold transition-all ${
-                  activeTab === 'certificate'
-                    ? 'bg-white text-cyan-600 shadow-lg'
-                    : 'bg-white/30 text-white hover:bg-white/50'
-                }`}
-              >
-                🏅 奖状导出
-              </button>
-            </div>
-
+          <div className="space-y-6">
             <>
               {activeTab === 'students' && (
                 <motion.div
@@ -401,11 +376,11 @@ export default function AdminPage() {
           </div>
 
           {/* 右侧快捷操作 */}
-          {!isPetWorkspace && (
-          <div className="space-y-4">
+          {showSidebar && !isPetWorkspace && (
+          <div className="space-y-4 lg:sticky lg:top-6 self-start">
             {/* 战队积分 */}
             <div className="card-game">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">📊 战队积分</h3>
+              <h3 className="mb-4 text-lg font-bold text-gray-800">📊 战队积分</h3>
               <div className="space-y-3">
                 {sortedTeams.map((team, index) => (
                   <div
@@ -434,7 +409,7 @@ export default function AdminPage() {
 
             {/* 奖惩按钮 */}
             <div className="card-game">
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-800">🎰 奖惩抽奖</h3>
                 <button
                   onClick={() => setShowHistory(true)}
@@ -562,17 +537,6 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-
-            {/* 提示 */}
-            <div className="card-game bg-gradient-to-br from-yellow-50 to-orange-50">
-              <h3 className="text-lg font-bold text-gray-800 mb-3">💡 操作提示</h3>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li>• 点击学员的 <span className="font-bold text-green-600">±</span> 按钮修改积分</li>
-                <li>• 学员积分会自动同步到战队</li>
-                <li>• 每天结束时给落后战队抽惩罚</li>
-                <li>• 展示页面会自动刷新数据</li>
-              </ul>
-            </div>
           </div>
           )}
         </div>
@@ -582,7 +546,7 @@ export default function AdminPage() {
       <AnimatePresence>
         {showRewardWheel && (
           <LotteryWheel 
-            items={rewards} 
+            items={lotteryTargetType === 'team' ? rewards.filter((item) => !Number(item?.pet_bonus_slot_delta || 0)) : rewards}
             type="reward" 
             targetType={lotteryTargetType}
             onClose={() => setShowRewardWheel(false)}
@@ -618,6 +582,7 @@ export default function AdminPage() {
           <LotteryHistory onClose={() => setShowHistory(false)} />
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
