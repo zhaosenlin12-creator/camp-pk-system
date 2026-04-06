@@ -1106,14 +1106,9 @@ function StudentPetShelfCard({ slot, busy, onActivate, onPreview }) {
   const powerTone = getPetPowerTone(journey.power_score);
   const accent = journey.accent || slot.pet?.accent || '#38bdf8';
   const theme = journey.theme || slot.pet?.theme || '#FFF7ED';
-  const milestones = buildPetMilestones(slot, journey);
   const seriesChip = slot.pet?.seriesLabel || slot.pet?.species || '';
   const progressSummary = getShelfProgressSummary(slot, journey);
-  const metricCards = [
-    { label: '成长', value: journey.growth_value || 0, className: 'text-amber-600' },
-    { label: '照料', value: journey.care_score || 0, className: 'text-emerald-600' },
-    { label: '等级', value: `Lv.${Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}`, className: 'text-slate-700' }
-  ];
+  const shortProgressSummary = progressSummary.length > 34 ? `${progressSummary.slice(0, 34)}...` : progressSummary;
   const slotModeLabel = slot.is_active ? '主培养位' : '收藏位';
 
   return (
@@ -1140,117 +1135,85 @@ function StudentPetShelfCard({ slot, busy, onActivate, onPreview }) {
         aria-hidden="true"
       />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <div className="relative shrink-0">
+          <div
+            className="pointer-events-none absolute inset-2 rounded-full blur-2xl"
+            style={{ backgroundColor: `${accent}22` }}
+            aria-hidden="true"
+          />
+          <div className="pet-hero-frame relative flex h-[84px] w-[84px] items-center justify-center rounded-[26px] bg-white/96 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+            <PetArtwork
+              pet={slot.pet}
+              journey={journey}
+              className="flex h-[64px] w-[64px] items-center justify-center"
+              imageClassName="h-[54px] w-[54px] object-contain"
+              fallbackClassName="text-3xl"
+              idleMotion="soft"
+            />
+          </div>
+        </div>
+
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="truncate text-sm font-black text-slate-800">{journey.name}</div>
+            <div className="truncate text-base font-black text-slate-800">{journey.name}</div>
             <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-500 shadow-sm">
               展台 #{slot.slot_index}
             </span>
-            {slot.is_active && (
-              <span className="rounded-full bg-cyan-500 px-2 py-1 text-[10px] font-black text-white shadow-sm">
-                当前主宠
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+              {slotModeLabel}
+            </span>
+            <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+              {journey.stage_name}
+            </span>
+            <span
+              className="rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm"
+              style={{ backgroundColor: withAlpha(accent, '14'), color: accent }}
+            >
+              {journey.status_label}
+            </span>
+            {seriesChip && (
+              <span
+                className="rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm"
+                style={{ backgroundColor: withAlpha(accent, '10'), color: accent }}
+              >
+                {seriesChip}
               </span>
             )}
           </div>
-          <div className="mt-2 text-xs font-semibold text-slate-500">
-            {journey.stage_name} · {journey.status_label}
-          </div>
-        </div>
-        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${powerTone.bg} ${powerTone.text}`}>
-          培养力 {journey.power_score}
-        </span>
-      </div>
 
-      <div className="mt-4 rounded-[26px] border border-white/70 bg-[radial-gradient(circle_at_top,#ffffff_0%,rgba(255,255,255,0.95)_34%,rgba(236,248,255,0.92)_100%)] px-4 py-4 shadow-inner">
-        <div className="grid gap-4 lg:grid-cols-[110px_minmax(0,1fr)] lg:items-center">
-          <div className="relative mx-auto w-fit lg:mx-0">
+          <div className="mt-3 h-2.5 rounded-full bg-white/88">
             <div
-              className="pointer-events-none absolute inset-3 rounded-full blur-2xl"
-              style={{ backgroundColor: `${accent}22` }}
-              aria-hidden="true"
-            />
-            <div className="pet-hero-frame relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-white/96 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-              <PetArtwork
-                pet={slot.pet}
-                journey={journey}
-                className="flex h-16 w-16 items-center justify-center"
-                imageClassName="h-14 w-14 object-contain"
-                fallbackClassName="text-3xl"
-                idleMotion="soft"
-              />
-            </div>
-            <div
-              className="mx-auto mt-3 h-3 w-20 rounded-full"
-              style={{ background: `linear-gradient(90deg, ${accent}28 0%, ${accent}78 50%, ${accent}22 100%)` }}
-              aria-hidden="true"
+              className="h-2.5 rounded-full transition-all duration-500"
+              style={{
+                width: `${journey.progress}%`,
+                background: `linear-gradient(90deg, ${accent} 0%, #38bdf8 100%)`
+              }}
             />
           </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
-                {slotModeLabel}
-              </span>
-              <span
-                className="rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm"
-                style={{ backgroundColor: withAlpha(accent, '14'), color: accent }}
-              >
-                {journey.progress}%
-              </span>
-              {seriesChip && (
-                <span
-                  className="rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm"
-                  style={{ backgroundColor: withAlpha(accent, '12'), color: accent }}
-                >
-                  {seriesChip}
-                </span>
-              )}
-            </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${powerTone.bg} ${powerTone.text}`}>
+              培养力 {journey.power_score}
+            </span>
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700 shadow-sm">
+              成长 {journey.growth_value || 0}
+            </span>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 shadow-sm">
+              照料 {journey.care_score || 0}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm">
+              Lv.{Math.max(journey.stage_level || 0, journey.claimed ? 1 : 0)}
+            </span>
+          </div>
 
-            <div className="mt-3 rounded-[22px] bg-white/84 px-3 py-3 shadow-sm">
-              <div className="flex items-center justify-between gap-3 text-[11px] font-black">
-                <span className="tracking-[0.12em] text-slate-400">成长进度</span>
-                <span style={{ color: accent }}>{journey.stage_name}</span>
-              </div>
-              <div className="mt-2 h-2.5 rounded-full bg-white/88">
-                <div
-                  className="h-2.5 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${journey.progress}%`,
-                    background: `linear-gradient(90deg, ${accent} 0%, #38bdf8 100%)`
-                  }}
-                />
-              </div>
-              <div className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-                {progressSummary}
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-3">
-              {metricCards.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-white/92 px-3 py-2.5 text-center shadow-sm">
-                  <div className="text-[10px] font-black tracking-[0.14em] text-slate-400">{item.label}</div>
-                  <div className={`mt-1 text-sm font-black ${item.className}`}>{item.value}</div>
-                </div>
-              ))}
-            </div>
+          <div className="mt-2 text-xs font-semibold leading-5 text-slate-500">
+            {shortProgressSummary}
           </div>
         </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {milestones.map((milestone) => (
-          <span
-            key={milestone.key}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black shadow-sm ${
-              milestone.done ? 'bg-white text-slate-700' : 'bg-slate-100 text-slate-400'
-            }`}
-          >
-            <span className={`h-2 w-2 rounded-full ${milestone.done ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-            <span>{milestone.label}</span>
-          </span>
-        ))}
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -2114,17 +2077,17 @@ export default function PetCenter() {
             </div>
 
             {selectedStudent ? (
-              <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-                <div className="space-y-5">
-                  <div className="rounded-[30px] border border-white/80 bg-white/90 p-4 shadow-sm">
+              <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px] 2xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="space-y-4 xl:order-2">
+                  <div className="rounded-[28px] border border-white/80 bg-white/92 p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div className="flex min-w-0 items-center gap-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-4xl shadow-md">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-white text-3xl shadow-md">
                           {selectedStudent.avatar}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-2xl font-black text-slate-800">{selectedStudent.name}</h4>
+                            <h4 className="text-xl font-black text-slate-800">{selectedStudent.name}</h4>
                             <span className={`rounded-full px-3 py-1 text-xs font-black ${tone.bg} ${tone.text}`}>
                               {selectedJourney.status_label}
                             </span>
@@ -2134,7 +2097,7 @@ export default function PetCenter() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
                             <span className={`pet-score-chip ${selectedPowerTone.bg} ${selectedPowerTone.text}`}>
                               培养力 {selectedJourney.power_score}
                             </span>
@@ -2160,23 +2123,23 @@ export default function PetCenter() {
                     </div>
 
                     <div
-                      className="mt-5 rounded-[32px] bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-5 shadow-sm"
+                      className="mt-4 rounded-[30px] bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-4 shadow-sm"
                       data-testid="pet-center-collection-shelf"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                           <div className="text-xs font-bold tracking-[0.18em] text-violet-500">收藏架</div>
-                          <div className="mt-2 text-xl font-black text-slate-800">宠物收藏架</div>
-                          <p className="mt-2 text-sm leading-6 text-slate-500">
-                            只看收藏位和下一步，细节去档案里看。
+                          <div className="mt-1.5 text-lg font-black text-slate-800">切换主宠</div>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                            这里只保留卡片和切换。
                           </p>
                         </div>
                         <div
                           className="rounded-[24px] bg-white/90 px-4 py-3 text-right shadow-sm"
                           data-testid="pet-center-collection-summary"
                         >
-                          <div className="text-xs font-bold text-slate-400">当前容量</div>
-                          <div className="mt-1 text-2xl font-black text-violet-600">
+                          <div className="text-[11px] font-bold text-slate-400">当前容量</div>
+                          <div className="mt-1 text-xl font-black text-violet-600">
                             {selectedCollection.length}/{selectedPetCapacity}
                           </div>
                           <div className="mt-1 text-[11px] font-bold text-slate-500">
@@ -2185,39 +2148,30 @@ export default function PetCenter() {
                         </div>
                       </div>
 
-                      <div className="mt-4 rounded-[26px] border border-white/85 bg-white/92 px-4 py-4 shadow-sm">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[11px] font-black tracking-[0.16em] text-violet-500">下一步</div>
-                            <div className="mt-2 text-lg font-black text-slate-800">{ritualPlanner.title}</div>
-                            <p className="mt-2 text-sm leading-6 text-slate-500">{selectedJourney.next_target}</p>
-                          </div>
-                          <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${ritualPlanner.badgeClass}`}>
+                      <div className="mt-4 rounded-[24px] border border-white/85 bg-white/92 px-4 py-4 shadow-sm">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-3 py-1.5 text-[11px] font-black shadow-sm ${ritualPlanner.badgeClass}`}>
                             {ritualPlanner.badge}
                           </span>
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-600 shadow-sm">
                             {unlockStatus.title}
                           </span>
-                          <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-slate-500 shadow-sm">
-                            {nextPetSlotHint}
-                          </span>
-                          {ritualPlannerActionLabel && (
-                            <button
-                              type="button"
-                              onClick={scrollToCatalogSection}
-                              data-testid="pet-center-plan-action"
-                              className="rounded-full border border-violet-100 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:-translate-y-0.5"
-                            >
-                              {ritualPlannerActionLabel}
-                            </button>
-                          )}
                         </div>
+                        <div className="mt-3 text-sm font-black text-slate-800">{ritualPlanner.title}</div>
+                        <div className="mt-2 text-xs leading-5 text-slate-500">{nextPetSlotHint}</div>
+                        {ritualPlannerActionLabel && (
+                          <button
+                            type="button"
+                            onClick={scrollToCatalogSection}
+                            data-testid="pet-center-plan-action"
+                            className="mt-3 w-full rounded-[18px] border border-violet-100 bg-violet-50 px-4 py-2.5 text-xs font-black text-violet-700 shadow-sm transition hover:-translate-y-0.5"
+                          >
+                            {ritualPlannerActionLabel}
+                          </button>
+                        )}
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                      <div className="mt-4 grid gap-2.5">
                         {Array.from({ length: 3 }, (_, index) => {
                           const slot = selectedCollection[index];
 
@@ -2375,7 +2329,7 @@ export default function PetCenter() {
                 </div>
 
                 <div
-                  className="relative overflow-hidden rounded-[34px] border border-white/80 p-5 text-slate-700"
+                  className="relative overflow-hidden rounded-[34px] border border-white/80 p-5 text-slate-700 xl:order-1"
                   style={buildSoftPanelStyle(selectedSpotlightTheme, selectedSpotlightAccent)}
                 >
                   <div
@@ -2389,13 +2343,14 @@ export default function PetCenter() {
                     aria-hidden="true"
                   />
 
-                  <div className="relative flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-xs font-black tracking-[0.22em]" style={{ color: selectedSpotlightAccent }}>
-                      宠物主角
-                    </div>
-                    <span className="rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-black text-slate-500 shadow-sm">
-                      点舞台看档案
+                  <div className="relative flex flex-wrap items-center gap-2">
+                    <span
+                      className="rounded-full px-3 py-1.5 text-[11px] font-black shadow-sm"
+                      style={{ backgroundColor: withAlpha(selectedSpotlightAccent, '14'), color: selectedSpotlightAccent }}
+                    >
+                      主舞台
                     </span>
+                    <span className="text-[11px] font-bold text-slate-500">点主角看完整档案</span>
                   </div>
 
                   <button
@@ -2411,7 +2366,7 @@ export default function PetCenter() {
                       }}
                     >
                       <div
-                        className="pet-hero-frame pet-hero-frame-active relative mx-auto flex h-56 w-full items-center justify-center rounded-[28px] bg-white/92"
+                        className="pet-hero-frame pet-hero-frame-active relative mx-auto flex h-[320px] w-full items-center justify-center rounded-[32px] bg-white/94"
                         data-testid="pet-center-hero-stage"
                         style={heroCueMeta
                           ? {
@@ -2419,31 +2374,22 @@ export default function PetCenter() {
                             }
                           : undefined}
                       >
-                        <div className="pointer-events-none absolute left-4 top-4 z-20 max-w-[250px] rounded-[22px] border border-white/60 bg-white/50 px-3.5 py-3 text-left shadow-[0_18px_36px_rgba(15,23,42,0.12)] backdrop-blur-md">
-                          <div className="text-[11px] font-black tracking-[0.16em]" style={{ color: selectedSpotlightAccent }}>
-                            当前主宠
-                          </div>
-                          <div className="mt-1 text-xl font-black text-slate-800">{selectedJourney.name}</div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <span
-                              className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
-                              style={{ backgroundColor: withAlpha(selectedSpotlightSeries.accent, '14'), color: selectedSpotlightSeries.accent }}
-                            >
-                              {selectedSpotlightSeries.label}
-                            </span>
-                            <span
-                              className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
-                              style={{ backgroundColor: withAlpha(selectedSpotlightAccent, '14'), color: selectedSpotlightAccent }}
-                            >
-                              {selectedSpotlightBadge}
-                            </span>
-                            <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${selectedSpotlightRarity.badgeClass}`}>
-                              {selectedSpotlightRarity.label}
-                            </span>
-                          </div>
+                        <div className="pointer-events-none absolute left-4 top-4 z-20 flex max-w-[72%] flex-wrap gap-2">
+                          <span className="rounded-full bg-white/92 px-3 py-1 text-[11px] font-black text-slate-700 shadow-sm">
+                            {selectedJourney.name}
+                          </span>
+                          <span
+                            className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                            style={{ backgroundColor: withAlpha(selectedSpotlightSeries.accent, '14'), color: selectedSpotlightSeries.accent }}
+                          >
+                            {selectedSpotlightSeries.label}
+                          </span>
+                          <span className={`rounded-full px-3 py-1 text-[11px] font-black shadow-sm ${selectedSpotlightRarity.badgeClass}`}>
+                            {selectedSpotlightRarity.label}
+                          </span>
                         </div>
 
-                        <div className="pointer-events-none absolute right-4 top-4 z-20 flex flex-col items-end gap-2">
+                        <div className="pointer-events-none absolute right-4 top-4 z-20 flex flex-wrap justify-end gap-2">
                           <span className={`pet-score-chip ${selectedPowerTone.bg} ${selectedPowerTone.text}`}>
                             培养力 {selectedJourney.power_score}
                           </span>
@@ -2462,14 +2408,10 @@ export default function PetCenter() {
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.22 }}
                             data-testid="pet-hero-action-cue"
-                            className="pointer-events-none absolute left-4 top-[104px] z-20 max-w-[220px] rounded-[18px] border border-white/60 bg-white/58 px-3 py-2.5 text-left shadow-[0_18px_36px_rgba(15,23,42,0.12)] backdrop-blur-md"
+                            className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full border border-white/70 bg-white/82 px-4 py-2 text-[11px] font-black shadow-sm backdrop-blur-md"
+                            style={{ color: heroCueMeta.accent }}
                           >
-                            <div className="text-[11px] font-black tracking-[0.18em]" style={{ color: heroCueMeta.accent }}>
-                              {heroCueMeta.title}
-                            </div>
-                            <div className="mt-1 text-[11px] font-semibold leading-5 text-slate-600">
-                              {heroCueMeta.description}
-                            </div>
+                            {heroCueMeta.title}
                           </motion.div>
                         )}
 
@@ -2490,9 +2432,9 @@ export default function PetCenter() {
                         <PetArtwork
                           pet={selectedStudent.pet}
                           journey={selectedJourney}
-                          className="flex h-44 w-44 items-center justify-center"
-                          imageClassName={`h-36 w-36 object-contain ${selectedJourney.is_dormant ? 'grayscale opacity-80' : ''}`}
-                          fallbackClassName="text-7xl"
+                          className="flex h-60 w-60 items-center justify-center"
+                          imageClassName={`h-52 w-52 object-contain ${selectedJourney.is_dormant ? 'grayscale opacity-80' : ''}`}
+                          fallbackClassName="text-8xl"
                           effectKey={heroActionCue?.action}
                           effectPhase={heroActionCue?.phase}
                           priority
@@ -2506,7 +2448,7 @@ export default function PetCenter() {
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.84, y: 10 }}
                               transition={{ duration: 0.22 }}
-                              className="pointer-events-none absolute bottom-[34%] right-6 z-20 rounded-[20px] border border-white/60 bg-white/78 px-3 py-2 text-sm font-black shadow-[0_18px_36px_rgba(15,23,42,0.12)] backdrop-blur-md"
+                              className="pointer-events-none absolute bottom-8 right-8 z-20 rounded-[20px] border border-white/60 bg-white/78 px-3 py-2 text-sm font-black shadow-[0_18px_36px_rgba(15,23,42,0.12)] backdrop-blur-md"
                               style={{ color: actionBubble.accent }}
                             >
                               <span className="mr-2">{actionBubble.icon}</span>
@@ -2515,34 +2457,18 @@ export default function PetCenter() {
                           )}
                         </AnimatePresence>
 
-                        <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-end justify-between gap-3">
-                          <div
-                            className="max-w-[320px] rounded-[18px] border border-white/60 bg-white/52 px-3 py-2.5 text-left shadow-[0_18px_36px_rgba(15,23,42,0.1)] backdrop-blur-md"
-                            style={{ borderColor: withAlpha(heroStagePrompt.accent, '2a') }}
-                          >
-                            <div className="text-[11px] font-black tracking-[0.16em]" style={{ color: heroStagePrompt.accent }}>
-                              {heroStagePrompt.title}
-                            </div>
-                            <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                              {heroStagePrompt.detail}
-                            </div>
-                          </div>
-
-                          <AnimatePresence>
-                            {actionFeedback && (
-                              <PetActionFeedbackPanel
-                                feedback={actionFeedback}
-                                className="w-full max-w-[360px] self-end"
-                              />
-                            )}
-                          </AnimatePresence>
+                        <div
+                          className="pointer-events-none absolute bottom-4 left-1/2 z-20 max-w-[72%] -translate-x-1/2 rounded-full border border-white/70 bg-white/84 px-4 py-2 text-center text-[11px] font-black text-slate-600 shadow-sm backdrop-blur-md"
+                          style={{ borderColor: withAlpha(heroStagePrompt.accent, '2a') }}
+                        >
+                          {heroCueMeta ? heroCueMeta.title : heroStagePrompt.title}
                         </div>
                       </div>
                     </div>
                   </button>
 
                   <div
-                    className="mt-5 rounded-[28px] border border-white/80 bg-white/82 px-4 py-4 shadow-sm"
+                    className="mt-5 rounded-[28px] border border-white/80 bg-white/84 px-4 py-4 shadow-sm"
                     data-testid="pet-care-action-cluster"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2552,7 +2478,7 @@ export default function PetCenter() {
                         </div>
                         <div className="inline-flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
                           <span className="rounded-full border border-white/80 bg-white/82 px-3 py-1.5 shadow-sm">
-                            {selectedJourney.is_dormant ? '先赚分，再把它叫醒' : '操作后会直接同步到宠物状态'}
+                            {selectedJourney.is_dormant ? '先赚分，再把它叫醒' : '点一下，上方主角会立刻同步'}
                           </span>
                           {selectedJourney.score_debt > 0 && (
                             <span className="rounded-full bg-rose-100 px-3 py-1.5 text-rose-700 shadow-sm">
@@ -2562,7 +2488,7 @@ export default function PetCenter() {
                         </div>
                       </div>
                       <div
-                        className="rounded-[24px] border border-white/80 px-4 py-3 text-right shadow-sm"
+                        className="rounded-[22px] border border-white/80 px-4 py-3 text-right shadow-sm"
                         style={{
                           background: `linear-gradient(135deg, rgba(255,255,255,0.94) 0%, ${withAlpha(selectedSpotlightAccent, '12')} 100%)`,
                           boxShadow: `0 16px 34px ${withAlpha(selectedSpotlightAccent, '14')}`
@@ -2576,7 +2502,7 @@ export default function PetCenter() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3">
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
                       {careItems.map((item) => {
                         const delta = feedbackMetricMap.get(item.key) ?? null;
 
@@ -2591,6 +2517,60 @@ export default function PetCenter() {
                           />
                         );
                       })}
+                    </div>
+
+                    <div
+                      className="mt-4 rounded-[24px] border border-white/80 bg-white/92 px-4 py-4 shadow-sm"
+                      data-testid="pet-care-next-milestone"
+                      style={{
+                        background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${withAlpha(milestoneMeta.accent, '10')} 100%)`
+                      }}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-black tracking-[0.16em]" style={{ color: milestoneMeta.accent }}>
+                            下一步
+                          </div>
+                          <div className="mt-1 text-base font-black text-slate-800">{milestoneMeta.title}</div>
+                        </div>
+                        <span
+                          className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
+                          style={{ backgroundColor: withAlpha(milestoneMeta.accent, '18'), color: milestoneMeta.accent }}
+                        >
+                          {milestoneMeta.badge}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 h-2.5 rounded-full bg-white/90">
+                        <div
+                          className="h-2.5 rounded-full transition-all duration-500"
+                          style={{ width: `${milestoneMeta.progress}%`, backgroundColor: milestoneMeta.accent }}
+                        />
+                      </div>
+
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        {milestoneMeta.steps.filter(Boolean).slice(0, 3).map((item) => (
+                          <span
+                            key={item}
+                            className="rounded-full bg-white/92 px-3 py-2 text-center text-[11px] font-black text-slate-700 shadow-sm"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+
+                      {stageFeedbackChips.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {stageFeedbackChips.map((item) => (
+                            <span
+                              key={item.key}
+                              className={`rounded-full px-3 py-1.5 text-[11px] font-black shadow-sm ${item.tone}`}
+                            >
+                              {item.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -2656,7 +2636,7 @@ export default function PetCenter() {
                                 />
                               )}
 
-                              <div className="relative flex min-h-[108px] flex-col items-center text-center">
+                              <div className="relative flex min-h-[92px] flex-col items-center text-center">
                                 <div className="flex w-full items-start justify-between gap-2">
                                   <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-black leading-none shadow-sm ${meta.badgeClass}`}>
                                     -{actionCost} 积分
@@ -2698,6 +2678,12 @@ export default function PetCenter() {
                         );
                       })}
                     </div>
+
+                    <AnimatePresence>
+                      {actionFeedback && (
+                        <PetActionFeedbackPanel feedback={actionFeedback} className="mt-4" />
+                      )}
+                    </AnimatePresence>
 
                     {ritualActionButtons.length > 0 && (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -2751,71 +2737,7 @@ export default function PetCenter() {
                       </div>
                     )}
 
-                    <div
-                      className="mt-4 rounded-[26px] border border-white/80 bg-white/90 px-4 py-4 shadow-sm"
-                      data-testid="pet-care-next-milestone"
-                      style={{
-                        background: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, ${withAlpha(milestoneMeta.accent, '12')} 100%)`
-                      }}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[11px] font-black tracking-[0.16em]" style={{ color: milestoneMeta.accent }}>
-                            操作后马上刷新
-                          </div>
-                          <div className="mt-2 text-lg font-black text-slate-800">{milestoneMeta.title}</div>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">{milestoneMeta.summary}</p>
-                        </div>
-                        <span
-                          className="rounded-full px-3 py-1 text-[11px] font-black shadow-sm"
-                          style={{ backgroundColor: withAlpha(milestoneMeta.accent, '18'), color: milestoneMeta.accent }}
-                        >
-                          {milestoneMeta.badge}
-                        </span>
-                      </div>
-
-                      <div className="mt-4 h-2.5 rounded-full bg-white/90">
-                        <div
-                          className="h-2.5 rounded-full transition-all duration-500"
-                          style={{ width: `${milestoneMeta.progress}%`, backgroundColor: milestoneMeta.accent }}
-                        />
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {milestoneMeta.steps.map((item) => (
-                          <span
-                            key={item}
-                            className="rounded-full bg-white/88 px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-sm"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                        {stageFeedbackChips.map((item) => (
-                          <span
-                            key={item.key}
-                            className={`rounded-full px-3 py-1.5 text-[11px] font-black shadow-sm ${item.tone}`}
-                          >
-                            {item.label}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="mt-3 text-xs font-semibold text-slate-500">{milestoneMeta.detail}</div>
-                    </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handlePreviewSelectedStudent}
-                    data-testid="pet-center-growth-passport"
-                    className="relative mt-5 w-full rounded-[22px] px-4 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5"
-                    style={{
-                      background: 'linear-gradient(135deg, ' + withAlpha(selectedSpotlightAccent, "24") + ' 0%, rgba(255,255,255,0.95) 100%)',
-                      border: '1px solid ' + withAlpha(selectedSpotlightAccent, "30")
-                    }}
-                  >
-                    查看成长档案
-                  </button>
                 </div>
               </div>
             ) : (

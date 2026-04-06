@@ -82,33 +82,6 @@ export default function DisplayPage() {
       .slice(0, 5),
     [sortedStudents]
   );
-  const multiPetOwners = useMemo(
-    () => sortedStudents.filter((student) => getStudentPetCollection(student).length > 1).length,
-    [sortedStudents]
-  );
-  const collectionLeaderboard = useMemo(
-    () => sortedStudents
-      .map((student) => ({
-        student,
-        journey: getStudentPetJourney(student),
-        collection: getStudentPetCollection(student),
-        petCapacity: getStudentPetCapacity(student)
-      }))
-      .filter((entry) => entry.collection.length > 1)
-      .sort((left, right) => {
-        if (right.collection.length !== left.collection.length) {
-          return right.collection.length - left.collection.length;
-        }
-
-        if (right.journey.power_score !== left.journey.power_score) {
-          return right.journey.power_score - left.journey.power_score;
-        }
-
-        return Number(right.student.score || 0) - Number(left.student.score || 0);
-      })
-      .slice(0, 3),
-    [sortedStudents]
-  );
   const spotlightPet = petLeaderboard[0] || null;
   const rankingHighlightSignature = useMemo(
     () => petLeaderboard
@@ -454,63 +427,39 @@ export default function DisplayPage() {
                 transition={TAB_PANE_TRANSITION}
                 className="mx-auto max-w-[1480px]"
               >
-                <div className="mb-4 rounded-[30px] border border-white/60 bg-white/86 px-5 py-5 shadow-sm">
+                <div className="mb-4 rounded-[28px] border border-white/60 bg-white/88 px-5 py-4 shadow-sm">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <div className="text-[11px] font-black tracking-[0.18em] text-violet-500">宠物聚焦</div>
                       <h3 className="mt-2 text-2xl font-black text-slate-800">先看今日主角，再看全班宠物卡。</h3>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        这里只保留主角、排行和宠物卡，不再塞进多余说明。
-                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">主角在上面，全班卡片在下面，一眼就能找到自己。</p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full bg-violet-100 px-3 py-2 text-xs font-black text-violet-700 shadow-sm">
                         已收藏 {petSummary.collectedPets}
                       </span>
-                      <span className="rounded-full bg-sky-100 px-3 py-2 text-xs font-black text-sky-700 shadow-sm">
-                        多宠物 {multiPetOwners}
+                      <span className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-700 shadow-sm">
+                        已出生 {hatchedCount}
                       </span>
                       <span className="rounded-full bg-fuchsia-100 px-3 py-2 text-xs font-black text-fuchsia-700 shadow-sm">
-                        可进化 {petSummary.readyToEvolve}
-                      </span>
-                      <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-black text-amber-700 shadow-sm">
-                        可孵化 {petSummary.readyToHatch}
+                        已进化 {evolvedCount}
                       </span>
                     </div>
                   </div>
-
-                  {collectionLeaderboard.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {collectionLeaderboard.map((entry) => (
-                        <div
-                          key={entry.student.id}
-                          className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm"
-                        >
-                          <span>{entry.student.name}</span>
-                          <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">
-                            收藏 {entry.collection.length}/{entry.petCapacity}
-                          </span>
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">
-                            培养力 {entry.journey.power_score}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {spotlightPet && (
-                  <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_360px]">
+                  <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
                     <div className="card-game border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50">
                       <div className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-xs font-black text-white shadow-sm">
                         <span>✨</span>
                         今日主角
                       </div>
-                      <div className="mt-5 grid gap-5 lg:grid-cols-[250px_minmax(0,1fr)] lg:items-center">
+                      <div className="mt-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-center">
                         <div className="relative mx-auto lg:mx-0">
                           <div className="absolute inset-4 rounded-full bg-amber-200/50 blur-3xl" aria-hidden="true" />
-                          <div className="pet-hero-frame pet-hero-frame-active relative flex h-[240px] w-[240px] items-center justify-center rounded-[40px]">
+                          <div className="pet-hero-frame pet-hero-frame-active relative flex h-[260px] w-[260px] items-center justify-center rounded-[40px]">
                             <div className="absolute left-4 top-4 rounded-full bg-white/86 px-3 py-1 text-[11px] font-black text-amber-700 shadow-sm">
                               {spotlightPet.journey.stage_name}
                             </div>
@@ -520,8 +469,8 @@ export default function DisplayPage() {
                             <PetArtwork
                               pet={spotlightPet.student.pet}
                               journey={spotlightPet.journey}
-                              className="flex h-[196px] w-[196px] items-center justify-center"
-                              imageClassName="h-[176px] w-[176px]"
+                              className="flex h-[216px] w-[216px] items-center justify-center"
+                              imageClassName="h-[192px] w-[192px]"
                               fallbackClassName="text-7xl"
                               priority
                               idleMotion="float"
@@ -545,9 +494,6 @@ export default function DisplayPage() {
                           <p className="mt-3 text-lg font-black text-slate-700">
                             {spotlightPet.journey.name}
                           </p>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">
-                            它现在冲在最前面，成长、照料和课堂积分都会实时变化。
-                          </p>
 
                           <div className="mt-4 flex flex-wrap gap-2">
                             <span className="pet-score-chip bg-amber-100 text-amber-700">
@@ -561,7 +507,7 @@ export default function DisplayPage() {
                             </span>
                           </div>
 
-                          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div className="mt-4 grid gap-3 sm:grid-cols-3">
                             <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
                               <div className="text-[11px] font-black text-slate-400">成长</div>
                               <div className="mt-1 text-2xl font-black text-amber-600">{spotlightPet.journey.growth_value}</div>
@@ -574,14 +520,15 @@ export default function DisplayPage() {
                               <div className="text-[11px] font-black text-slate-400">课堂积分</div>
                               <div className="mt-1 text-2xl font-black text-cyan-600">{formatScore(spotlightPet.student.score)}</div>
                             </div>
-                            <div className="rounded-[24px] bg-white/90 px-4 py-4 shadow-sm">
-                              <div className="text-[11px] font-black text-slate-400">下一步</div>
-                              <div className="mt-1 text-sm font-black text-slate-700">{spotlightPet.journey.next_target}</div>
-                            </div>
                           </div>
 
-                          <div className="mt-4 text-xs font-bold text-slate-500">
-                            点下方宠物卡，可继续看完整成长档案。
+                          <div className="mt-4 rounded-[22px] border border-white/80 bg-white/92 px-4 py-3 shadow-sm">
+                            <div className="text-[11px] font-black tracking-[0.16em] text-slate-400">下一步</div>
+                            <div className="mt-2 text-sm font-black text-slate-800">{spotlightPet.journey.next_target}</div>
+                          </div>
+
+                          <div className="mt-3 text-xs font-bold text-slate-500">
+                            点下方宠物卡，继续看完整成长档案。
                           </div>
                         </div>
                       </div>
@@ -590,16 +537,16 @@ export default function DisplayPage() {
                     <div className="card-game self-start border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 xl:sticky xl:top-6">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <h3 className="text-xl font-black text-slate-800">培养力排行榜</h3>
-                          <p className="mt-2 text-sm leading-6 text-slate-500">顺位会跟着课堂表现和照料状态实时变化。</p>
+                          <h3 className="text-xl font-black text-slate-800">本班亮点</h3>
+                          <p className="mt-2 text-sm leading-6 text-slate-500">先看前 3 位，再往下找自己的卡。</p>
                         </div>
                         <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-600 shadow-sm">
-                          TOP {petLeaderboard.length}
+                          TOP 3
                         </span>
                       </div>
 
                       <div className="mt-5 space-y-3">
-                        {petLeaderboard.map((entry, index) => {
+                        {petLeaderboard.slice(0, 3).map((entry, index) => {
                           const tone = getPetPowerTone(entry.journey.power_score);
 
                           return (

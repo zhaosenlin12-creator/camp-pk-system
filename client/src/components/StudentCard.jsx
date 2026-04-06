@@ -238,15 +238,6 @@ export default function StudentCard({ student, rank, compact = false }) {
         : journey.slot_state === 'evolved'
           ? '已经成为班级高光主角，继续稳稳发光。'
           : `正在 ${journey.stage_name}，继续照顾它吧。`;
-  const compactNextBadge = !journey.claimed
-    ? '待开启'
-    : journey.can_evolve
-      ? '进化仪式'
-      : journey.can_hatch
-        ? '孵化仪式'
-        : journey.slot_state === 'evolved'
-          ? '高光形态'
-          : '继续培养';
   const compactNextCopy = getNextUnlockCopy(journey);
   const compactIdleMotion = rank <= 3 ? 'soft' : 'none';
   const openPetProfile = () => setShowPetProfile(true);
@@ -265,7 +256,7 @@ export default function StudentCard({ student, rank, compact = false }) {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           whileHover={{ y: -4 }}
-          className="pet-passport-card relative overflow-hidden rounded-[32px] border border-white/75 p-4 shadow-[0_20px_44px_rgba(35,49,79,0.12)]"
+          className="pet-passport-card relative overflow-hidden rounded-[30px] border border-white/75 p-4 shadow-[0_20px_44px_rgba(35,49,79,0.12)]"
           style={{
             background: `linear-gradient(135deg, rgba(255,255,255,0.98) 0%, ${journey.theme || '#F8FAFC'} 78%, rgba(255,255,255,0.94) 100%)`
           }}
@@ -307,70 +298,70 @@ export default function StudentCard({ student, rank, compact = false }) {
                 </span>
               </div>
 
-              <span className={`rounded-full px-3 py-1.5 text-xs font-black shadow-sm ${powerTone.bg} ${powerTone.text}`}>
-                培养力 {journey.power_score}
-              </span>
-            </div>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-[138px_minmax(0,1fr)] md:items-center">
-              <div className="relative mx-auto md:mx-0">
-                <div className="pet-hero-frame pet-hero-frame-active flex h-[122px] w-[122px] items-center justify-center rounded-[34px] bg-white/94">
-                  <PetArtwork
-                    pet={student.pet}
-                    journey={journey}
-                    className="flex h-[100px] w-[100px] items-center justify-center"
-                    imageClassName="h-[86px] w-[86px] object-contain"
-                    fallbackClassName="text-4xl"
-                    idleMotion={compactIdleMotion}
-                  />
-                </div>
-                <div className="absolute -bottom-3 -right-3 flex h-12 w-12 items-center justify-center rounded-[18px] border border-white/80 bg-white text-2xl shadow-sm">
-                  {student.avatar}
-                </div>
-              </div>
-
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-xl font-black text-slate-800">{student.name}</span>
-                  <span className="text-sm">{studentRank.icon}</span>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span
-                    className="inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black shadow-sm"
-                    style={{ backgroundColor: `${journey.accent || '#38bdf8'}14`, color: journey.accent || '#38bdf8' }}
-                  >
-                    <span className="truncate">{journey.name}</span>
-                    <span>{journey.visual_state === 'egg' ? '蛋态' : `Lv.${displayLevel}`}</span>
-                  </span>
-                  <span className="rounded-full bg-white/92 px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm">
-                    {journey.stage_name}
-                  </span>
-                </div>
-
-                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{compactSummary}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <InfoPill label="积分" value={formattedScore} toneClassName="bg-white/90 text-slate-700" />
-              <InfoPill label="成长" value={journey.growth_value} toneClassName="bg-white/90 text-slate-700" />
-              <InfoPill label="照料" value={journey.care_score} toneClassName="bg-white/90 text-slate-700" />
-              <InfoPill label="收藏" value={`${petCollection.length}/${petCapacity}`} toneClassName={`${powerTone.bg} ${powerTone.text}`} />
-            </div>
-
-            <div className="mt-4 rounded-[24px] border border-white/80 bg-white/92 px-4 py-3.5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">下一步</div>
-                <span className="rounded-full bg-slate-900/5 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
-                  {compactNextBadge}
+                <span className={`rounded-full px-3 py-1.5 text-xs font-black shadow-sm ${powerTone.bg} ${powerTone.text}`}>
+                  培养力 {journey.power_score}
                 </span>
+            </div>
+
+            <div className="mt-4 rounded-[26px] border border-white/80 bg-white/90 px-4 py-4 shadow-sm">
+              <div className="grid gap-4 md:grid-cols-[128px_minmax(0,1fr)] md:items-center">
+                <div className="relative mx-auto md:mx-0">
+                  <div className="pet-hero-frame pet-hero-frame-active flex h-[118px] w-[118px] items-center justify-center rounded-[32px] bg-white/94">
+                    <PetArtwork
+                      pet={student.pet}
+                      journey={journey}
+                      className="flex h-[96px] w-[96px] items-center justify-center"
+                      imageClassName="h-[82px] w-[82px] object-contain"
+                      fallbackClassName="text-4xl"
+                      idleMotion={compactIdleMotion}
+                    />
+                  </div>
+                  <div className="absolute -bottom-3 -right-3 flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/80 bg-white text-xl shadow-sm">
+                    {student.avatar}
+                  </div>
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-xl font-black text-slate-800">{student.name}</span>
+                    <span className="text-sm">{studentRank.icon}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">
+                      课堂分 {formattedScore}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className="inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black shadow-sm"
+                      style={{ backgroundColor: `${journey.accent || '#38bdf8'}14`, color: journey.accent || '#38bdf8' }}
+                    >
+                      <span className="truncate">{journey.name}</span>
+                      <span>{journey.visual_state === 'egg' ? '蛋' : `Lv.${displayLevel}`}</span>
+                    </span>
+                    <span className="rounded-full bg-white/92 px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm">
+                      {journey.stage_name}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 text-sm font-black leading-6 text-slate-800">
+                    {compactNextCopy}
+                  </div>
+                  <div className="mt-2 text-xs font-semibold text-slate-500">
+                    {compactSummary}
+                  </div>
+                </div>
               </div>
-              <div className="mt-2 text-sm font-black leading-6 text-slate-800">{compactNextCopy}</div>
-              <div className="mt-3 flex items-center justify-between gap-3 text-xs font-black text-slate-500">
-                <span>点卡片看完整成长档案</span>
-                <span className="rounded-full bg-slate-900 px-3 py-1.5 text-white shadow-sm">查看</span>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <InfoPill label="成长" value={journey.growth_value} toneClassName="bg-white/90 text-slate-700" />
+                <InfoPill label="照料" value={journey.care_score} toneClassName="bg-white/90 text-slate-700" />
+                <InfoPill label="收藏" value={`${petCollection.length}/${petCapacity}`} toneClassName={`${powerTone.bg} ${powerTone.text}`} />
               </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-[20px] bg-white/78 px-4 py-3 text-xs font-black text-slate-500 shadow-sm">
+              <span>点卡片看完整成长档案</span>
+              <span className="rounded-full bg-slate-900 px-3 py-1.5 text-white shadow-sm">查看</span>
             </div>
           </div>
         </motion.div>

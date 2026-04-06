@@ -19,31 +19,58 @@ function normalizeRoster(students = []) {
     }));
 }
 
-function getVoiceLabel(voices = []) {
-  const preferredVoice = voices.find((voice) => /zh|Chinese|中文/i.test(`${voice.lang} ${voice.name}`));
-  if (preferredVoice) return `语音播报已准备`;
-  if (voices.length > 0) return '设备有语音，但未找到中文声线';
-  return '当前设备不支持语音，会改用提示音';
+function getRandomInt(max) {
+  const limit = Math.max(0, Number(max) || 0);
+  if (limit <= 1) return 0;
+
+  if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+    const seed = new Uint32Array(1);
+    window.crypto.getRandomValues(seed);
+    return seed[0] % limit;
+  }
+
+  return Math.floor(Math.random() * limit);
 }
 
-function buildOrbitParticles(seedCount) {
-  const total = Math.min(24, Math.max(16, seedCount * 4 || 16));
-  return Array.from({ length: total }, (_, index) => {
-    const angle = (Math.PI * 2 * index) / total;
-    const radiusX = 112 + ((index % 4) * 12);
-    const radiusY = 68 + ((index % 5) * 10);
-    const size = 8 + (index % 3) * 4;
-    const duration = 3.8 + (index % 5) * 0.35;
-    const delay = index * 0.07;
+function pickWinnerIndex(roster, lastWinnerId) {
+  if (roster.length <= 1) return 0;
+
+  let index = getRandomInt(roster.length);
+  let guard = 0;
+
+  while (roster[index]?.id === lastWinnerId && guard < 12) {
+    index = getRandomInt(roster.length);
+    guard += 1;
+  }
+
+  return index;
+}
+
+function buildSphereChips(roster, phase, activeId, selectedId) {
+  if (!roster.length) return [];
+
+  return roster.map((student, index) => {
+    const ratio = index / roster.length;
+    const angle = ratio * Math.PI * 2 + phase;
+    const latitude = Math.sin(ratio * Math.PI * 3.2) * 0.62;
+    const depth = (Math.cos(angle) + 1) / 2;
+    const radiusX = 122 + latitude * 22;
+    const x = Math.sin(angle) * radiusX;
+    const y = latitude * 86 + Math.sin(angle * 0.72) * 14;
+    const scale = 0.72 + depth * 0.5;
+    const opacity = 0.26 + depth * 0.68;
+    const isActive = activeId === student.id;
+    const isWinner = selectedId === student.id;
 
     return {
-      key: `particle-${index}`,
-      x: Math.cos(angle) * radiusX,
-      y: Math.sin(angle) * radiusY,
-      size,
-      duration,
-      delay,
-      opacity: 0.34 + (index % 4) * 0.12
+      student,
+      x,
+      y,
+      scale,
+      opacity,
+      zIndex: 20 + Math.round(depth * 100),
+      isActive,
+      isWinner
     };
   });
 }
@@ -55,33 +82,50 @@ export default function RandomStudentPickerModal({
   currentClassName = '',
   onRefresh
 }) {
+  const [sessionRoster, setSessionRoster] = useState([]);
   const [rollingStudent, setRollingStudent] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
   const [spinning, setSpinning] = useState(false);
+  const [phase, setPhase] = useState(0);
   const [voiceList, setVoiceList] = useState([]);
-  const [voiceHint, setVoiceHint] = useState('点名结果会自动播报');
-  const timeoutsRef = useRef([]);
+  const timersRef = useRef([]);
+  const spinTokenRef = useRef(0);
+  const lastWinnerIdRef = useRef(null);
+  const onCloseRef = useRef(onClose);
 
   const roster = useMemo(() => normalizeRoster(students), [students]);
-  const orbitParticles = useMemo(() => buildOrbitParticles(roster.length), [roster.length]);
-  const activeStudent = selectedStudent || rollingStudent || roster[0] || null;
+  const displayRoster = sessionRoster.length ? sessionRoster : roster;
+  const resultStudent = selectedStudent || lastResult || null;
+  const highlightedResultId = spinning ? null : resultStudent?.id;
+  const activeStudent = spinning
+    ? (rollingStudent || displayRoster[0] || resultStudent || null)
+    : (resultStudent || rollingStudent || displayRoster[0] || null);
+  const sphereChips = useMemo(
+    () => buildSphereChips(displayRoster, phase, activeStudent?.id, highlightedResultId),
+    [activeStudent?.id, displayRoster, highlightedResultId, phase]
+  );
 
   const clearPending = () => {
-    timeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
-    timeoutsRef.current = [];
+    spinTokenRef.current += 1;
+    timersRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    timersRef.current = [];
 
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
   };
 
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   const announceStudent = (student) => {
-    if (!student || typeof window === 'undefined' || !window.speechSynthesis) {
-      setVoiceHint('当前设备不支持语音，会改用提示音');
+    if (!student || typeof window === 'undefined' || !window.speechSynthesis || !window.SpeechSynthesisUtterance) {
       return;
     }
 
-    const utterance = new window.SpeechSynthesisUtterance(`请 ${student.name} 准备回答`);
+    const utterance = new window.SpeechSynthesisUtterance(`本次点名，${student.name}`);
     const preferredVoice = voiceList.find((voice) => /zh|Chinese|中文/i.test(`${voice.lang} ${voice.name}`));
 
     if (preferredVoice) {
@@ -91,25 +135,94 @@ export default function RandomStudentPickerModal({
       utterance.lang = 'zh-CN';
     }
 
-    utterance.rate = 0.92;
-    utterance.pitch = 1.08;
+    utterance.rate = 0.9;
+    utterance.pitch = 1.04;
     utterance.volume = 1;
 
     try {
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-      setVoiceHint(preferredVoice ? '已播报点名结果' : '已尝试播报点名结果');
+      if (typeof window.speechSynthesis.resume === 'function') {
+        window.speechSynthesis.resume();
+      }
+
+      const timeoutId = window.setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, 120);
+      timersRef.current.push(timeoutId);
     } catch (error) {
-      setVoiceHint('语音播报失败，已保留提示音');
+      // Keep the visual result when speech fails.
     }
+  };
+
+  const finishSpin = (winner, token) => {
+    if (token !== spinTokenRef.current) return;
+
+    lastWinnerIdRef.current = winner?.id ?? null;
+    setSpinning(false);
+    setSelectedStudent(winner);
+    setLastResult(winner);
+    setRollingStudent(winner);
+    setPhase((current) => current + 0.28);
+    soundManager.playPickerResult();
+    announceStudent(winner);
+  };
+
+  const startSpinSequence = (nextRoster) => {
+    clearPending();
+    const token = spinTokenRef.current;
+    const winnerIndex = pickWinnerIndex(nextRoster, lastWinnerIdRef.current);
+    const totalTicks = Math.max(20, Math.min(34, nextRoster.length * 3 + 10));
+    let rollingIndex = getRandomInt(nextRoster.length);
+
+    setSessionRoster(nextRoster);
+    setSelectedStudent(null);
+    setSpinning(true);
+    setRollingStudent(nextRoster[rollingIndex]);
+    setPhase((current) => current + 0.16);
+    soundManager.playPickerStart();
+
+    const step = (tick = 0) => {
+      if (token !== spinTokenRef.current) return;
+
+      if (tick >= totalTicks) {
+        const timeoutId = window.setTimeout(() => {
+          finishSpin(nextRoster[winnerIndex], token);
+        }, 180);
+        timersRef.current.push(timeoutId);
+        return;
+      }
+
+      const remaining = totalTicks - tick;
+      const closing = remaining <= 5;
+
+      if (closing) {
+        rollingIndex = (winnerIndex - remaining + nextRoster.length * 3) % nextRoster.length;
+      } else {
+        const jump = nextRoster.length > 2 ? 1 + getRandomInt(2) : 1;
+        rollingIndex = (rollingIndex + jump) % nextRoster.length;
+      }
+
+      soundManager.playPickerTick(closing ? 0.72 : 1);
+      startTransition(() => {
+        setRollingStudent(nextRoster[rollingIndex]);
+        setPhase((current) => current + (closing ? 0.24 : 0.42));
+      });
+
+      const progress = tick / totalTicks;
+      const delay = progress < 0.55 ? 74 : progress < 0.82 ? 98 : 136 + Math.round((progress - 0.82) * 260);
+      const timeoutId = window.setTimeout(() => step(tick + 1), delay);
+      timersRef.current.push(timeoutId);
+    };
+
+    step(0);
   };
 
   const handleStart = async () => {
     if (spinning) return;
 
-    let nextRoster = roster;
+    let nextRoster = displayRoster;
 
-    if (onRefresh) {
+    if (!nextRoster.length && onRefresh) {
       try {
         const refreshedStudents = await onRefresh();
         const normalizedRefreshed = normalizeRoster(refreshedStudents);
@@ -117,77 +230,45 @@ export default function RandomStudentPickerModal({
           nextRoster = normalizedRefreshed;
         }
       } catch (error) {
-        // Keep using the latest in-memory roster when refresh fails.
+        // Keep the current roster when refresh fails.
       }
     }
 
-    if (nextRoster.length === 0) {
-      setVoiceHint('当前班级还没有学员，先去添加名单');
+    if (!nextRoster.length) {
+      setSelectedStudent(null);
+      setRollingStudent(null);
       return;
     }
 
-    clearPending();
-    setSpinning(true);
-    setSelectedStudent(null);
-    setVoiceHint(getVoiceLabel(voiceList));
-    setRollingStudent(nextRoster[0]);
-    soundManager.playPickerStart();
-
-    const finalIndex = Math.floor(Math.random() * nextRoster.length);
-    const totalTicks = Math.max(18, Math.min(28, nextRoster.length * 5));
-    const offset = finalIndex + Math.floor(Math.random() * Math.max(nextRoster.length, 1));
-
-    let elapsed = 0;
-
-    for (let index = 0; index < totalTicks; index += 1) {
-      elapsed += 56 + index * 16;
-      const student = nextRoster[(offset + index) % nextRoster.length];
-
-      timeoutsRef.current.push(
-        window.setTimeout(() => {
-          soundManager.playPickerTick();
-          startTransition(() => {
-            setRollingStudent(student);
-          });
-        }, elapsed)
-      );
-    }
-
-    const winner = nextRoster[finalIndex];
-
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setSpinning(false);
-        setSelectedStudent(winner);
-        setRollingStudent(winner);
-        soundManager.playPickerResult();
-        announceStudent(winner);
-      }, elapsed + 220)
-    );
+    startSpinSequence(nextRoster);
   };
 
   useEffect(() => {
     if (!open) {
       clearPending();
-      setSelectedStudent(null);
+      setSessionRoster([]);
       setRollingStudent(null);
+      setSelectedStudent(null);
+      setLastResult(null);
       setSpinning(false);
+      setPhase(0);
       return undefined;
     }
 
+    setSessionRoster(roster);
+    setRollingStudent(roster[0] || null);
     setSelectedStudent(null);
-    setRollingStudent(null);
+    setLastResult(null);
+    setSpinning(false);
+    setPhase(0);
 
     const syncVoices = () => {
       if (typeof window === 'undefined' || !window.speechSynthesis) {
         setVoiceList([]);
-        setVoiceHint('当前设备不支持语音，会改用提示音');
         return;
       }
 
-      const voices = window.speechSynthesis.getVoices() || [];
-      setVoiceList(voices);
-      setVoiceHint(getVoiceLabel(voices));
+      setVoiceList(window.speechSynthesis.getVoices() || []);
     };
 
     syncVoices();
@@ -196,32 +277,32 @@ export default function RandomStudentPickerModal({
       window.speechSynthesis.addEventListener('voiceschanged', syncVoices);
     }
 
-    const onKeyDown = (event) => {
+    const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         clearPending();
         setSpinning(false);
-        onClose?.();
+        onCloseRef.current?.();
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       clearPending();
-      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.removeEventListener('voiceschanged', syncVoices);
       }
     };
-  }, [open, onClose]);
+  }, [open]);
 
   useEffect(() => {
-    if (!open || spinning || selectedStudent || rollingStudent || roster.length === 0) {
-      return;
+    if (!open || spinning) return;
+    setSessionRoster(roster);
+    if (!selectedStudent) {
+      setRollingStudent(roster[0] || null);
     }
-
-    setRollingStudent(roster[0]);
-  }, [open, roster, spinning, selectedStudent, rollingStudent]);
+  }, [open, roster, selectedStudent, spinning]);
 
   return (
     <AnimatePresence>
@@ -242,7 +323,7 @@ export default function RandomStudentPickerModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.94 }}
             transition={SPRING_MODAL}
-            className="w-full max-w-[1120px] rounded-[36px] border border-white/50 bg-[linear-gradient(180deg,#fff9f3_0%,#edf7ff_100%)] p-5 shadow-[0_30px_80px_rgba(15,23,42,0.28)]"
+            className="w-full max-w-[1160px] rounded-[38px] border border-white/50 bg-[linear-gradient(180deg,#fff9f3_0%,#edf7ff_100%)] p-5 shadow-[0_30px_80px_rgba(15,23,42,0.28)]"
             onClick={(event) => event.stopPropagation()}
             data-testid="random-picker-modal"
           >
@@ -251,10 +332,7 @@ export default function RandomStudentPickerModal({
                 <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 shadow-sm">
                   <span>随机点名</span>
                 </div>
-                <h3 className="mt-4 text-3xl font-black text-slate-800">点亮幸运球，看看轮到谁。</h3>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                  只会从当前班级名单里随机点名，结果会带提示音和语音播报。
-                </p>
+                <h3 className="mt-4 text-3xl font-black text-slate-800">看看今天轮到谁。</h3>
               </div>
 
               <button
@@ -275,106 +353,126 @@ export default function RandomStudentPickerModal({
                 {currentClassName || '当前班级'}
               </span>
               <span className="rounded-full bg-violet-100 px-3 py-1.5 text-violet-700 shadow-sm">
-                名单 {roster.length}
-              </span>
-              <span className="rounded-full bg-white px-3 py-1.5 text-slate-500 shadow-sm">
-                {voiceHint}
+                名单 {displayRoster.length}
               </span>
             </div>
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_320px]">
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_320px]">
               <div className="rounded-[30px] border border-white/70 bg-white/86 p-5 shadow-sm">
-                <div className="relative mx-auto flex min-h-[440px] max-w-[560px] items-center justify-center overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_top,#fffdf8_0%,rgba(255,255,255,0.95)_36%,rgba(230,244,255,0.95)_100%)]">
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-100/80" />
-                    <div className="absolute left-1/2 top-1/2 h-[270px] w-[270px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-100/90" />
-                    <div className="absolute left-1/2 top-1/2 h-[210px] w-[210px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,#ffffff_0%,rgba(255,255,255,0.55)_52%,rgba(255,255,255,0)_100%)] blur-xl" />
-                  </div>
+                <div className="relative mx-auto flex min-h-[500px] max-w-[620px] items-center justify-center overflow-hidden rounded-[34px] bg-[radial-gradient(circle_at_top,#fffdf8_0%,rgba(255,255,255,0.96)_34%,rgba(231,244,255,0.96)_100%)]">
+                  <motion.div
+                    className="pointer-events-none absolute h-[360px] w-[360px] rounded-full border border-cyan-100/80"
+                    animate={{ rotate: spinning ? 360 : 0 }}
+                    transition={{ duration: spinning ? 8 : 0, repeat: spinning ? Infinity : 0, ease: 'linear' }}
+                  />
+                  <div className="pointer-events-none absolute h-[290px] w-[290px] rounded-full border border-violet-100/80" />
+                  <div className="pointer-events-none absolute h-[220px] w-[220px] rounded-full bg-[radial-gradient(circle,#fffef8_0%,rgba(255,245,210,0.92)_36%,rgba(255,255,255,0.1)_100%)] blur-md" />
+                  <div className="pointer-events-none absolute inset-[14%] rounded-full border border-white/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.72)]" />
 
-                  {orbitParticles.map((particle) => (
-                    <motion.span
-                      key={particle.key}
-                      className="pointer-events-none absolute left-1/2 top-1/2 rounded-full bg-white shadow-[0_10px_20px_rgba(56,189,248,0.24)]"
+                  {sphereChips.map((chip) => (
+                    <div
+                      key={chip.student.id}
+                      className="pointer-events-none absolute left-1/2 top-1/2"
                       style={{
-                        width: particle.size,
-                        height: particle.size,
-                        marginLeft: -(particle.size / 2),
-                        marginTop: -(particle.size / 2),
-                        opacity: particle.opacity
+                        zIndex: chip.zIndex,
+                        transform: `translate(calc(-50% + ${chip.x}px), calc(-50% + ${chip.y}px)) scale(${chip.scale})`,
+                        opacity: chip.opacity
                       }}
-                      animate={spinning
-                        ? {
-                            x: [particle.x, particle.x * 0.82, particle.x],
-                            y: [particle.y, particle.y * 1.12, particle.y],
-                            scale: [1, 1.25, 0.9, 1],
-                            opacity: [particle.opacity, 0.92, particle.opacity]
-                          }
-                        : {
-                            x: [particle.x, particle.x * 0.94, particle.x],
-                            y: [particle.y, particle.y * 1.04, particle.y],
-                            scale: [1, 1.08, 1]
-                          }}
-                      transition={{
-                        duration: particle.duration,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                        delay: particle.delay
-                      }}
-                    />
+                    >
+                      <div
+                        className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-black shadow-sm transition-all ${
+                          chip.isWinner
+                            ? 'bg-slate-900 text-white'
+                            : chip.isActive
+                              ? 'bg-cyan-500 text-white'
+                              : 'bg-white/90 text-slate-600'
+                        }`}
+                      >
+                        {chip.student.name}
+                      </div>
+                    </div>
                   ))}
 
                   <motion.div
                     animate={spinning
-                      ? { rotate: [0, 6, -6, 0], scale: [1, 1.03, 0.99, 1.02, 1] }
+                      ? { rotate: [0, 5, -5, 0], scale: [1, 1.03, 0.99, 1.02, 1] }
                       : { rotate: [0, 2, -2, 0], scale: [1, 1.01, 1] }}
-                    transition={{ duration: spinning ? 1.35 : 3.2, repeat: Infinity, ease: 'easeInOut' }}
-                    className="relative z-10 flex h-[230px] w-[230px] flex-col items-center justify-center rounded-full border border-white/80 bg-[radial-gradient(circle_at_top,#ffffff_0%,#fff6dc_34%,#e3f3ff_100%)] text-center shadow-[0_30px_80px_rgba(56,189,248,0.22)]"
+                    transition={{ duration: spinning ? 1.4 : 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="relative z-20 flex h-[210px] w-[210px] flex-col items-center justify-center rounded-full border border-white/90 bg-[radial-gradient(circle_at_top,#ffffff_0%,#fff3d1_32%,#edf7ff_100%)] text-center shadow-[0_30px_80px_rgba(56,189,248,0.2)]"
                   >
                     <div className="absolute inset-3 rounded-full border border-white/70" />
-                    <div className="text-5xl">{activeStudent?.avatar || '🎯'}</div>
-                    <div className="mt-4 text-[11px] font-black tracking-[0.2em] text-slate-400">
-                      {spinning ? '正在点名' : selectedStudent ? '点名结果' : '准备开始'}
+                    <div className="text-6xl">{activeStudent?.avatar || '🎯'}</div>
+                    <div className="mt-4 text-[11px] font-black tracking-[0.18em] text-slate-400">
+                      {spinning ? '正在点名' : resultStudent ? '本次点名' : '准备开始'}
                     </div>
                     <div className="mt-2 max-w-[180px] text-2xl font-black leading-8 text-slate-800" data-testid="random-picker-name">
-                      {activeStudent?.name || '等待名单'}
+                      {activeStudent?.name || '等待开始'}
                     </div>
                     <div className="mt-2 text-xs font-semibold text-slate-500">
-                      {selectedStudent ? '请准备回答' : '开始后会自动滚动和播报'}
+                      {resultStudent ? '请这位同学准备回答' : '点一下就开始滚动'}
                     </div>
                   </motion.div>
 
-                  <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/84 px-4 py-2 text-xs font-black text-slate-500 shadow-sm">
-                    {spinning ? '粒子球加速中' : selectedStudent ? '点名完成' : '等待开始'}
+                  <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/86 px-4 py-2 text-xs font-black text-slate-500 shadow-sm">
+                    {spinning ? '点名进行中' : resultStudent ? '点名完成' : '等待开始'}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
+                <div
+                  className="rounded-[28px] border border-white/70 px-4 py-4 shadow-sm"
+                  data-testid="random-picker-result"
+                  style={{
+                    background: selectedStudent
+                      ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(254,240,138,0.62) 100%)'
+                      : 'linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(224,242,254,0.72) 100%)'
+                  }}
+                >
+                  <div className="text-sm font-black text-slate-800">
+                    {resultStudent ? '本次点名结果' : '结果会显示在这里'}
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white text-2xl shadow-sm">
+                      {resultStudent?.avatar || activeStudent?.avatar || '🎯'}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate text-xl font-black text-slate-800">
+                        {resultStudent?.name || activeStudent?.name || '等待开始'}
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        {resultStudent ? '会自动播报名字' : '开始点名后自动更新'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="rounded-[28px] border border-white/70 bg-white/86 p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-black text-slate-800">当前名单</div>
-                      <div className="mt-1 text-xs font-semibold text-slate-500">只从本班学员里随机点名</div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">只从本班学员里点名</div>
                     </div>
                     <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black text-white shadow-sm">
-                      {roster.length} 人
+                      {displayRoster.length} 人
                     </span>
                   </div>
 
-                  <div className="mt-4 max-h-[292px] space-y-2 overflow-auto pr-1" data-testid="random-picker-roster">
-                    {roster.length === 0 ? (
+                  <div className="mt-4 max-h-[328px] space-y-2 overflow-auto pr-1" data-testid="random-picker-roster">
+                    {displayRoster.length === 0 ? (
                       <div className="rounded-[20px] bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-500">
                         当前班级还没有学员。
                       </div>
                     ) : (
-                      roster.map((student) => {
+                      displayRoster.map((student) => {
                         const isActive = activeStudent?.id === student.id;
+                        const isWinner = !spinning && resultStudent?.id === student.id;
 
                         return (
                           <div
                             key={student.id}
                             className={`flex items-center justify-between gap-3 rounded-[20px] px-4 py-3 shadow-sm transition ${
-                              isActive ? 'bg-cyan-50 ring-2 ring-cyan-200' : 'bg-slate-50/90'
+                              isWinner ? 'bg-amber-50 ring-2 ring-amber-200' : isActive ? 'bg-cyan-50 ring-2 ring-cyan-200' : 'bg-slate-50/90'
                             }`}
                           >
                             <div className="flex min-w-0 items-center gap-3">
@@ -390,9 +488,13 @@ export default function RandomStudentPickerModal({
                             </div>
 
                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${
-                              isActive ? 'bg-cyan-500 text-white' : 'bg-white text-slate-500'
+                              isWinner
+                                ? 'bg-amber-400 text-white'
+                                : isActive
+                                  ? 'bg-cyan-500 text-white'
+                                  : 'bg-white text-slate-500'
                             }`}>
-                              {isActive ? (spinning ? '滚动中' : '当前') : '待抽取'}
+                              {isWinner ? '已点到' : isActive ? (spinning ? '滚动中' : '当前') : '待抽取'}
                             </span>
                           </div>
                         );
@@ -400,39 +502,12 @@ export default function RandomStudentPickerModal({
                     )}
                   </div>
                 </div>
-
-                <div
-                  className="rounded-[28px] border border-white/70 px-4 py-4 shadow-sm"
-                  data-testid="random-picker-result"
-                  style={{
-                    background: selectedStudent
-                      ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(254,240,138,0.62) 100%)'
-                      : 'linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(224,242,254,0.72) 100%)'
-                  }}
-                >
-                  <div className="text-sm font-black text-slate-800">
-                    {selectedStudent ? '本次点名结果' : '结果会显示在这里'}
-                  </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white text-2xl shadow-sm">
-                      {selectedStudent?.avatar || activeStudent?.avatar || '🎯'}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="truncate text-xl font-black text-slate-800">
-                        {selectedStudent?.name || activeStudent?.name || '等待开始'}
-                      </div>
-                      <div className="mt-1 text-xs font-semibold text-slate-500">
-                        {selectedStudent ? '请这位同学准备回答' : '开始点名后会自动更新'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
               <div className="text-xs font-semibold text-slate-500">
-                点名时会先滚动，再锁定结果，避免一闪而过。
+                每次结束后都可以直接再来一次。
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -450,11 +525,11 @@ export default function RandomStudentPickerModal({
                 <button
                   type="button"
                   onClick={handleStart}
-                  disabled={spinning || roster.length === 0}
+                  disabled={spinning || displayRoster.length === 0}
                   className="rounded-full bg-slate-900 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-slate-300"
                   data-testid="random-picker-start"
                 >
-                  {spinning ? '点名中...' : selectedStudent ? '再来一次' : '开始点名'}
+                  {spinning ? '点名中...' : resultStudent ? '再来一次' : '开始点名'}
                 </button>
               </div>
             </div>

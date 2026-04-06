@@ -259,10 +259,11 @@ test('random picker uses current class roster, animation, and speech fallback pa
     await saveShot(page, 'random-picker-modal.png', false);
 
     await page.getByTestId('random-picker-start').click();
-    await page.waitForTimeout(5200);
+    await page.waitForTimeout(4600);
+    await expect(page.getByTestId('random-picker-start')).toHaveText('再来一次');
 
-    const resultText = await page.getByTestId('random-picker-result').textContent();
-    expect(expectedNames.some((name) => resultText.includes(name))).toBeTruthy();
+    const firstResultText = await page.getByTestId('random-picker-result').textContent();
+    expect(expectedNames.some((name) => firstResultText.includes(name))).toBeTruthy();
 
     const qaAudioCount = await page.evaluate(() => window.__qaAudioCount || 0);
     const qaSpeechCalls = await page.evaluate(() => window.__qaSpeechCalls || []);
@@ -270,6 +271,18 @@ test('random picker uses current class roster, animation, and speech fallback pa
     expect(qaSpeechCalls.length).toBeGreaterThan(0);
     expect(expectedNames.some((name) => qaSpeechCalls[0].includes(name))).toBeTruthy();
     await saveShot(page, 'random-picker-result.png', false);
+
+    await page.getByTestId('random-picker-start').click();
+    await page.waitForTimeout(4600);
+    await expect(page.getByTestId('random-picker-start')).toHaveText('再来一次');
+
+    const secondResultText = await page.getByTestId('random-picker-result').textContent();
+    expect(expectedNames.some((name) => secondResultText.includes(name))).toBeTruthy();
+    expect(secondResultText).not.toEqual(firstResultText);
+
+    const speechCallsAfterSecond = await page.evaluate(() => window.__qaSpeechCalls || []);
+    expect(speechCallsAfterSecond.length).toBeGreaterThanOrEqual(2);
+    expect(expectedNames.some((name) => speechCallsAfterSecond[1].includes(name))).toBeTruthy();
 
     await loginAdmin(page);
     await selectClass(page, className);
