@@ -12,6 +12,7 @@ import LotteryHistory from '../components/LotteryHistory';
 import RatingManager from '../components/RatingManager';
 import ReportGenerator from '../components/report/ReportGenerator';
 import CertificateManager from '../components/report/CertificateManager';
+import RandomStudentPickerModal from '../components/RandomStudentPickerModal';
 import { soundManager } from '../utils/sounds';
 import { formatScore } from '../utils/score';
 
@@ -104,6 +105,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('students');
   const [showRewardWheel, setShowRewardWheel] = useState(false);
   const [showPunishmentWheel, setShowPunishmentWheel] = useState(false);
+  const [showRandomPicker, setShowRandomPicker] = useState(false);
   const [selectedPunishment, setSelectedPunishment] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
@@ -158,6 +160,12 @@ export default function AdminPage() {
 
   const handlePunishmentResult = (punishment) => {
     // 不自动跳转，等用户点击
+  };
+
+  const openRandomPicker = async () => {
+    if (!currentClass?.id) return;
+    await fetchStudents(currentClass.id);
+    setShowRandomPicker(true);
   };
 
   const handleLotteryResult = async (type, item) => {
@@ -235,6 +243,14 @@ export default function AdminPage() {
           </motion.div>
           
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={openRandomPicker}
+              data-testid="admin-random-picker-open"
+              className="rounded-xl bg-white/20 px-4 py-2 font-bold text-white hover:bg-white/30"
+            >
+              🎯 点名
+            </button>
             <button
               onClick={toggleSound}
               className="rounded-xl bg-white/20 px-4 py-2 font-bold text-white hover:bg-white/30"
@@ -582,6 +598,14 @@ export default function AdminPage() {
           <LotteryHistory onClose={() => setShowHistory(false)} />
         )}
       </AnimatePresence>
+
+      <RandomStudentPickerModal
+        open={showRandomPicker}
+        onClose={() => setShowRandomPicker(false)}
+        students={students}
+        currentClassName={currentClass?.name || ''}
+        onRefresh={() => (currentClass?.id ? fetchStudents(currentClass.id) : Promise.resolve(students))}
+      />
       </div>
     </div>
   );

@@ -50,16 +50,28 @@ export default function RatingManager() {
 
     const interval = setInterval(() => {
       if (!document.hidden) {
-        loadSessionDetail(activeSession.id);
+        void loadSessionDetail(activeSession.id);
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [activeSession]);
+  }, [activeSession, currentClass]);
 
   const loadSessionDetail = async (sessionId) => {
     const detail = await fetchSessionDetail(sessionId);
+    if (!detail) {
+      setSessionDetail(null);
+      if (currentClass) {
+        await Promise.all([
+          fetchActiveSession(currentClass.id),
+          fetchRatingSessions(currentClass.id)
+        ]);
+      }
+      return null;
+    }
+
     setSessionDetail(detail);
+    return detail;
   };
 
   const openDangerAction = (config) => {

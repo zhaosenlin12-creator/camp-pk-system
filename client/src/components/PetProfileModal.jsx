@@ -336,7 +336,7 @@ export default function PetProfileModal({
               </div>
               <h3 className="mt-4 text-3xl font-black text-slate-800">{pet?.name || journey.name}</h3>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-                {studentName ? `${studentName} 的课堂搭档。` : '班级宠物成长档案。'}
+                {studentName ? `${studentName} 的主卡与成长记录。` : '班级宠物主卡与成长记录。'}
                 {meta ? '' : ''}
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -395,7 +395,7 @@ export default function PetProfileModal({
 
               <div className="mt-5 rounded-[26px] bg-slate-50/90 px-4 py-4 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">下一步目标</div>
+                  <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">马上做什么</div>
                   <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm">
                     {unlockStatus.chip}
                   </span>
@@ -423,7 +423,7 @@ export default function PetProfileModal({
                 <div>
                   <div className="text-sm font-black text-slate-800">宠物收藏架</div>
                   <div className="mt-1 text-xs font-bold text-slate-500">
-                    可长期培养，满级后可切换。
+                    已收集的伙伴都在这里。
                   </div>
                 </div>
                 <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black text-white">
@@ -493,7 +493,7 @@ export default function PetProfileModal({
               <div className="mt-4 rounded-[24px] bg-slate-50/90 px-4 py-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs font-bold tracking-[0.18em] text-slate-400">下一个收藏位</div>
+                    <div className="text-xs font-bold tracking-[0.18em] text-slate-400">下个收藏位</div>
                     <div className="mt-2 text-base font-black text-slate-800">{unlockStatus.title}</div>
                     <div className="mt-2 text-xs leading-6 text-slate-500">{unlockStatus.detail}</div>
                   </div>
@@ -538,7 +538,7 @@ export default function PetProfileModal({
                   background: `linear-gradient(145deg, rgba(255,255,255,0.96) 0%, ${journey.theme || meta?.theme || '#FFF7ED'} 100%)`
                 }}
               >
-                <div className="text-[11px] font-black tracking-[0.18em] text-slate-500">收藏提醒</div>
+                <div className="text-[11px] font-black tracking-[0.18em] text-slate-500">收藏建议</div>
                 <div className="mt-2 text-lg font-black" style={{ color: accent }}>
                   {unlockStatus.unlockedAll
                     ? '收藏位已满，接下来重点是灵活切换当前培养宠物。'

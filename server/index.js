@@ -2879,13 +2879,20 @@ app.patch('/api/rating-sessions/:id/close', (req, res) => {
   if (!session) {
     return res.status(404).json({ error: '会话不存在' });
   }
-  
-  if (session.status === 'closed') {
-    return res.status(400).json({ error: '评分已结束' });
-  }
-  
+
   // 获取所有打分记录
   const votes = db.ratingVotes.filter(v => v.session_id === id);
+  const buildSessionPayload = (extra = {}) => ({
+    ...session,
+    ...extra,
+    votes: votes.map(v => ({ id: v.id, score: v.score, is_excluded: Boolean(v.is_excluded) })),
+    vote_count: votes.length,
+    total_students: db.students.filter((student) => student.class_id === session.class_id).length
+  });
+
+  if (session.status === 'closed') {
+    return res.json(buildSessionPayload({ already_closed: true }));
+  }
   
   if (votes.length === 0) {
     return res.status(400).json({ error: '还没有人打分，无法结束' });
@@ -2897,6 +2904,9 @@ app.patch('/api/rating-sessions/:id/close', (req, res) => {
   
   // 计算平均分（去掉最高最低）
   let avgScore;
+  votes.forEach((vote) => {
+    vote.is_excluded = false;
+  });
   if (votes.length <= 2) {
     // 人数不足，直接取平均
     avgScore = totalScore / votes.length;
@@ -2926,7 +2936,7 @@ app.patch('/api/rating-sessions/:id/close', (req, res) => {
   
   // 将平均分累加到学生积分
   const student = db.students.find(s => s.id === session.student_id);
-  if (student) {
+  if (student && !session.applied_to_student) {
     student.score = normalizeScore(student.score + avgScore);
     session.applied_to_student = true;
     
@@ -2951,11 +2961,7 @@ app.patch('/api/rating-sessions/:id/close', (req, res) => {
   
   saveDb();
   
-  res.json({
-    ...session,
-    votes: votes.map(v => ({ id: v.id, score: v.score, is_excluded: v.is_excluded })),
-    vote_count: votes.length
-  });
+  res.json(buildSessionPayload());
 });
 
 // 获取展示评分排行榜

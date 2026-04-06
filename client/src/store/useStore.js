@@ -263,6 +263,45 @@ export const useStore = create((set, get) => ({
     return matchedClass;
   },
 
+  refreshCurrentClassSnapshot: async (options = {}) => {
+    const {
+      includeStudents = true,
+      includeTeams = false,
+      includeRatings = false,
+      includeActiveSession = includeRatings,
+      includeLeaderboard = includeRatings
+    } = options;
+    const currentClass = get().currentClass;
+
+    if (!currentClass?.id) {
+      return [];
+    }
+
+    const tasks = [];
+
+    if (includeStudents) {
+      tasks.push(get().fetchStudents(currentClass.id));
+    }
+
+    if (includeTeams) {
+      tasks.push(get().fetchTeams(currentClass.id));
+    }
+
+    if (includeRatings) {
+      tasks.push(get().fetchRatingSessions(currentClass.id));
+    }
+
+    if (includeActiveSession) {
+      tasks.push(get().fetchActiveSession(currentClass.id));
+    }
+
+    if (includeLeaderboard) {
+      tasks.push(get().fetchRatingLeaderboard(currentClass.id));
+    }
+
+    return Promise.allSettled(tasks);
+  },
+
   // 获取战队
   fetchTeams: async (classId) => {
     try {
@@ -428,7 +467,8 @@ export const useStore = create((set, get) => ({
         ),
         error: null
       }));
-      return updatedStudent;
+      await get().refreshCurrentClassSnapshot({ includeTeams: false });
+      return get().students.find((student) => student.id === studentId) || updatedStudent;
     } catch (err) {
       set({ error: err.message || '领取宠物失败' });
       throw err;
@@ -446,7 +486,8 @@ export const useStore = create((set, get) => ({
         ),
         error: null
       }));
-      return updatedStudent;
+      await get().refreshCurrentClassSnapshot({ includeTeams: false });
+      return get().students.find((student) => student.id === studentId) || updatedStudent;
     } catch (err) {
       set({ error: err.message || '切换宠物失败' });
       throw err;
@@ -464,7 +505,11 @@ export const useStore = create((set, get) => ({
         ),
         error: null
       }));
-      return updatedStudent;
+      await get().refreshCurrentClassSnapshot({
+        includeStudents: true,
+        includeTeams: Boolean(updatedStudent?.team_id)
+      });
+      return get().students.find((student) => student.id === studentId) || updatedStudent;
     } catch (err) {
       set({ error: err.message || '宠物操作失败' });
       throw err;
@@ -647,6 +692,9 @@ export const useStore = create((set, get) => ({
         body: JSON.stringify({ class_id: classId, student_id: studentId })
       });
       set({ activeSession: session });
+      if (get().currentClass?.id === classId) {
+        await get().fetchRatingSessions(classId);
+      }
       return session;
     } catch (err) {
       throw err;
@@ -682,14 +730,11 @@ export const useStore = create((set, get) => ({
         method: 'PATCH'
       });
       set({ activeSession: null });
-      // 刷新学生数据
-      const currentClass = get().currentClass;
-      if (currentClass) {
-        get().fetchStudents(currentClass.id);
-        get().fetchTeams(currentClass.id);
-        get().fetchRatingSessions(currentClass.id);
-        get().fetchRatingLeaderboard(currentClass.id);
-      }
+      await get().refreshCurrentClassSnapshot({
+        includeStudents: true,
+        includeTeams: true,
+        includeRatings: true
+      });
       return result;
     } catch (err) {
       throw err;
@@ -703,10 +748,11 @@ export const useStore = create((set, get) => ({
         method: 'PATCH'
       });
       set({ activeSession: null });
-      const currentClass = get().currentClass;
-      if (currentClass) {
-        get().fetchRatingSessions(currentClass.id);
-      }
+      await get().refreshCurrentClassSnapshot({
+        includeStudents: false,
+        includeTeams: false,
+        includeRatings: true
+      });
       return true;
     } catch (err) {
       throw err;
@@ -740,11 +786,11 @@ export const useStore = create((set, get) => ({
   deleteRatingSession: async (sessionId) => {
     try {
       await request(`${API_BASE}/rating-sessions/${sessionId}`, { method: 'DELETE' });
-      const currentClass = get().currentClass;
-      if (currentClass) {
-        get().fetchRatingSessions(currentClass.id);
-        get().fetchActiveSession(currentClass.id);
-      }
+      await get().refreshCurrentClassSnapshot({
+        includeStudents: false,
+        includeTeams: false,
+        includeRatings: true
+      });
       return true;
     } catch (err) {
       throw err;

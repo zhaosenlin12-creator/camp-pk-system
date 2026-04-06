@@ -10,6 +10,7 @@ import LotteryWheel from '../components/LotteryWheel';
 import PunishmentDisplay from '../components/PunishmentDisplay';
 import RatingModal from '../components/RatingModal';
 import RatingLeaderboard from '../components/RatingLeaderboard';
+import RandomStudentPickerModal from '../components/RandomStudentPickerModal';
 import { formatScore } from '../utils/score';
 import {
   getClassPetSummary,
@@ -44,10 +45,11 @@ function OverviewStatCard({ label, value, accentClassName, hint }) {
 
 export default function DisplayPage() {
   const store = useStore();
-  const { currentClass, teams, students, rewards, punishments, loading } = store;
+  const { currentClass, teams, students, rewards, punishments, loading, fetchStudents } = store;
   const [activeTab, setActiveTab] = useState('pets');
   const [showRewardWheel, setShowRewardWheel] = useState(false);
   const [showPunishmentWheel, setShowPunishmentWheel] = useState(false);
+  const [showRandomPicker, setShowRandomPicker] = useState(false);
   const [selectedPunishment, setSelectedPunishment] = useState(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
@@ -159,6 +161,11 @@ export default function DisplayPage() {
   }, [activeTab, rankingHighlightSignature]);
 
   const handleRewardResult = () => {};
+  const openRandomPicker = async () => {
+    if (!currentClass?.id) return;
+    await fetchStudents(currentClass.id);
+    setShowRandomPicker(true);
+  };
   const dashboardStats = [
     { label: '已领伙伴', value: petSummary.claimed, accentClassName: 'text-cyan-500', hint: '已经有专属宠物' },
     { label: '宠物蛋', value: petSummary.eggs, accentClassName: 'text-amber-500', hint: '正在等破壳' },
@@ -245,6 +252,15 @@ export default function DisplayPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={openRandomPicker}
+                  data-testid="display-random-picker-open"
+                  className="btn-game btn-secondary px-4 py-3 text-sm"
+                >
+                  🎯 点名
+                </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
@@ -697,6 +713,14 @@ export default function DisplayPage() {
           <PunishmentDisplay punishment={selectedPunishment} onClose={() => setSelectedPunishment(null)} />
         )}
       </AnimatePresence>
+
+      <RandomStudentPickerModal
+        open={showRandomPicker}
+        onClose={() => setShowRandomPicker(false)}
+        students={students}
+        currentClassName={currentClass?.name || ''}
+        onRefresh={() => (currentClass?.id ? fetchStudents(currentClass.id) : Promise.resolve(students))}
+      />
 
       <AnimatePresence>
         {showRatingModal && activeSession && (

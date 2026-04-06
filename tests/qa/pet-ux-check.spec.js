@@ -122,8 +122,11 @@ async function selectClass(page) {
 
 async function loginAdmin(page) {
   await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
-  await page.locator('input[type="password"]').fill(adminPin);
-  await page.locator('button[type="submit"]').click();
+  const passwordInput = page.locator('input[type="password"]');
+  if (await passwordInput.count()) {
+    await passwordInput.fill(adminPin);
+    await page.locator('button[type="submit"]').click();
+  }
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(900);
 }
@@ -309,6 +312,24 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await page.waitForTimeout(300);
     await saveShot(page, 'admin-multi-pet-collection.png', false);
     await saveShot(page, 'admin-selected-student-ritual.png', false);
+
+    await page.setViewportSize({ width: 1120, height: 900 });
+    await loginAdmin(page);
+    await openPetCenter(page);
+    const stableStudentSelect = page.getByTestId('pet-center-student-select');
+    await stableStudentSelect.selectOption(String(multiStudent.id));
+    await page.waitForTimeout(1500);
+    await expect(page.getByTestId('pet-center-collection-summary')).toContainText('2/2');
+    await page.waitForTimeout(2400);
+    await page.getByTestId('pet-center-hero-stage').screenshot({
+      path: path.join(outputDir, 'admin-stable-hero-stage.png')
+    });
+    await page.getByTestId('pet-care-action-cluster').screenshot({
+      path: path.join(outputDir, 'admin-stable-care-cluster.png')
+    });
+    await page.getByTestId('pet-center-collection-shelf').screenshot({
+      path: path.join(outputDir, 'admin-stable-collection-shelf.png')
+    });
   } finally {
     for (const studentId of createdStudentIds.reverse()) {
       try {

@@ -136,6 +136,50 @@ class SoundManager {
     });
   }
 
+  playPickerStart() {
+    this.playSequence(
+      [
+        [220, 0.08, 'triangle', 0.08],
+        [330, 0.08, 'triangle', 0.1],
+        [523, 0.12, 'sine', 0.12],
+        [659, 0.12, 'sine', 0.14],
+        [880, 0.16, 'triangle', 0.12]
+      ],
+      'sine',
+      0.12,
+      68
+    );
+
+    setTimeout(() => {
+      this.playSweep(180, 720, 0.24, 'triangle', 0.04);
+    }, 120);
+  }
+
+  playPickerTick(step = 0) {
+    const lane = Math.max(0, Number(step) || 0) % 4;
+    const tones = [523, 659, 784, 988];
+    this.playNote(tones[lane], 0.045, lane % 2 === 0 ? 'triangle' : 'sine', 0.06);
+  }
+
+  playPickerResult() {
+    this.playSequence(
+      [
+        [523, 0.08, 'triangle', 0.1],
+        [659, 0.1, 'triangle', 0.12],
+        [784, 0.12, 'sine', 0.14],
+        [988, 0.16, 'sine', 0.16],
+        [1319, 0.22, 'triangle', 0.14]
+      ],
+      'sine',
+      0.14,
+      76
+    );
+
+    setTimeout(() => {
+      this.playChord([523, 659, 784, 1047], 0.46, 'sine', 0.06);
+    }, 240);
+  }
+
   // 惩罚音效 - 搞笑下降
   playPunishment() {
     const notes = [400, 350, 300, 250, 200, 150];
@@ -361,6 +405,44 @@ class SoundManager {
     }, 1080);
   }
 
+  playPickerStart() {
+    this.playSequence(
+      [
+        [262, 0.08, 'triangle', 0.08],
+        [330, 0.08, 'triangle', 0.1],
+        [440, 0.12, 'sine', 0.12],
+        [523, 0.16, 'sine', 0.14],
+        [659, 0.18, 'triangle', 0.12]
+      ],
+      'sine',
+      0.12,
+      62
+    );
+  }
+
+  playPickerTick() {
+    this.playNote(680 + Math.random() * 180, 0.04, 'triangle', 0.08);
+  }
+
+  playPickerResult() {
+    this.playSequence(
+      [
+        [523, 0.08, 'triangle', 0.08],
+        [659, 0.08, 'triangle', 0.1],
+        [784, 0.12, 'sine', 0.12],
+        [1047, 0.16, 'sine', 0.16],
+        [1319, 0.24, 'triangle', 0.14]
+      ],
+      'sine',
+      0.14,
+      70
+    );
+
+    setTimeout(() => {
+      this.playChord([523, 659, 784], 0.28, 'triangle', 0.05);
+    }, 180);
+  }
+
   playRankingHighlight() {
     this.playSequence(
       [
@@ -372,6 +454,48 @@ class SoundManager {
       0.1,
       65
     );
+  }
+
+  playPickerStart() {
+    this.playSequence(
+      [
+        [262, 0.08, 'triangle', 0.08],
+        [392, 0.08, 'triangle', 0.1],
+        [523, 0.1, 'sine', 0.12],
+        [659, 0.12, 'sine', 0.14]
+      ],
+      'sine',
+      0.1,
+      56
+    );
+
+    setTimeout(() => {
+      this.playSweep(320, 920, 0.22, 'triangle', 0.05);
+    }, 120);
+  }
+
+  playPickerTick(intensity = 1) {
+    const safeIntensity = Math.max(0.45, Math.min(1.2, Number(intensity) || 1));
+    this.playNote(480 + Math.random() * 260, 0.035, 'triangle', 0.045 * safeIntensity);
+  }
+
+  playPickerResult() {
+    this.playSequence(
+      [
+        [523, 0.08, 'triangle', 0.08],
+        [659, 0.1, 'sine', 0.1],
+        [880, 0.12, 'sine', 0.12],
+        [1175, 0.16, 'triangle', 0.14],
+        [1568, 0.22, 'sine', 0.14]
+      ],
+      'sine',
+      0.12,
+      72
+    );
+
+    setTimeout(() => {
+      this.playChord([523, 784, 1175], 0.32, 'triangle', 0.05);
+    }, 200);
   }
 
   // 播放舞蹈背景音乐（简单节拍）
