@@ -1932,11 +1932,11 @@ export default function PetCenter() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-orange-500 shadow-sm">
                 <span className="text-lg">🐾</span>
-                乐享宠物工作台
+                宠物课堂
               </div>
-              <h3 className="mt-4 text-2xl font-black text-slate-800">先选学生，再把主宠和照料动作放到最前面。</h3>
+              <h3 className="mt-4 text-2xl font-black text-slate-800">先选学生，再照顾主宠。</h3>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                这里只保留课堂里最常用的内容：聚光灯学生、主宠照料、收藏位和图鉴发放。
+                这里放最常用的内容：主宠、照料、收藏和领取。
               </p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1967,7 +1967,7 @@ export default function PetCenter() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold tracking-[0.24em] text-slate-400">本节聚焦</div>
-                  <div className="mt-2 text-xl font-black text-slate-800">本节课聚光灯</div>
+                  <div className="mt-2 text-xl font-black text-slate-800">本节亮点</div>
                 </div>
                 <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-500 shadow-sm">
                   {currentClass?.name || '未选择班级'}
@@ -2031,9 +2031,9 @@ export default function PetCenter() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="text-xs font-bold tracking-[0.22em] text-cyan-500">主宠操作台</div>
-                <h3 className="mt-2 text-2xl font-black text-slate-800">课堂操作区</h3>
+                <h3 className="mt-2 text-2xl font-black text-slate-800">宠物操作区</h3>
                 <p className="mt-2 text-sm text-slate-500">
-                  班级「{currentClass?.name || '未选择'}」当前聚焦学生：
+                  班级「{currentClass?.name || '未选择'}」 · 当前学生
                   <span className="font-bold text-slate-700"> {selectedStudent?.name || '未选择'}</span>
                 </p>
               </div>
@@ -2131,7 +2131,7 @@ export default function PetCenter() {
                           <div className="text-xs font-bold tracking-[0.18em] text-violet-500">收藏架</div>
                           <div className="mt-1.5 text-lg font-black text-slate-800">切换主宠</div>
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            这里只保留卡片和切换。
+                            选一只上台就好。
                           </p>
                         </div>
                         <div
@@ -2350,7 +2350,7 @@ export default function PetCenter() {
                     >
                       主舞台
                     </span>
-                    <span className="text-[11px] font-bold text-slate-500">点主角看完整档案</span>
+                    <span className="text-[11px] font-bold text-slate-500">点主角看档案</span>
                   </div>
 
                   <button
@@ -2478,7 +2478,7 @@ export default function PetCenter() {
                         </div>
                         <div className="inline-flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
                           <span className="rounded-full border border-white/80 bg-white/82 px-3 py-1.5 shadow-sm">
-                            {selectedJourney.is_dormant ? '先赚分，再把它叫醒' : '点一下，上方主角会立刻同步'}
+                            {selectedJourney.is_dormant ? '先赚分，再把它叫醒' : '操作后主角马上有反应'}
                           </span>
                           {selectedJourney.score_debt > 0 && (
                             <span className="rounded-full bg-rose-100 px-3 py-1.5 text-rose-700 shadow-sm">
@@ -3101,8 +3101,8 @@ export default function PetCenter() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-bold tracking-[0.22em] text-slate-400">学员列表</div>
-                <h3 className="mt-2 text-xl font-black text-slate-800">学生宠物列表</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">快速切换培养对象，看看谁还在蛋态、谁已准备好孵化。</p>
+                <h3 className="mt-2 text-xl font-black text-slate-800">学生宠物卡</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500">看看谁还在蛋里，谁快要孵化，谁已经长大。</p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
                 {students.length} 人

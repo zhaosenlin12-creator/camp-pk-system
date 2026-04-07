@@ -97,10 +97,12 @@ export default function RandomStudentPickerModal({
   const roster = useMemo(() => normalizeRoster(students), [students]);
   const displayRoster = sessionRoster.length ? sessionRoster : roster;
   const resultStudent = selectedStudent || lastResult || null;
+  const showWinnerOverlay = !spinning && Boolean(resultStudent);
   const highlightedResultId = spinning ? null : resultStudent?.id;
   const activeStudent = spinning
     ? (rollingStudent || displayRoster[0] || resultStudent || null)
     : (resultStudent || rollingStudent || displayRoster[0] || null);
+  const resultPanelStudent = spinning ? null : (resultStudent || activeStudent || null);
   const sphereChips = useMemo(
     () => buildSphereChips(displayRoster, phase, activeStudent?.id, highlightedResultId),
     [activeStudent?.id, displayRoster, highlightedResultId, phase]
@@ -376,20 +378,24 @@ export default function RandomStudentPickerModal({
                       style={{
                         zIndex: chip.zIndex,
                         transform: `translate(calc(-50% + ${chip.x}px), calc(-50% + ${chip.y}px)) scale(${chip.scale})`,
-                        opacity: chip.opacity
+                        opacity: showWinnerOverlay ? (chip.isWinner ? 0.2 : chip.opacity * 0.38) : chip.opacity
                       }}
                     >
-                      <div
-                        className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-black shadow-sm transition-all ${
-                          chip.isWinner
-                            ? 'bg-slate-900 text-white'
+                      <span
+                        className="whitespace-nowrap text-xs font-black tracking-[0.02em] transition-all"
+                        style={{
+                          color: chip.isWinner
+                            ? '#0f172a'
                             : chip.isActive
-                              ? 'bg-cyan-500 text-white'
-                              : 'bg-white/90 text-slate-600'
-                        }`}
+                              ? '#0891b2'
+                              : 'rgba(71,85,105,0.72)',
+                          textShadow: chip.isWinner
+                            ? '0 4px 18px rgba(255,255,255,0.96)'
+                            : '0 3px 12px rgba(255,255,255,0.92)'
+                        }}
                       >
                         {chip.student.name}
-                      </div>
+                      </span>
                     </div>
                   ))}
 
@@ -401,20 +407,49 @@ export default function RandomStudentPickerModal({
                     className="relative z-20 flex h-[210px] w-[210px] flex-col items-center justify-center rounded-full border border-white/90 bg-[radial-gradient(circle_at_top,#ffffff_0%,#fff3d1_32%,#edf7ff_100%)] text-center shadow-[0_30px_80px_rgba(56,189,248,0.2)]"
                   >
                     <div className="absolute inset-3 rounded-full border border-white/70" />
-                    <div className="text-6xl">{activeStudent?.avatar || '🎯'}</div>
+                    <div className="text-6xl">{spinning ? '🎯' : showWinnerOverlay ? '✨' : '🎲'}</div>
                     <div className="mt-4 text-[11px] font-black tracking-[0.18em] text-slate-400">
-                      {spinning ? '正在点名' : resultStudent ? '本次点名' : '准备开始'}
-                    </div>
-                    <div className="mt-2 max-w-[180px] text-2xl font-black leading-8 text-slate-800" data-testid="random-picker-name">
-                      {activeStudent?.name || '等待开始'}
+                      {spinning ? '正在点名' : showWinnerOverlay ? '结果揭晓' : '准备开始'}
                     </div>
                     <div className="mt-2 text-xs font-semibold text-slate-500">
-                      {resultStudent ? '请这位同学准备回答' : '点一下就开始滚动'}
+                      {spinning ? '名字正在滚动' : showWinnerOverlay ? '看看谁被点中了' : '点一下就开始'}
                     </div>
                   </motion.div>
 
+                  <AnimatePresence>
+                    {showWinnerOverlay && (
+                      <div
+                        className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center px-8"
+                      >
+                        <motion.div
+                          key={resultStudent.id}
+                          initial={{ opacity: 0, scale: 0.74, y: 24 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.82, y: 18 }}
+                          transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+                          className="w-full max-w-[400px]"
+                        >
+                          <motion.div
+                            animate={{ x: [0, -10, 10, -6, 6, 0], rotate: [0, -1.4, 1.4, -0.8, 0.8, 0] }}
+                            transition={{ duration: 0.62, ease: 'easeInOut' }}
+                            className="rounded-[34px] border border-white/90 bg-[linear-gradient(160deg,rgba(255,255,255,0.98)_0%,rgba(255,244,190,0.98)_68%,rgba(237,247,255,0.98)_100%)] px-6 py-5 text-center shadow-[0_28px_70px_rgba(15,23,42,0.22)]"
+                          >
+                            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[28px] bg-white text-5xl shadow-[0_18px_44px_rgba(15,23,42,0.12)]">
+                              {resultStudent.avatar || '🎯'}
+                            </div>
+                            <div className="mt-4 text-[11px] font-black tracking-[0.22em] text-slate-400">本次点名</div>
+                            <div className="mt-2 break-words text-[34px] font-black leading-[1.05] text-slate-900" data-testid="random-picker-name">
+                              {resultStudent.name}
+                            </div>
+                            <div className="mt-3 text-sm font-black text-slate-500">请准备回答</div>
+                          </motion.div>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
+
                   <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/86 px-4 py-2 text-xs font-black text-slate-500 shadow-sm">
-                    {spinning ? '点名进行中' : resultStudent ? '点名完成' : '等待开始'}
+                    {spinning ? '点名进行中' : showWinnerOverlay ? '点名完成' : '等待开始'}
                   </div>
                 </div>
               </div>
@@ -424,24 +459,24 @@ export default function RandomStudentPickerModal({
                   className="rounded-[28px] border border-white/70 px-4 py-4 shadow-sm"
                   data-testid="random-picker-result"
                   style={{
-                    background: selectedStudent
+                    background: showWinnerOverlay
                       ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(254,240,138,0.62) 100%)'
                       : 'linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(224,242,254,0.72) 100%)'
                   }}
                 >
                   <div className="text-sm font-black text-slate-800">
-                    {resultStudent ? '本次点名结果' : '结果会显示在这里'}
+                    {resultPanelStudent ? '本次点名结果' : '结果会显示在这里'}
                   </div>
                   <div className="mt-3 flex items-center gap-3">
                     <span className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white text-2xl shadow-sm">
-                      {resultStudent?.avatar || activeStudent?.avatar || '🎯'}
+                      {resultPanelStudent?.avatar || '🎯'}
                     </span>
                     <div className="min-w-0">
                       <div className="truncate text-xl font-black text-slate-800">
-                        {resultStudent?.name || activeStudent?.name || '等待开始'}
+                        {resultPanelStudent?.name || '等待开始'}
                       </div>
                       <div className="mt-1 text-xs font-semibold text-slate-500">
-                        {resultStudent ? '会自动播报名字' : '开始点名后自动更新'}
+                        {showWinnerOverlay ? '全班都能听见名字' : '开始点名后自动更新'}
                       </div>
                     </div>
                   </div>
@@ -507,7 +542,7 @@ export default function RandomStudentPickerModal({
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
               <div className="text-xs font-semibold text-slate-500">
-                每次结束后都可以直接再来一次。
+                结束后可以直接再来一次。
               </div>
 
               <div className="flex flex-wrap gap-2">
