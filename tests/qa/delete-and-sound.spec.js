@@ -4,6 +4,8 @@ const path = require('node:path');
 
 const baseUrl = process.env.QA_BASE_URL || 'http://localhost:3001';
 const adminPin = process.env.QA_ADMIN_PIN || process.env.ADMIN_PIN || '';
+const adminTokenStorageKey = 'camp-pk-admin-token';
+const currentClassStorageKey = 'camp-pk-current-class-id';
 const dbPath = path.join(process.cwd(), 'database', 'data.json');
 const uploadsDir = path.join(process.cwd(), 'uploads', 'photos');
 const onePixelPng = Buffer.from(
@@ -11,7 +13,7 @@ const onePixelPng = Buffer.from(
   'base64'
 );
 
-let adminHeadersPromise = null;
+let adminAuthPromise = null;
 
 function readDb() {
   return JSON.parse(fs.readFileSync(dbPath, 'utf8'));
@@ -25,13 +27,13 @@ async function parseJson(response) {
   return response.json();
 }
 
-async function getAdminHeaders(request) {
+async function getAdminAuth(request) {
   if (!adminPin) {
     throw new Error('QA_ADMIN_PIN or ADMIN_PIN is required for authenticated QA');
   }
 
-  if (!adminHeadersPromise) {
-    adminHeadersPromise = (async () => {
+  if (!adminAuthPromise) {
+    adminAuthPromise = (async () => {
       const result = await parseJson(
         await request.post(`${baseUrl}/api/admin/verify`, {
           data: { pin: adminPin }
@@ -42,11 +44,18 @@ async function getAdminHeaders(request) {
         throw new Error('Failed to acquire admin token for QA');
       }
 
-      return { Authorization: `Bearer ${result.token}` };
+      return {
+        token: result.token,
+        headers: { Authorization: `Bearer ${result.token}` }
+      };
     })();
   }
 
-  return adminHeadersPromise;
+  return adminAuthPromise;
+}
+
+async function getAdminHeaders(request) {
+  return (await getAdminAuth(request)).headers;
 }
 
 async function createClass(request, name) {
@@ -188,17 +197,27 @@ async function deleteClass(request, classId) {
   });
 }
 
-async function loginAdmin(page) {
-  await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
-  await page.locator('input[type="password"]').fill(adminPin);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForLoadState('networkidle');
+async function loginAdmin(page, request) {
+  const { token } = await getAdminAuth(request);
+  await page.goto(`${baseUrl}/admin`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(
+    ({ storageKey, adminToken }) => {
+      window.localStorage.setItem(storageKey, adminToken);
+    },
+    { storageKey: adminTokenStorageKey, adminToken: token }
+  );
+  await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
 }
 
-async function selectClass(page, className) {
-  await page.getByRole('button', { name: /Class Hub/i }).first().click();
-  await page.getByRole('button', { name: new RegExp(className) }).first().click();
+async function selectClass(page, classId) {
+  await page.evaluate(
+    ({ storageKey, selectedClassId }) => {
+      window.localStorage.setItem(storageKey, String(selectedClassId));
+    },
+    { storageKey: currentClassStorageKey, selectedClassId: classId }
+  );
+  await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
 }
 
@@ -286,8 +305,8 @@ test('pet profile open sound only plays once per modal open', async ({ page, req
     await updateScore(request, student.id, 20, 'QA sound setup');
     await claimPet(request, student.id, 10);
 
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
-    await selectClass(page, className);
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await selectClass(page, createdClass.id);
     await page.waitForTimeout(1200);
 
     const baselineCount = await page.evaluate(() => window.__qaAudioCount || 0);
@@ -380,8 +399,8 @@ test('danger confirmation UI works and student deletion clears related data', as
       teacher_name: 'QA'
     });
 
-    await loginAdmin(page);
-    await selectClass(page, className);
+    await loginAdmin(page, request);
+    await selectClass(page, createdClass.id);
 
     const studentDeleteButton = page.getByTestId(`student-delete-${targetStudent.id}`);
     await expect(studentDeleteButton).toBeVisible();
@@ -510,8 +529,8 @@ test('rating and lottery danger actions use custom confirmation dialogs', async 
       item_icon: '🏆'
     });
 
-    await loginAdmin(page);
-    await selectClass(page, className);
+    await loginAdmin(page, request);
+    await selectClass(page, createdClass.id);
     await page.getByRole('button', { name: /展示评分/i }).click();
     await page.waitForTimeout(1000);
 

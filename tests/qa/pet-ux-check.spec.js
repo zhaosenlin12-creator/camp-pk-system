@@ -5,8 +5,10 @@ const fs = require('node:fs');
 const baseUrl = process.env.QA_BASE_URL || 'http://localhost:3001';
 const classId = 8;
 const adminPin = process.env.QA_ADMIN_PIN || process.env.ADMIN_PIN || '';
+const adminTokenStorageKey = 'camp-pk-admin-token';
+const currentClassStorageKey = 'camp-pk-current-class-id';
 const outputDir = path.join(process.cwd(), '.tmp', 'qa', 'screenshots');
-let adminHeadersPromise = null;
+let adminAuthPromise = null;
 
 async function ensureDir() {
   fs.mkdirSync(outputDir, { recursive: true });
@@ -24,13 +26,13 @@ async function parseJson(response) {
   return response.json();
 }
 
-async function getAdminHeaders(request) {
+async function getAdminAuth(request) {
   if (!adminPin) {
     throw new Error('QA_ADMIN_PIN or ADMIN_PIN is required for authenticated QA');
   }
 
-  if (!adminHeadersPromise) {
-    adminHeadersPromise = (async () => {
+  if (!adminAuthPromise) {
+    adminAuthPromise = (async () => {
       const result = await parseJson(
         await request.post(`${baseUrl}/api/admin/verify`, {
           data: { pin: adminPin }
@@ -41,11 +43,18 @@ async function getAdminHeaders(request) {
         throw new Error('Failed to acquire admin token for QA');
       }
 
-      return { Authorization: `Bearer ${result.token}` };
+      return {
+        token: result.token,
+        headers: { Authorization: `Bearer ${result.token}` }
+      };
     })();
   }
 
-  return adminHeadersPromise;
+  return adminAuthPromise;
+}
+
+async function getAdminHeaders(request) {
+  return (await getAdminAuth(request)).headers;
 }
 
 async function createStudent(request, name) {
@@ -114,25 +123,38 @@ async function deleteStudent(request, studentId) {
   });
 }
 
-async function selectClass(page) {
-  await page.getByRole('button', { name: /Class Hub/i }).first().click();
-  await page.getByRole('button', { name: /python-2/i }).first().click();
+async function syncCurrentClass(page) {
+  await page.evaluate(
+    ({ storageKey, selectedClassId }) => {
+      window.localStorage.setItem(storageKey, String(selectedClassId));
+    },
+    { storageKey: currentClassStorageKey, selectedClassId: classId }
+  );
+}
+
+async function openDisplayForClass(page) {
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await syncCurrentClass(page);
+  await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
 }
 
-async function loginAdmin(page) {
-  await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
-  const passwordInput = page.locator('input[type="password"]');
-  if (await passwordInput.count()) {
-    await passwordInput.fill(adminPin);
-    await page.locator('button[type="submit"]').click();
-  }
-  await page.waitForLoadState('networkidle');
+async function loginAdmin(page, request) {
+  const { token } = await getAdminAuth(request);
+  await page.goto(`${baseUrl}/admin`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(
+    ({ storageKey, adminToken }) => {
+      window.localStorage.setItem(storageKey, adminToken);
+    },
+    { storageKey: adminTokenStorageKey, adminToken: token }
+  );
+  await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
 }
 
 async function openPetCenter(page) {
-  await selectClass(page);
+  await syncCurrentClass(page);
+  await page.reload({ waitUntil: 'networkidle' });
   await page.getByTestId('admin-tab-pets').click();
   await page.waitForTimeout(1200);
 }
@@ -230,8 +252,7 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     expect(switchedBack.active_pet_slot_id).toBe(firstSlot.slot_id);
     expect(switchedBack.pet.id).toBe(10);
 
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
-    await selectClass(page);
+    await openDisplayForClass(page);
     await saveShot(page, 'display-home.png');
 
     await page.locator('[data-testid^="student-pet-passport-"]').first().click();
@@ -244,7 +265,7 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
 
-    await loginAdmin(page);
+    await loginAdmin(page, request);
     await openPetCenter(page);
     await saveShot(page, 'admin-pet-center.png');
 
@@ -314,7 +335,7 @@ test('capture pet UX screenshots and verify ritual flows', async ({ page, reques
     await saveShot(page, 'admin-selected-student-ritual.png', false);
 
     await page.setViewportSize({ width: 1120, height: 900 });
-    await loginAdmin(page);
+    await loginAdmin(page, request);
     await openPetCenter(page);
     const stableStudentSelect = page.getByTestId('pet-center-student-select');
     await stableStudentSelect.selectOption(String(multiStudent.id));

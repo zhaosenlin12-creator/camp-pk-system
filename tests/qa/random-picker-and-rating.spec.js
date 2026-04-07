@@ -4,9 +4,11 @@ const path = require('node:path');
 
 const baseUrl = process.env.QA_BASE_URL || 'http://localhost:3001';
 const adminPin = process.env.QA_ADMIN_PIN || process.env.ADMIN_PIN || '980116';
+const adminTokenStorageKey = 'camp-pk-admin-token';
+const currentClassStorageKey = 'camp-pk-current-class-id';
 const outputDir = path.join(process.cwd(), '.tmp', 'qa', 'screenshots');
 
-let adminHeadersPromise = null;
+let adminAuthPromise = null;
 
 function ensureDir() {
   fs.mkdirSync(outputDir, { recursive: true });
@@ -26,9 +28,9 @@ async function parseJson(response) {
   return response.json();
 }
 
-async function getAdminHeaders(request) {
-  if (!adminHeadersPromise) {
-    adminHeadersPromise = (async () => {
+async function getAdminAuth(request) {
+  if (!adminAuthPromise) {
+    adminAuthPromise = (async () => {
       const result = await parseJson(
         await request.post(`${baseUrl}/api/admin/verify`, {
           data: { pin: adminPin }
@@ -39,11 +41,18 @@ async function getAdminHeaders(request) {
         throw new Error('Failed to acquire admin token for QA');
       }
 
-      return { Authorization: `Bearer ${result.token}` };
+      return {
+        token: result.token,
+        headers: { Authorization: `Bearer ${result.token}` }
+      };
     })();
   }
 
-  return adminHeadersPromise;
+  return adminAuthPromise;
+}
+
+async function getAdminHeaders(request) {
+  return (await getAdminAuth(request)).headers;
 }
 
 async function createClass(request, name) {
@@ -120,17 +129,27 @@ async function fetchTeams(request, classId) {
   return parseJson(await request.get(`${baseUrl}/api/classes/${classId}/teams`));
 }
 
-async function loginAdmin(page) {
-  await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
-  await page.locator('input[type="password"]').fill(adminPin);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForLoadState('networkidle');
+async function loginAdmin(page, request) {
+  const { token } = await getAdminAuth(request);
+  await page.goto(`${baseUrl}/admin`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(
+    ({ storageKey, adminToken }) => {
+      window.localStorage.setItem(storageKey, adminToken);
+    },
+    { storageKey: adminTokenStorageKey, adminToken: token }
+  );
+  await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
 }
 
-async function selectClass(page, className) {
-  await page.getByRole('button', { name: /Class Hub/i }).first().click();
-  await page.getByRole('button', { name: new RegExp(className) }).first().click();
+async function selectClass(page, classId) {
+  await page.evaluate(
+    ({ storageKey, selectedClassId }) => {
+      window.localStorage.setItem(storageKey, String(selectedClassId));
+    },
+    { storageKey: currentClassStorageKey, selectedClassId: classId }
+  );
+  await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
 }
 
@@ -250,8 +269,8 @@ test('random picker uses current class roster, animation, and speech fallback pa
     const expectedNames = students.map((student) => student.name);
 
     await installPickerSpy(page);
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
-    await selectClass(page, className);
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await selectClass(page, createdClass.id);
 
     await page.getByTestId('display-random-picker-open').click();
     await expect(page.getByTestId('random-picker-modal')).toBeVisible();
@@ -284,8 +303,8 @@ test('random picker uses current class roster, animation, and speech fallback pa
     expect(speechCallsAfterSecond.length).toBeGreaterThanOrEqual(2);
     expect(expectedNames.some((name) => speechCallsAfterSecond[1].includes(name))).toBeTruthy();
 
-    await loginAdmin(page);
-    await selectClass(page, className);
+    await loginAdmin(page, request);
+    await selectClass(page, createdClass.id);
     await expect(page.getByTestId('admin-random-picker-open')).toBeVisible();
   } finally {
     if (createdClass?.id) {
