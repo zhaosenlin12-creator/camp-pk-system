@@ -51,3 +51,15 @@ Thumbs.db
 *.temp
 404.html
 index.html
+
+# Local helper scratch files
+/apply-v*-fixes.js
+/final-fix.js
+/fix-*.js
+/list-pets.js
+/refactor-pet-center.js
+/repair-jsx.js
+/surgical-fix.js
+/verify-jsx.js
+/diff*.txt
+/series*.txt
