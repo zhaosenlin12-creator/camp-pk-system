@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "乐享宠物",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "node server/index.js",
+    "dev:full": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server/index.js",
     "client": "cd client && npm run dev",
     "build": "cd client && npm run build",
-    "start": "NODE_ENV=production node server/index.js",
+    "start": "node -e \"process.env.NODE_ENV='production'; require('./server/index.js')\"",
     "init-db": "node server/initDb.js"
   },
   "dependencies": {
@@ -22,5 +23,8 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "concurrently": "^8.2.2"
+  },
+  "overrides": {
+    "path-to-regexp": "0.1.13"
   }
 }

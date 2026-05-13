@@ -1,7 +1,14 @@
+const fs = require('fs');
+const path = require('path');
+
 const baseCatalog = require('./classPetCatalog');
 const snapshotCatalog = require('./classPetCatalogSnapshot.json');
+const bancxqCatalogFull = require('./classPetCatalogBancxq95.json');
 
 const BUCKET = 'https://brvjqiusgeqeyfadfwga.supabase.co/storage/v1/object/public/cwk';
+const LOCAL_PET_MIRROR_DIR = path.join(__dirname, '../public/pet-mirror/cwk');
+const LOCAL_PET_MIRROR_WEB_BASE = '/pet-mirror/cwk';
+const GENERATED_STAGE_COUNT = 10;
 
 const REMOTE_META_BY_KEY = {
   dbhu: { name: '东北虎', species: '雪林虎王', family: 'wild', emoji: '🐯', rarity: 'legendary', badge: '森林王者' },
@@ -105,6 +112,21 @@ const SERIES_META = {
   }
 };
 
+const BANCXQ_SOURCE_BY_KEY = new Map(
+  bancxqCatalogFull
+    .map((pet) => {
+      const key = pet?.assetKey || extractPetAssetKey(pet);
+      if (!key) return null;
+
+      return [key, {
+        name: String(pet?.name || '').trim(),
+        type: String(pet?.type || '').trim(),
+        breed: String(pet?.breed || '').trim()
+      }];
+    })
+    .filter(Boolean)
+);
+
 function toHttps(url) {
   if (typeof url !== 'string') return null;
   return url.replace(/^http:\/\//i, 'https://');
@@ -116,10 +138,16 @@ function normalizeStages(stages, image) {
     : [];
 
   if (normalizedStages.length > 0) {
-    return normalizedStages;
+    const clipped = normalizedStages.slice(0, GENERATED_STAGE_COUNT);
+    while (clipped.length < GENERATED_STAGE_COUNT) {
+      clipped.push(clipped[clipped.length - 1]);
+    }
+    return clipped;
   }
 
-  return image ? [image] : [];
+  if (!image) return [];
+
+  return Array.from({ length: GENERATED_STAGE_COUNT }, () => image);
 }
 
 function extractPetAssetKey(pet) {
@@ -138,13 +166,13 @@ function normalizePet(pet) {
   const image = toHttps(pet.image);
   const seriesPet = applyPetSeriesMeta(pet, pet.seriesKey || 'classic');
 
-  return {
+  return stabilizePetAssets({
     ...seriesPet,
     image,
     assetKey: seriesPet.assetKey || extractPetAssetKey(seriesPet),
     seriesRole: seriesPet.seriesRole || seriesPet.role || null,
     evolutionStages: normalizeStages(pet.evolutionStages, image)
-  };
+  });
 }
 
 function createPet({
@@ -193,6 +221,283 @@ function hashString(value) {
   }
 
   return Math.abs(hash);
+}
+
+function sanitizeSvgToken(value) {
+  return String(value || 'pet')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'pet';
+}
+
+function hasRemotePetAssets(pet) {
+  const assets = [pet?.image, ...(pet?.evolutionStages || [])];
+  return assets.some((asset) => /^https?:\/\//i.test(String(asset || '')));
+}
+
+function parseRemotePetAsset(url) {
+  if (typeof url !== 'string') return null;
+
+  const match = url.match(/^https?:\/\/[^/]+\/storage\/v1\/object\/public\/cwk\/([^/]+)\/([^?#]+)$/i);
+  if (!match) return null;
+
+  const [, assetKey, filename] = match;
+  const safeFilename = path.basename(filename);
+
+  return {
+    assetKey,
+    filename: safeFilename,
+    diskPath: path.join(LOCAL_PET_MIRROR_DIR, assetKey, safeFilename),
+    webPath: `${LOCAL_PET_MIRROR_WEB_BASE}/${assetKey}/${safeFilename}`
+  };
+}
+
+function resolveLocalPetAsset(url) {
+  const asset = parseRemotePetAsset(url);
+  if (!asset) return null;
+  if (!fs.existsSync(asset.diskPath)) return null;
+  return asset.webPath;
+}
+
+function collectLocalMirrorStages(pet) {
+  const assets = [pet?.image, ...(pet?.evolutionStages || [])];
+  const localStages = [];
+
+  for (const asset of assets) {
+    const localAsset = resolveLocalPetAsset(asset);
+    if (!localAsset || localStages.includes(localAsset)) continue;
+    localStages.push(localAsset);
+  }
+
+  return localStages;
+}
+
+function hasCompleteLocalMirror(pet, localStages) {
+  const expectedRemoteAssets = [pet?.image, ...(pet?.evolutionStages || [])]
+    .map(parseRemotePetAsset)
+    .filter(Boolean)
+    .map((asset) => `${asset.assetKey}/${asset.filename}`.toLowerCase());
+
+  const expectedUniqueCount = new Set(expectedRemoteAssets).size;
+  return expectedUniqueCount > 0 && localStages.length === expectedUniqueCount;
+}
+
+function resolveStablePetVariant(pet) {
+  if (pet?.seriesKey === 'myth') return 'myth';
+  if (pet?.seriesKey === 'wild') return 'wild';
+
+  const variants = ['cat', 'dog', 'rabbit', 'bear'];
+  return variants[hashString(pet?.assetKey || pet?.id || pet?.name) % variants.length];
+}
+
+function buildStablePetHead(variant, colors) {
+  switch (variant) {
+    case 'dog':
+      return `
+        <path d="M110 124 Q86 90 104 74 Q130 78 142 122" fill="${colors.shadow}" />
+        <path d="M210 124 Q234 90 216 74 Q190 78 178 122" fill="${colors.shadow}" />
+      `;
+    case 'rabbit':
+      return `
+        <path d="M122 122 Q108 54 132 36 Q154 46 148 122" fill="${colors.shadow}" />
+        <path d="M198 122 Q212 54 188 36 Q166 46 172 122" fill="${colors.shadow}" />
+        <path d="M130 118 Q122 66 138 50 Q150 58 146 118" fill="${colors.highlight}" />
+        <path d="M190 118 Q198 66 182 50 Q170 58 174 118" fill="${colors.highlight}" />
+      `;
+    case 'bear':
+      return `
+        <circle cx="122" cy="96" r="22" fill="${colors.shadow}" />
+        <circle cx="198" cy="96" r="22" fill="${colors.shadow}" />
+        <circle cx="122" cy="96" r="11" fill="${colors.highlight}" />
+        <circle cx="198" cy="96" r="11" fill="${colors.highlight}" />
+      `;
+    case 'wild':
+      return `
+        <path d="M116 122 L128 76 L152 116" fill="${colors.shadow}" />
+        <path d="M204 122 L192 76 L168 116" fill="${colors.shadow}" />
+        <path d="M112 146 L90 132 L108 122" fill="${colors.shadow}" />
+        <path d="M208 146 L230 132 L212 122" fill="${colors.shadow}" />
+      `;
+    case 'myth':
+      return `
+        <path d="M132 118 Q114 88 126 60 Q142 70 148 114" fill="${colors.shadow}" />
+        <path d="M188 118 Q206 88 194 60 Q178 70 172 114" fill="${colors.shadow}" />
+        <path d="M132 112 Q124 84 132 68" stroke="${colors.glow}" stroke-width="6" stroke-linecap="round" />
+        <path d="M188 112 Q196 84 188 68" stroke="${colors.glow}" stroke-width="6" stroke-linecap="round" />
+      `;
+    case 'cat':
+    default:
+      return `
+        <path d="M118 122 L136 76 L152 118" fill="${colors.shadow}" />
+        <path d="M202 122 L184 76 L168 118" fill="${colors.shadow}" />
+      `;
+  }
+}
+
+function buildStablePetAccent(variant, colors, stage) {
+  const ring = stage >= 4
+    ? `<circle cx="160" cy="162" r="${82 + stage * 2}" fill="none" stroke="${colors.glow}" stroke-width="6" opacity="0.72" />`
+    : '';
+  const crest = stage >= 5
+    ? `<path d="M132 82 L160 50 L188 82" fill="${colors.badge}" opacity="0.92" />`
+    : '';
+
+  switch (variant) {
+    case 'dog':
+      return `
+        ${ring}
+        ${crest}
+        <path d="M114 214 Q160 242 206 214" stroke="${colors.shine}" stroke-width="10" stroke-linecap="round" opacity="0.8" />
+      `;
+    case 'rabbit':
+      return `
+        ${ring}
+        ${crest}
+        <ellipse cx="108" cy="198" rx="16" ry="10" fill="${colors.glow}" />
+        <ellipse cx="212" cy="198" rx="16" ry="10" fill="${colors.glow}" />
+      `;
+    case 'bear':
+      return `
+        ${ring}
+        ${crest}
+        <circle cx="126" cy="214" r="10" fill="${colors.badge}" opacity="0.88" />
+        <circle cx="194" cy="214" r="10" fill="${colors.badge}" opacity="0.88" />
+      `;
+    case 'wild':
+      return `
+        ${ring}
+        ${crest}
+        <path d="M114 204 L96 236" stroke="${colors.badge}" stroke-width="8" stroke-linecap="round" />
+        <path d="M206 204 L224 236" stroke="${colors.badge}" stroke-width="8" stroke-linecap="round" />
+      `;
+    case 'myth':
+      return `
+        ${ring}
+        ${crest}
+        <path d="M110 196 Q160 246 210 196" fill="none" stroke="${colors.badge}" stroke-width="8" stroke-linecap="round" />
+      `;
+    case 'cat':
+    default:
+      return `
+        ${ring}
+        ${crest}
+        <path d="M124 204 Q160 230 196 204" fill="none" stroke="${colors.shine}" stroke-width="8" stroke-linecap="round" />
+      `;
+  }
+}
+
+function buildStablePetSvg(pet, stage) {
+  const accent = pet?.accent || '#F59E0B';
+  const theme = pet?.theme || '#FFF7ED';
+  const variant = resolveStablePetVariant(pet);
+  const token = sanitizeSvgToken(pet?.assetKey || pet?.id || pet?.name);
+  const badgeColor = pet?.rarity === 'legendary'
+    ? '#FACC15'
+    : pet?.rarity === 'epic'
+      ? '#C084FC'
+      : pet?.rarity === 'rare'
+        ? '#38BDF8'
+        : '#4ADE80';
+  const colors = {
+    body: mixHex(accent, 0.06),
+    shadow: mixHex(accent, -0.18),
+    highlight: mixHex(theme, 0.18),
+    outline: mixHex(accent, -0.3),
+    glow: hexToRgba(accent, 0.26 + stage * 0.08),
+    shine: hexToRgba('#ffffff', 0.76),
+    badge: badgeColor
+  };
+  const floatOffset = (hashString(token) % 7) - 3;
+  const starNodes = Array.from({ length: 3 + stage }, (_, index) => {
+    const spread = 84 + stage * 6;
+    const angle = ((Math.PI * 2) / (3 + stage)) * index + (hashString(`${token}-${index}`) % 12) * 0.03;
+    const x = 160 + Math.cos(angle) * spread;
+    const y = 144 + Math.sin(angle) * (52 + stage * 5);
+    const radius = 4 + (index % 2);
+    const fill = index % 2 === 0 ? colors.shine : colors.badge;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${radius}" fill="${fill}" opacity="0.82" />`;
+  }).join('');
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="${token}-stage-${stage}">
+      <defs>
+        <radialGradient id="stable-bg-${token}-${stage}" cx="50%" cy="24%" r="84%">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="58%" stop-color="${theme}" />
+          <stop offset="100%" stop-color="${mixHex(theme, -0.08)}" />
+        </radialGradient>
+        <linearGradient id="stable-body-${token}-${stage}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${mixHex(colors.body, 0.16)}" />
+          <stop offset="100%" stop-color="${colors.shadow}" />
+        </linearGradient>
+      </defs>
+
+      <rect width="320" height="320" rx="88" fill="url(#stable-bg-${token}-${stage})" />
+      <circle cx="160" cy="154" r="${96 + stage * 2}" fill="${colors.glow}" />
+      <ellipse cx="160" cy="252" rx="92" ry="24" fill="${hexToRgba(accent, 0.18)}" />
+      ${starNodes}
+
+      <g transform="translate(0 ${floatOffset})">
+        ${buildStablePetHead(variant, colors)}
+        <circle cx="160" cy="148" r="${72 + stage * 2}" fill="url(#stable-body-${token}-${stage})" stroke="${colors.outline}" stroke-width="6" />
+        <path d="M112 212 Q160 236 208 212 V238 Q208 256 188 258 H132 Q112 256 112 238Z" fill="${colors.body}" stroke="${colors.outline}" stroke-width="6" />
+        <circle cx="134" cy="148" r="10" fill="#ffffff" />
+        <circle cx="186" cy="148" r="10" fill="#ffffff" />
+        <circle cx="136" cy="150" r="5" fill="${colors.outline}" />
+        <circle cx="184" cy="150" r="5" fill="${colors.outline}" />
+        <circle cx="138" cy="148" r="2" fill="${colors.shine}" />
+        <circle cx="182" cy="148" r="2" fill="${colors.shine}" />
+        <ellipse cx="160" cy="172" rx="12" ry="9" fill="${mixHex(accent, 0.3)}" />
+        <path d="M148 186 Q160 198 172 186" fill="none" stroke="${colors.outline}" stroke-width="6" stroke-linecap="round" />
+        <path d="M146 178 H118 M174 178 H202" stroke="${hexToRgba(colors.outline, 0.56)}" stroke-width="4" stroke-linecap="round" />
+        <circle cx="118" cy="172" r="8" fill="${hexToRgba('#ffffff', 0.26)}" />
+        <circle cx="202" cy="172" r="8" fill="${hexToRgba('#ffffff', 0.26)}" />
+        ${buildStablePetAccent(variant, colors, stage)}
+      </g>
+
+      <g transform="translate(50 272)">
+        ${Array.from({ length: GENERATED_STAGE_COUNT }, (_, index) => {
+          const active = index < stage;
+          return `<circle cx="${index * 24}" cy="0" r="5.8" fill="${active ? colors.badge : hexToRgba(accent, 0.18)}" />`;
+        }).join('')}
+      </g>
+    </svg>
+  `;
+}
+
+function createStablePetStages(pet, count = GENERATED_STAGE_COUNT) {
+  return Array.from({ length: count }, (_, index) => svgToDataUri(buildStablePetSvg(pet, index + 1)));
+}
+
+function stabilizePetAssets(pet) {
+  if (!hasRemotePetAssets(pet)) {
+    return pet;
+  }
+
+  const localStages = collectLocalMirrorStages(pet);
+  if (hasCompleteLocalMirror(pet, localStages)) {
+    const clipped = localStages.slice(0, GENERATED_STAGE_COUNT);
+    while (clipped.length < GENERATED_STAGE_COUNT) {
+      clipped.push(clipped[clipped.length - 1]);
+    }
+
+    return {
+      ...pet,
+      image: clipped[0],
+      evolutionStages: clipped,
+      assetSource: 'local-mirror'
+    };
+  }
+
+  const evolutionStages = createStablePetStages(pet);
+
+  return {
+    ...pet,
+    image: evolutionStages[0],
+    evolutionStages,
+    assetSource: 'generated-svg'
+  };
 }
 
 function selectPalette(rarity, key) {
@@ -285,6 +590,43 @@ function humanizeAssetKey(key) {
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .trim();
+}
+
+function hasChineseText(value) {
+  return /[\u4e00-\u9fff]/.test(String(value || ''));
+}
+
+function normalizePetDisplayName(name, fallbackKey) {
+  const raw = String(name || '').replace(/\s+/g, '').trim();
+  if (!raw) return humanizeAssetKey(fallbackKey);
+
+  if (hasChineseText(raw)) {
+    return raw.length > 10 ? `${raw.slice(0, 10)}…` : raw;
+  }
+
+  if (/^[A-Za-z0-9 _-]+$/.test(raw)) {
+    return humanizeAssetKey(fallbackKey);
+  }
+
+  return raw.length > 14 ? `${raw.slice(0, 14)}…` : raw;
+}
+
+function resolveFamilyFromSourceMeta(sourceMeta, fallbackFamily = 'small') {
+  const type = String(sourceMeta?.type || '');
+  const name = String(sourceMeta?.name || '');
+  const sourceText = `${type}${name}`;
+
+  if (/[猫]/.test(sourceText) || /cat/i.test(type)) return 'cat';
+  if (/[兔]/.test(sourceText) || /rabbit/i.test(type)) return 'rabbit';
+  if (/[犬狗]/.test(sourceText) || /dog/i.test(type)) return 'dog';
+  if (/[狼]/.test(sourceText)) return 'wilddog';
+  if (/[鸟凤鹏鹫鸿]/.test(sourceText) || /bird/i.test(type)) return 'bird';
+  if (/[熊]/.test(sourceText) || /bear/i.test(type)) return 'bear';
+  if (/[龙麒麟穷奇梼杌饕餮白泽獬豸九尾]/.test(sourceText)) return 'myth';
+  if (/[鼠貂狐獴刺猬豚]/.test(sourceText)) return 'small';
+  if (/[虎豹狮象马羚羊猪獭穿山甲]/.test(sourceText)) return 'wild';
+
+  return fallbackFamily;
 }
 
 function buildFallbackRemoteMeta(key) {
@@ -966,7 +1308,7 @@ function buildMechaPetSvg(config, stage) {
   `;
 }
 
-function createGeneratedStages(renderer, config, count = 5) {
+function createGeneratedStages(renderer, config, count = GENERATED_STAGE_COUNT) {
   return Array.from({ length: count }, (_, index) => svgToDataUri(renderer(config, index + 1)));
 }
 
@@ -1180,7 +1522,14 @@ const ORIGINAL_PET_SERIES = [
 ];
 function enrichRemotePet(snapshotPet, id) {
   const key = extractPetAssetKey(snapshotPet);
-  const meta = REMOTE_META_BY_KEY[key] || buildFallbackRemoteMeta(key);
+  const sourceMeta = BANCXQ_SOURCE_BY_KEY.get(key) || {};
+  const baseMeta = REMOTE_META_BY_KEY[key] || buildFallbackRemoteMeta(key);
+  const family = REMOTE_META_BY_KEY[key]?.family || resolveFamilyFromSourceMeta(sourceMeta, baseMeta.family);
+  const meta = {
+    ...baseMeta,
+    family,
+    name: normalizePetDisplayName(sourceMeta.name || baseMeta.name, key)
+  };
   const palette = selectPalette(meta.rarity, key);
 
   return createPet({
@@ -1357,4 +1706,15 @@ const remoteExtras = snapshotCatalog
 const originalSeriesCatalog = ORIGINAL_PET_SERIES
   .map((item, index) => createGeneratedPet(legacyCatalog.length + remoteExtras.length + index + 1, item));
 
-module.exports = [...legacyCatalog, ...remoteExtras, ...originalSeriesCatalog];
+const baseExportCatalog = [...legacyCatalog, ...remoteExtras, ...originalSeriesCatalog];
+const baseExportKeySet = new Set(baseExportCatalog.map((pet) => pet.assetKey).filter(Boolean));
+
+const bancxqExtras = bancxqCatalogFull
+  .map(normalizePet)
+  .filter((pet) => {
+    const key = extractPetAssetKey(pet);
+    return key && !baseExportKeySet.has(key);
+  })
+  .map((pet, index) => enrichRemotePet(pet, baseExportCatalog.length + index + 1));
+
+module.exports = [...baseExportCatalog, ...bancxqExtras];

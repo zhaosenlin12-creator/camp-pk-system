@@ -1,138 +1,121 @@
-# 乐享宠物更新与维护指南
+# 更新指南
 
-这份文档只针对当前线上环境：
+这份指南适用于当前生产环境：
 
 - 项目目录：`/www/wwwroot/camp-pk-system`
-- 运行用户：`game`
-- PM2 进程：`camp-pk-system`
-- 服务端口：`3004`
-- 域名：`https://camp.codebn.cn`
+- PM2：`camp-pk-system`
+- 服务用户：`game`
+- 端口：`3004`
 
-## 标准更新流程
+## 以后固定流程
 
-### 1. 切换到运行用户
+以后统一按这个流程更新：
+
+1. 上传补丁包到 `/tmp`
+2. 执行项目里的统一安装脚本
+3. 脚本自动解压、备份、覆盖、修复、重启、验证
+
+注意：
+
+- 即使当前登录用户是 `root`，脚本也会自动把修复和 PM2 操作切换到 `game` 用户执行
+- 不要再手动用 `root` 直接启动 `camp-pk-system`
+
+不要再手动 `cp` 文件，不要再直接把 zip 解压到项目根目录。
+
+## 固定命令
+
+把下面这组命令保存下来，以后直接改补丁包文件名即可：
 
 ```bash
-su - game
+export PATH=/www/server/nodejs/v20.19.6/bin:$PATH
 cd /www/wwwroot/camp-pk-system
+bash scripts/deploy/production-install-patch.sh /tmp/<补丁包文件名>.tar.gz
 ```
 
-### 2. 拉取最新代码
+示例：
 
 ```bash
-git fetch origin
-git pull --ff-only origin main
+export PATH=/www/server/nodejs/v20.19.6/bin:$PATH
+cd /www/wwwroot/camp-pk-system
+bash scripts/deploy/production-install-patch.sh /tmp/camp-pk-pet-stage-fix-20260513-v6.tar.gz
 ```
 
-### 3. 更新依赖并重新构建
+## 这个流程和你以前直接覆盖的区别
+
+这个流程不是把整个项目目录乱覆盖一遍，而是：
+
+- 先自动备份数据库、上传文件、日志、密钥文件
+- 再只覆盖固定白名单代码文件
+- 不动 `database/`、`uploads/`、`logs/`、`.secrets.enc`
+- 自动跑兼容修复脚本
+- 自动重启并验证
+
+## 自动生成的备份
+
+部署脚本会自动生成两类备份：
+
+1. 数据总备份
 
 ```bash
-npm install
-cd client
-npm install
-npm run build
-cd ..
+/tmp/camp-pk-data-backup-<timestamp>.tar.gz
 ```
 
-### 4. 重启应用
+2. 代码文件备份
 
 ```bash
-pm2 restart camp-pk-system --update-env
-pm2 save
+/www/wwwroot/camp-pk-system/update-backups/<timestamp>
 ```
 
-### 5. 验证更新结果
+如果更新里涉及宠物历史阶段修复，还会自动生成：
 
 ```bash
-curl -s http://127.0.0.1:3004/ | grep -E 'title|assets/index-'
-curl -s http://127.0.0.1:3004/admin | grep -E 'title|assets/index-'
-curl -s https://camp.codebn.cn/ | grep -E 'title|assets/index-'
-curl -s https://camp.codebn.cn/admin | grep -E 'title|assets/index-'
+/www/wwwroot/camp-pk-system/database/data.json.legacy-pet-progress-backup-<timestamp>
+```
+
+## 更新后验证
+
+```bash
+curl -s http://127.0.0.1:3004/api/version
+curl -s http://127.0.0.1:3004/api/classes | head
 curl -s https://camp.codebn.cn/api/version
 ```
 
-## 如果首页还是旧版
-
-这是宝塔代理缓存问题，不是前端包没更新。清理缓存并 reload：
+如果是宠物阶段相关更新，再检查：
 
 ```bash
-rm -rf /www/server/nginx/proxy_cache_dir/*
-nginx -t && systemctl reload nginx
+curl -s https://camp.codebn.cn/api/classes/1/students | grep -n '"id":209'
 ```
 
-然后重新验证：
+确认本地端口和线上域名是否命中同一套后端：
 
 ```bash
-curl -s https://camp.codebn.cn/ | grep -E 'title|assets/index-'
-curl -I -s https://camp.codebn.cn/ | grep -iE 'cache-control|content-length|etag'
+node -e "Promise.all([fetch('http://127.0.0.1:3004/api/version').then(r=>r.text()),fetch('https://camp.codebn.cn/api/version').then(r=>r.text())]).then(([local,prod])=>console.log(JSON.stringify({local:JSON.parse(local),prod:JSON.parse(prod)},null,2)))"
 ```
 
-## 数据备份
-
-更新前建议备份：
+检查生产接口是否已经返回新的宠物阶段修复字段：
 
 ```bash
-su - game
+node -e "fetch('https://camp.codebn.cn/api/classes/1/students').then(r=>r.text()).then(t=>console.log(t.includes('pet_stage_seeded_at')))"
+```
+
+再做一次异常筛查：
+
+```bash
+node -e "fetch('https://camp.codebn.cn/api/classes/1/students').then(r=>r.json()).then(list=>{const bad=list.filter(s=>s.pet_journey&&s.pet_journey.growth_value>=500&&s.pet_journey.slot_state==='hatched'&&s.pet_journey.stage_level<=3).map(s=>({id:s.id,name:s.name,stage:s.pet_journey.stage_level,growth:s.pet_journey.growth_value,dormant:s.pet_journey.is_dormant})); console.log(JSON.stringify({count:bad.length,sample:bad.slice(0,10)},null,2));})"
+```
+
+## 回滚
+
+代码回滚：
+
+```bash
 cd /www/wwwroot/camp-pk-system
-tar -czf /tmp/lexiang-pet-backup-$(date +%Y%m%d-%H%M%S).tar.gz \
-  database/data.json \
-  uploads/photos \
-  .secrets.enc
+bash scripts/deploy/production-rollback.sh /www/wwwroot/camp-pk-system/update-backups/<timestamp>
 ```
 
-## 查看运行状态
+如果是数据问题，不要只回滚代码，要结合：
 
-```bash
-su - game
-pm2 list
-pm2 logs camp-pk-system --lines 100
-```
+- `/tmp/camp-pk-data-backup-*.tar.gz`
+- `database/data.json.legacy-pet-progress-backup-*`
 
-## 常见维护操作
-
-### 重启服务
-
-```bash
-su - game
-cd /www/wwwroot/camp-pk-system
-pm2 restart camp-pk-system --update-env
-pm2 save
-```
-
-### 查看当前线上前端版本
-
-```bash
-curl -s https://camp.codebn.cn/api/version
-```
-
-### 检查反代缓存配置
-
-```bash
-nginx -T 2>&1 | grep -n "proxy_cache"
-```
-
-### 验证本机和公网是否同版
-
-```bash
-curl -s http://127.0.0.1:3004/ | grep -E 'title|assets/index-'
-curl -s https://camp.codebn.cn/ | grep -E 'title|assets/index-'
-```
-
-## 一次性转换为 Git 部署
-
-如果服务器目录不是 Git 仓库，先备份生产数据，再重建为 Git clone：
-
-```bash
-su - game
-cd /www/wwwroot
-mv camp-pk-system camp-pk-system.backup-$(date +%Y%m%d-%H%M%S)
-git clone https://github.com/zhaosenlin12-creator/camp-pk-system.git
-```
-
-恢复这些生产数据：
-
-- `database/data.json`
-- `uploads/photos/`
-- `.secrets.enc`
-
-恢复后重新安装依赖、构建并重启 PM2。
+一起恢复。

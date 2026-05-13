@@ -2,64 +2,42 @@
 node_modules/
 client/node_modules/
 
-# Build output
-client/dist/
-client/dist.zip
-
-# Local QA and temp artifacts
-.gstack/
-.tmp/
-.deploy/
-temp-assets/
-test-results/
-logs/
-.tmp-*.png
-.tmp-*.log
-
-# Sensitive config
-.secrets.enc
-.env
-.env.local
-.env.production
-.htaccess
-.user.ini
-
 # Runtime data
 database/data.json
 database/data.*.json
-
-# Uploads
 uploads/photos/*
 !uploads/photos/.gitkeep
+logs/*
+!logs/.gitkeep
 
-# Logs
-*.log
-npm-debug.log*
+# Sensitive / machine local
+.secrets.enc
+.env
+.env.*
+.htaccess
+.user.ini
 
-# System files
+# Local build / release / backups
+release/
+backup-*/
+client/dist.zip
+assets/
+
+# QA / debug artifacts
+.gstack/
+.tmp/
+test-results/
+test-rating.html
+.tmp-*.png
+tmp-*.png
+tmp-*.log
+*.tmp
+*.temp
+
+# OS / IDE
 .DS_Store
 Thumbs.db
-
-# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# Temporary files
-*.tmp
-*.temp
-404.html
-index.html
-
-# Local helper scratch files
-/apply-v*-fixes.js
-/final-fix.js
-/fix-*.js
-/list-pets.js
-/refactor-pet-center.js
-/repair-jsx.js
-/surgical-fix.js
-/verify-jsx.js
-/diff*.txt
-/series*.txt

@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>班级拔河答题赛</title>
+    <link rel="stylesheet" href="/pk-game-assets/pk-game.css?v=20260512c" />
+  </head>
+  <body>
+    <div class="pk-page">
+      <div class="bg-orb orb-a"></div>
+      <div class="bg-orb orb-b"></div>
+      <div class="bg-orb orb-c"></div>
+
+      <main class="pk-shell">
+        <header class="card pk-header">
+          <div>
+            <p class="pk-kicker">Class Arena</p>
+            <h1>拔河答题赛</h1>
+            <p class="pk-subtitle" id="classLabel">正在加载班级信息...</p>
+          </div>
+          <div class="header-right">
+            <div class="header-actions">
+              <button class="btn ghost" id="backToAdminBtn" type="button">返回管理页</button>
+              <button class="btn ghost" id="audioToggleBtn" type="button">音效已开启</button>
+            </div>
+            <span id="providerRuntimeTag" class="provider-runtime">智能题库服务检查中...</span>
+          </div>
+        </header>
+
+        <section class="card">
+          <div class="section-head">
+            <h2>题库准备</h2>
+            <p>先准备题库再开赛。支持 AI 出题、预制题库、二次编辑和单题重写。</p>
+          </div>
+
+          <div class="setup-grid">
+            <div class="builder-panel">
+              <h3>生成题库</h3>
+              <div class="form-grid">
+                <label>
+                  科目
+                  <select id="subjectSelect"></select>
+                </label>
+                <label>
+                  年级
+                  <select id="gradeSelect"></select>
+                </label>
+                <label>
+                  题型
+                  <select id="typeSelect"></select>
+                </label>
+                <label>
+                  题目数量
+                  <input id="countInput" type="number" min="20" max="220" step="1" />
+                </label>
+                <label>
+                  快速模板
+                  <select id="templateSelect"></select>
+                </label>
+                <label class="wide">
+                  补充描述（可选）
+                  <input
+                    id="descriptionInput"
+                    type="text"
+                    maxlength="240"
+                    placeholder="例如：Python 循环与条件判断，难度适中，偏向实战应用"
+                  />
+                </label>
+              </div>
+
+              <div id="quickTemplateRow" class="quick-row"></div>
+
+              <div class="action-row">
+                <label class="preset-toggle">
+                  <input id="preferPresetToggle" type="checkbox" />
+                  跳过 AI，直接使用预制题库
+                </label>
+                <button class="btn primary" id="generateBankBtn" type="button">生成题库</button>
+              </div>
+
+              <div id="generationStatusCard" class="progress-card hidden">
+                <div class="progress-title">
+                  <span id="generationMessage">准备中...</span>
+                  <span id="generationProgressText">0%</span>
+                </div>
+                <div class="progress-bar">
+                  <div id="generationProgress" class="progress-fill"></div>
+                </div>
+              </div>
+
+              <div class="diagnostics-card">
+                <h4>出题提示</h4>
+                <div id="diagnosticsText" class="diagnostics-text">可直接开始生成题库</div>
+              </div>
+            </div>
+
+            <div class="bank-panel">
+              <h3>题库列表</h3>
+              <div class="bank-toolbar">
+                <input
+                  id="bankKeywordInput"
+                  type="text"
+                  maxlength="80"
+                  placeholder="按题库名称/描述搜索"
+                />
+                <button class="btn ghost small" id="refreshBanksBtn" type="button">刷新</button>
+              </div>
+              <div class="bank-filters">
+                <select id="bankSubjectFilter"></select>
+                <select id="bankGradeFilter"></select>
+                <select id="bankTypeFilter"></select>
+                <select id="bankSourceFilter"></select>
+              </div>
+              <div id="bankList" class="bank-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card editor-card compact">
+          <div class="editor-head compact">
+            <div>
+              <h2>题库预览与编辑</h2>
+              <p>选择题库后即可预览、编辑、重写并保存题目。</p>
+            </div>
+            <div class="editor-head-actions">
+              <button class="btn primary" id="openEditorModalBtn" type="button">打开题库编辑器</button>
+              <span id="editorDirtyHint" class="dirty-hint">未修改</span>
+            </div>
+          </div>
+          <div id="editorSummaryText" class="editor-summary-text">请选择题库后打开编辑器</div>
+        </section>
+
+        <section class="card arena-card">
+          <div class="match-controls">
+            <div class="selected-bank" id="selectedBankText">当前未选择题库</div>
+            <label>
+              左侧战队
+              <select id="leftTeamSelect"></select>
+            </label>
+            <label>
+              右侧战队
+              <select id="rightTeamSelect"></select>
+            </label>
+            <div class="match-buttons">
+              <button class="btn start" id="startBtn" type="button">开始比赛</button>
+              <button class="btn ghost" id="resetBtn" type="button">重置回合</button>
+            </div>
+          </div>
+
+          <div class="arena-grid">
+            <aside id="leftTeamPanel" class="team-panel left">
+              <div class="team-head">
+                <img id="leftCardAvatar" src="" alt="左侧战队头像" />
+                <div>
+                  <div id="leftTeamName" class="team-name">左侧战队</div>
+                  <div class="team-score">得分 <span id="leftScore">0</span></div>
+                </div>
+              </div>
+              <p id="leftTip" class="team-tip">等待开赛</p>
+              <div id="leftAnswerZone" class="answer-zone"></div>
+            </aside>
+
+            <div class="arena-center">
+              <div class="question-box">
+                <div class="question-meta">
+                  <span id="questionIndexText">第 0 题</span>
+                  <span id="questionTypeText">题型：-</span>
+                </div>
+                <h3 id="questionText">选择题库后开始比赛</h3>
+              </div>
+
+              <div class="arena-info-row">
+                <div class="arena-timer-card">
+                  <span>比赛倒计时</span>
+                  <strong id="timerText">03:00</strong>
+                  <small id="providerTag">准备就绪后开始比赛</small>
+                </div>
+              </div>
+
+              <div id="ropeField" class="rope-field">
+                <div class="finish-line left"></div>
+                <div class="finish-line right"></div>
+                <div class="rope-track">
+                  <div id="ropeCore" class="rope"></div>
+                  <div class="rope-center-line"></div>
+                  <div id="flag" class="flag"></div>
+                </div>
+
+                <div id="leftPullers" class="puller-group left"></div>
+                <div id="rightPullers" class="puller-group right"></div>
+                <div id="leftChatter" class="chatter-stack left"></div>
+                <div id="rightChatter" class="chatter-stack right"></div>
+
+                <div id="resultBanner" class="result-banner hidden"></div>
+                <p id="arenaTip" class="arena-tip">先完成题库准备，再开始比赛</p>
+              </div>
+            </div>
+
+            <aside id="rightTeamPanel" class="team-panel right">
+              <div class="team-head">
+                <img id="rightCardAvatar" src="" alt="右侧战队头像" />
+                <div>
+                  <div id="rightTeamName" class="team-name">右侧战队</div>
+                  <div class="team-score">得分 <span id="rightScore">0</span></div>
+                </div>
+              </div>
+              <p id="rightTip" class="team-tip">等待开赛</p>
+              <div id="rightAnswerZone" class="answer-zone"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="card record-card">
+          <div class="record-head">
+            <h2>本机比赛记录</h2>
+            <button class="btn ghost small" id="clearRecordsBtn" type="button">清空记录</button>
+          </div>
+          <div id="recordList" class="record-list"></div>
+        </section>
+      </main>
+
+      <canvas id="fxCanvas" class="fx-canvas"></canvas>
+      <div id="toastContainer" class="toast-container"></div>
+      <div id="dialogLayer" class="dialog-layer hidden"></div>
+
+      <div id="resultStage" class="result-stage hidden">
+        <div class="result-card">
+          <div id="resultStageTitle" class="result-stage-title">比赛结束</div>
+          <p id="resultStageReason" class="result-stage-reason"></p>
+          <div class="result-team-row">
+            <div class="result-team result-left">
+              <img id="resultLeftAvatar" src="" alt="左队头像" />
+              <strong id="resultLeftName">左队</strong>
+            </div>
+            <div class="result-vs">VS</div>
+            <div class="result-team result-right">
+              <img id="resultRightAvatar" src="" alt="右队头像" />
+              <strong id="resultRightName">右队</strong>
+            </div>
+          </div>
+          <div id="resultWinnerText" class="result-winner-text"></div>
+          <button id="closeResultStageBtn" class="btn primary" type="button">继续下一局</button>
+        </div>
+      </div>
+
+      <div id="editorModalLayer" class="editor-modal-layer hidden">
+        <div class="editor-modal-card">
+          <div class="editor-head">
+            <div>
+              <h2>题库编辑器</h2>
+              <p>支持题目预览、二次编辑、单题 AI 重写与保存。</p>
+            </div>
+            <div class="editor-head-actions">
+              <button class="btn ghost small" id="addQuestionBtn" type="button">新增题目</button>
+              <button class="btn ghost small" id="reloadEditorBtn" type="button">放弃未保存改动</button>
+              <button class="btn primary small" id="saveBankBtn" type="button">保存题库</button>
+              <button class="btn ghost small" id="closeEditorModalBtn" type="button">关闭</button>
+            </div>
+          </div>
+
+          <div class="editor-meta-grid">
+            <label>
+              题库标题
+              <input id="editorTitleInput" type="text" maxlength="80" placeholder="请输入题库标题" />
+            </label>
+            <label class="wide">
+              题库描述
+              <input id="editorDescriptionInput" type="text" maxlength="240" placeholder="简要描述题库内容" />
+            </label>
+          </div>
+
+          <div class="editor-toolbar">
+            <input
+              id="editorQuestionSearchInput"
+              type="text"
+              maxlength="80"
+              placeholder="搜索当前题库中的题目内容"
+            />
+            <div class="editor-page">
+              <button class="btn ghost small" id="editorPrevPageBtn" type="button">上一页</button>
+              <span id="editorPageInfo">第 1 / 1 页</span>
+              <button class="btn ghost small" id="editorNextPageBtn" type="button">下一页</button>
+            </div>
+            <span id="editorModalDirtyHint" class="dirty-hint">未修改</span>
+          </div>
+
+          <div id="editorQuestionList" class="editor-question-list"></div>
+          <div id="editorEmptyHint" class="editor-empty">请选择题库后编辑</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/pk-game-assets/pk-game.js?v=20260512c"></script>
+  </body>
+</html>

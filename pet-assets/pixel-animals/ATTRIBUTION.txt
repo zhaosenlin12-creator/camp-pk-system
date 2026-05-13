@@ -1,0 +1,7 @@
+Source pack: Pixel animals
+Source page: https://opengameart.org/content/pixel-animals
+Source author page: https://opengameart.org/users/imprity
+License: CC0 1.0 Universal, as listed on the source page on 2026-03-24
+
+Derived files in ./avatars/*.png were cropped and centered from the original source sheet
+to fit the pet-center UI in this project.

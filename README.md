@@ -1,154 +1,199 @@
-# 乐享宠物
+# 🎮 创赛营积分PK系统
 
-乐启享机构线下编程课堂使用的班级积分与宠物成长系统。老师在管理后台维护班级、学生、战队、积分和宠物成长；展示页负责课堂大屏展示、排行榜和宠物状态同步。
+一个专为编程创赛营设计的积分管理和互动系统，让课堂更有趣！
 
-## 当前线上环境
+## ✨ 功能特点
 
-- 展示页：`https://camp.codebn.cn/`
-- 管理后台：`https://camp.codebn.cn/admin`
-- 服务器项目目录：`/www/wwwroot/camp-pk-system`
-- PM2 进程名：`camp-pk-system`
-- PM2 运行用户：`game`
-- Node 服务端口：`3004`
-- 宝塔反代目标：`127.0.0.1:3004`
-- Nginx 代理缓存目录：`/www/server/nginx/proxy_cache_dir`
+- 📚 **多班级管理** - 支持同时管理多个班级
+- ⚔️ **战队PK系统** - 自定义战队数量和颜色
+- 🏆 **实时排行榜** - 个人和战队积分实时更新
+- 🎖️ **段位系统** - 从萌新小白到无敌战神的成长之路
+- 🎁 **奖励抽奖** - 转盘抽奖，仪式感满满
+- 😈 **惩罚系统** - 模仿秀、真心话、大冒险等趣味惩罚
+- 🎨 **游戏化UI** - 阳光活力的界面设计
+- 🔊 **音效系统** - 加分、扣分、抽奖都有音效反馈
 
-## 主要能力
-
-- 班级、学员、战队管理
-- 课堂积分、奖励、惩罚、评分、报告、证书
-- 宠物中心、宠物蛋领取、孵化、照料、成长和多宠物培养
-- 管理后台和展示页的班级同步、数据同步、学生宠物展示
-- 品牌化图标、乐享宠物标题和展示页资源
-- 删除学员、战队时的确认交互和关联数据清理
-
-## 项目结构
-
-```text
-camp-pk-system/
-├─ client/                 # React + Vite 前端
-│  ├─ public/              # 图标、宠物素材、静态资源
-│  └─ src/
-│     ├─ components/       # 后台和展示页组件
-│     ├─ pages/            # 页面入口
-│     └─ store/            # Zustand 状态管理
-├─ server/                 # Express API 与 SPA 静态服务
-├─ database/data.json      # 本地业务数据
-├─ uploads/photos/         # 上传图片
-├─ DEPLOY.md               # 全量部署说明
-└─ UPDATE_GUIDE.md         # 后续 git 拉取更新说明
-```
-
-## 本地开发
+## 🚀 快速开始
 
 ### 1. 安装依赖
 
 ```bash
+cd camp-pk-system
+
+# 安装后端依赖
 npm install
+
+# 安装前端依赖
 cd client
 npm install
 cd ..
 ```
 
-### 2. 初始化数据
+### 2. 初始化数据库
 
 ```bash
 npm run init-db
 ```
 
-### 3. 启动开发环境
+### 3. 启动开发服务器
 
 ```bash
+# 同时启动前后端
 npm run dev
 ```
 
-默认访问：
-
-- 展示页：`http://localhost:5173`
-- 管理后台：`http://localhost:5173/admin`
-- 本地 API：`http://localhost:3001`
-
-说明：
-
-- 开发模式下前端通过 Vite 代理转发到 `3001`
-- 如果未配置 `ADMIN_PIN`，服务端首次启动会在控制台打印生成的管理员密码
-
-## 生产构建
+或者分别启动：
 
 ```bash
-npm run build
+# 启动后端 (端口 3001)
+npm run server
+
+# 启动前端 (端口 5173)
+cd client
+npm run dev
 ```
 
-构建产物输出到 `client/dist/`。生产环境由 `server/index.js` 统一托管 SPA，并为首页与 `/admin` 返回同一份入口 HTML。
+### 4. 访问系统
 
-## 管理员密码
+- **展示页面**: http://localhost:5173 (大屏展示用)
+- **管理后台**: http://localhost:5173/admin (PIN码: 8888)
 
-- 推荐通过环境变量 `ADMIN_PIN` 初始化
-- 首次未设置时，系统会自动生成密码并写入 `.secrets.enc`
-- 后续密码以哈希形式保存在 `.secrets.enc` 中
-- 不要再去改 `server/index.js` 里的硬编码 PIN，当前版本已经不再使用这种方式
+### 5. 局域网访问
 
-## 数据与备份
+启动后会显示局域网IP地址，其他设备可以通过该地址访问：
+- 展示页面: http://192.168.x.x:3001
+- 管理后台: http://192.168.x.x:3001/admin
 
-需要备份的关键文件：
-
-- `database/data.json`
-- `uploads/photos/`
-- `.secrets.enc`
-
-## 常用命令
+## 📦 生产部署
 
 ```bash
 # 构建前端
 npm run build
 
-# 启动后端
+# 启动服务
 npm start
-
-# 初始化数据文件
-npm run init-db
 ```
 
-服务器常用命令：
+## 🎯 使用流程
+
+1. **创建班级** - 在管理后台创建新班级
+2. **添加学员** - 输入学员姓名，选择头像
+3. **创建战队** - 设置战队名称和颜色
+4. **分配成员** - 将学员分配到各战队
+5. **开始PK** - 根据课堂表现增减积分
+6. **每日结算** - 落后战队抽取惩罚
+
+## 🏅 段位系统
+
+| 段位 | 积分范围 | 图标 |
+|------|----------|------|
+| 萌新小白 | < 0 | 🥚 |
+| 青铜学徒 | 0-50 | 🥉 |
+| 白银战士 | 50-100 | 🥈 |
+| 黄金勇者 | 100-200 | 🥇 |
+| 铂金精英 | 200-350 | 💎 |
+| 钻石大师 | 350-500 | 💠 |
+| 星耀传说 | 500-700 | ⭐ |
+| 王者荣耀 | 700-1000 | 👑 |
+| 最强王者 | 1000-1500 | 🏆 |
+| 无敌战神 | > 1500 | 🔱 |
+
+## 🎁 奖励列表
+
+- 免作业神券 📜
+- 老师小助手 🤝
+- 座位自选权 🪑
+- 零食大礼包 🍬
+- 队长光环 👑
+- 提前下课券 🏃
+- 点歌特权 🎵
+- 神秘盲盒 📦
+- 老师合影 📸
+- 荣誉勋章 🏅
+- 优先展示权 🌟
+- 加分护盾 🛡️
+- 双倍积分卡 ✨
+- 指定惩罚权 😎
+- 课堂DJ 🎧
+
+## 😈 惩罚列表
+
+### 模仿秀
+- 企鹅摇 🐧
+- 科目三 💃
+- 甩头舞 🙆
+- 机器人舞 🤖
+- 海草舞 🌿
+
+### 真心话
+- 说出最喜欢的偶像
+- 分享一件搞笑糗事
+- 说出长大后的梦想
+- 真诚夸夸旁边同学
+- 说出老师最有趣的一点
+
+### 大冒险
+- 模仿3个表情包
+- 模仿3种动物叫声
+- 快速说绕口令
+- 表演小才艺
+- 夸张推销铅笔
+- 给画面配音
+
+### 趣味挑战
+- 定格挑战 - 保持搞笑姿势10秒
+- 憋笑挑战 - 坚持15秒不笑
+- 反应挑战 - 做相反动作
+- 单脚站立背古诗
+- 慢动作喝水
+
+## 📁 项目结构
+
+```
+camp-pk-system/
+├── client/              # React前端
+│   ├── src/
+│   │   ├── components/  # 组件
+│   │   ├── pages/       # 页面
+│   │   ├── store/       # 状态管理
+│   │   └── utils/       # 工具函数
+│   └── ...
+├── server/              # Express后端
+│   ├── index.js         # 主服务
+│   └── initDb.js        # 数据库初始化
+├── database/            # SQLite数据库
+└── public/
+    └── videos/          # 惩罚视频目录
+```
+
+## 🔧 配置
+
+### 修改管理员PIN码
+
+编辑 `server/index.js` 中的 `ADMIN_PIN` 变量：
+
+```javascript
+const ADMIN_PIN = '8888'; // 修改为你想要的PIN码
+```
+
+### 修改端口
 
 ```bash
-su - game
-cd /www/wwwroot/camp-pk-system
-pm2 restart camp-pk-system --update-env
-pm2 save
+# 通过环境变量设置
+PORT=3001 npm start
 ```
 
-## 线上验收命令
+## 📝 注意事项
 
-```bash
-curl -s https://camp.codebn.cn/ | grep -E 'title|assets/index-'
-curl -s https://camp.codebn.cn/admin | grep -E 'title|assets/index-'
-curl -s https://camp.codebn.cn/api/version
-```
+1. 数据存储在本地SQLite数据库，请定期备份 `database/camp.db` 文件
+2. 展示页面每5秒自动刷新数据
+3. 管理页面每3秒自动刷新数据
+4. 学员积分变化会自动同步到所属战队
 
-预期结果：
+## 🎬 惩罚视频（可选）
 
-- `/` 和 `/admin` 都显示 `乐享宠物`
-- `/` 和 `/admin` 都引用同一组前端资源
+如果需要添加视频类惩罚，将视频文件放入 `public/videos/` 目录，然后在数据库中添加对应记录。
 
-## 缓存问题排查
+---
 
-如果出现“首页是旧版、`/admin` 是新版”的情况，优先检查宝塔代理缓存。当前服务器的缓存目录是：
-
-```bash
-/www/server/nginx/proxy_cache_dir
-```
-
-清理缓存并重载 Nginx：
-
-```bash
-rm -rf /www/server/nginx/proxy_cache_dir/*
-nginx -t && systemctl reload nginx
-```
-
-## 相关文档
-
-- [DEPLOY.md](./DEPLOY.md)：新服务器或重建服务器时的完整部署流程
-- [UPDATE_GUIDE.md](./UPDATE_GUIDE.md)：后续通过 Git 拉取更新的标准流程
-- [DESIGN.md](./DESIGN.md)：视觉方向
-- [PET_SYSTEM_ROADMAP.md](./PET_SYSTEM_ROADMAP.md)：宠物系统规划记录
+Made with ❤️ for 创赛营

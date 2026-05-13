@@ -154,6 +154,7 @@ function generateAdminPin() {
 
 // 默认配置（首次运行时使用）
 const DEFAULT_CONFIG = {
+  MINIMAX_API_KEY: null,
   DEEPSEEK_API_KEY: null,
   ADMIN_PIN: null,
   // 哈希后的密码会在首次保存时生成
@@ -181,6 +182,7 @@ function loadSecureConfig() {
   const initialAdminPin = envAdminPin || generatedAdminPin;
   const config = {
     ...DEFAULT_CONFIG,
+    MINIMAX_API_KEY: normalizeSecretValue(process.env.MINIMAX_API_KEY || process.env.MINIMAX2_7_API_KEY),
     DEEPSEEK_API_KEY: normalizeSecretValue(process.env.DEEPSEEK_API_KEY),
     ADMIN_PIN: null,
     ADMIN_PIN_HASH: hashPassword(initialAdminPin)
@@ -292,7 +294,7 @@ function getHelmetConfig() {
     // 禁止MIME类型嗅探
     noSniff: true,
     // 来源策略
-    originAgentCluster: true,
+    originAgentCluster: false,
     // 权限策略
     permittedCrossDomainPolicies: { permittedPolicies: 'none' },
     // Referrer策略
